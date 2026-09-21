@@ -112,7 +112,8 @@ function GitInfo([string]$root) {
 }
 
 function SystemSnapshot {
-  $os = Get-CimInstance Win32_OperatingSystem
+  try { Add-Type -AssemblyName Microsoft.VisualBasic -ErrorAction SilentlyContinue } catch {}
+  $ci = New-Object Microsoft.VisualBasic.Devices.ComputerInfo
   $disk = Get-PSDrive C
   $gpu = $null
   if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) {
@@ -130,8 +131,8 @@ function SystemSnapshot {
   return @{
     computer=$env:COMPUTERNAME
     timestamp=(Get-Date).ToString("o")
-    ram_total_gb=[math]::Round($os.TotalVisibleMemorySize/1MB,2)
-    ram_free_gb=[math]::Round($os.FreePhysicalMemory/1MB,2)
+    ram_total_gb=[math]::Round($ci.TotalPhysicalMemory/1GB,2)
+    ram_free_gb=[math]::Round($ci.AvailablePhysicalMemory/1GB,2)
     disk_c_free_gb=[math]::Round($disk.Free/1GB,2)
     gpu=$gpu
   }
