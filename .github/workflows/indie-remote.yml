@@ -62,10 +62,23 @@ jobs:
             if ($diffExit -eq 1) {
               git commit -m "KHS_INDIE_RESULT: $env:GITHUB_RUN_ID"
               if ($LASTEXITCODE -ne 0) { throw "git commit failed" }
-              git pull --rebase origin main
-              if ($LASTEXITCODE -ne 0) { throw "git pull --rebase failed" }
-              git push origin HEAD:main
-              if ($LASTEXITCODE -ne 0) { throw "git push failed" }
+              $pushed = $false
+              for ($attempt = 1; $attempt -le 6 -and -not $pushed; $attempt++) {
+                git fetch origin main
+                if ($LASTEXITCODE -ne 0) { throw "git fetch failed" }
+                git rebase origin/main
+                if ($LASTEXITCODE -ne 0) {
+                  git rebase --abort 2>$null
+                  throw "git rebase failed"
+                }
+                git push origin HEAD:main
+                if ($LASTEXITCODE -eq 0) {
+                  $pushed = $true
+                } else {
+                  Start-Sleep -Seconds (2 * $attempt)
+                }
+              }
+              if (-not $pushed) { throw "git push failed after retries" }
             } elseif ($diffExit -ne 0) {
               throw "git diff --cached --quiet failed: $diffExit"
             }
