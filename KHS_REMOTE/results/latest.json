@@ -1,14 +1,8 @@
 {
-    "request_id":  "indieplus-status-after-heroA-20260921-1249",
-    "action":  "indieplus_status",
-    "started_at":  "2026-09-21T12:13:33.4173686+09:00",
-    "status":  "PASS",
-    "lock_present":  false,
-    "lock_content":  null,
-    "head":  "bf0328c2dcbe09cfc1fabe0084261348825e8703",
-    "branch":  "main",
-    "status_porcelain":  [
-
-                         ],
-    "finished_at":  "2026-09-21T12:13:33.5994184+09:00"
+    "request_id":  "indieplus-idle-20260921",
+    "action":  "idle",
+    "started_at":  "2026-09-21T12:19:24.1532108+09:00",
+    "status":  "BLOCKED",
+    "reason":  "UNSUPPORTED_ACTION",
+    "finished_at":  "2026-09-21T12:19:24.1532108+09:00"
 }
