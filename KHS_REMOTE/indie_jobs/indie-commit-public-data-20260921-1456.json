@@ -1,0 +1,23 @@
+{
+  "request_id": "indie-commit-public-data-20260921-1456",
+  "project": "INDIE",
+  "action": "indieplus_verify_commit",
+  "expected_dirty_files": [
+    "data/live.json",
+    "data/movies.json",
+    "data/news-weekly.json",
+    "data/programs.json",
+    "reports/harness-latest.json"
+  ],
+  "files": [
+    "data/live.json",
+    "data/movies.json",
+    "data/news-weekly.json",
+    "data/programs.json",
+    "reports/harness-latest.json"
+  ],
+  "commit_message": "data: refresh public cinema and news sources",
+  "push": true,
+  "requested_at": "2026-09-21T05:43:50.811Z",
+  "requested_by": "webchat"
+}
