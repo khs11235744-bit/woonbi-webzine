@@ -2,7 +2,7 @@
 
 - Project: EARLY_HEAT_RADAR
 - Local root: C:\Users\권형석\Documents\time drafe\early-heat-radar
-- Runner label: khs-remote
+- Runner: any available self-hosted Windows X64 runner on the approved PC; Codex execution still blocks on concurrent Codex/locks
 - Mailbox: KHS_REMOTE/earlyheat_jobs/*.json
 - Result: KHS_REMOTE/results/earlyheat/latest.json
 - Dispatcher: KHS_REMOTE/earlyheat_dispatcher.ps1
