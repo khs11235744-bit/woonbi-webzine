@@ -230,6 +230,77 @@ try {
       $result.status = "PASS"
       $result.retryable = $false
     }
+    "indieplus_read" {
+      if (-not (Test-Path $Indie)) { throw "indieplus-pohang project missing: $Indie" }
+      $lockPath = Join-Path $Indie ".harness.lock"
+      if (Test-Path $lockPath) { throw "HARNESS_LOCK" }
+      $rootFull = [IO.Path]::GetFullPath($Indie).TrimEnd("\") + "\"
+      $items = @()
+      foreach ($req in @($cmd.files)) {
+        $rel = [string]$req.path
+        if ([string]::IsNullOrWhiteSpace($rel) -or [IO.Path]::IsPathRooted($rel)) { throw "invalid relative path: $rel" }
+        $full = [IO.Path]::GetFullPath((Join-Path $Indie $rel))
+        if (-not $full.StartsWith($rootFull,[StringComparison]::OrdinalIgnoreCase)) { throw "path escapes project: $rel" }
+        if (-not (Test-Path $full)) { $items += @{path=$rel;missing=$true}; continue }
+        $lines = @(Get-Content $full -Encoding UTF8)
+        $start = if ($null -ne $req.start_line) { [Math]::Max(1,[int]$req.start_line) } else { 1 }
+        $end = if ($null -ne $req.end_line) { [Math]::Min($lines.Count,[int]$req.end_line) } else { [Math]::Min($lines.Count,$start+399) }
+        $body = if ($lines.Count -gt 0 -and $start -le $end) { $lines[($start-1)..($end-1)] -join [Environment]::NewLine } else { "" }
+        if ($body.Length -gt 120000) { $body = $body.Substring(0,120000) }
+        $items += @{path=$rel;start_line=$start;end_line=$end;content=$body}
+      }
+      $result.items = $items
+      $result.git = GitInfo $Indie
+      $result.status = "PASS"
+      $result.retryable = $false
+    }
+    "indieplus_patch" {
+      if (-not (Test-Path $Indie)) { throw "indieplus-pohang project missing: $Indie" }
+      $lockPath = Join-Path $Indie ".harness.lock"
+      if (Test-Path $lockPath) { throw "HARNESS_LOCK" }
+      $beforeGit = GitInfo $Indie
+      $result.before_git = $beforeGit
+      $rootFull = [IO.Path]::GetFullPath($Indie).TrimEnd("\") + "\"
+      $changes = @()
+      foreach ($p in @($cmd.patches)) {
+        $rel = [string]$p.path
+        if ([string]::IsNullOrWhiteSpace($rel) -or [IO.Path]::IsPathRooted($rel)) { throw "invalid relative path: $rel" }
+        $full = [IO.Path]::GetFullPath((Join-Path $Indie $rel))
+        if (-not $full.StartsWith($rootFull,[StringComparison]::OrdinalIgnoreCase)) { throw "path escapes project: $rel" }
+        $mode = [string]$p.mode
+        if ([string]::IsNullOrWhiteSpace($mode)) { $mode = "replace" }
+        $text = if (Test-Path $full) { [IO.File]::ReadAllText($full) } else { "" }
+        if ($mode -eq "replace") {
+          if (-not (Test-Path $full)) { throw "replace target missing: $rel" }
+          $search = [string]$p.search
+          $replacement = [string]$p.replace
+          if ([string]::IsNullOrEmpty($search)) { throw "empty search: $rel" }
+          $count = ([regex]::Matches($text,[regex]::Escape($search))).Count
+          $expected = if ($null -ne $p.expected_count) { [int]$p.expected_count } else { 1 }
+          if ($count -ne $expected) { throw "replace count mismatch $rel expected=$expected actual=$count" }
+          $newText = $text.Replace($search,$replacement)
+          [IO.File]::WriteAllText($full,$newText,(New-Object Text.UTF8Encoding($false)))
+          $changes += @{path=$rel;mode=$mode;count=$count}
+        } elseif ($mode -eq "append") {
+          $marker = [string]$p.marker
+          if ($marker -and $text.Contains($marker)) {
+            $changes += @{path=$rel;mode=$mode;status="already-present"}
+          } else {
+            [IO.File]::WriteAllText($full,($text + [string]$p.content),(New-Object Text.UTF8Encoding($false)))
+            $changes += @{path=$rel;mode=$mode;status="appended"}
+          }
+        } elseif ($mode -eq "write") {
+          [IO.File]::WriteAllText($full,[string]$p.content,(New-Object Text.UTF8Encoding($false)))
+          $changes += @{path=$rel;mode=$mode;status="written"}
+        } else {
+          throw "unsupported patch mode: $mode"
+        }
+      }
+      $result.changes = $changes
+      $result.after_git = GitInfo $Indie
+      $result.status = "PASS"
+      $result.retryable = $false
+    }
     "indieplus_codex" {
       if (-not (Test-Path $Indie)) { throw "indieplus-pohang project missing: $Indie" }
       $lockPath = Join-Path $Indie ".harness.lock"
