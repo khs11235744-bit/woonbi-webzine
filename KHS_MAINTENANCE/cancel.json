@@ -1,6 +1,6 @@
 {
-  "requested_at": "2026-09-21T05:22:37.242Z",
-  "reason": "replace generic pending INDIE verify with dedicated khs-indie runner",
+  "requested_at": "2026-09-21T05:23:34.437Z",
+  "reason": "replace stalled dedicated verifier with generic Windows fallback",
   "run_ids": [
     35564264323
   ]
