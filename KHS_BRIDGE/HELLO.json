@@ -1,0 +1,7 @@
+{
+  "bridge": "KHS",
+  "purpose": "connectivity-test",
+  "expected_pc": "DESKTOP-7FNKNKT",
+  "created_by": "ChatGPT GitHub connector",
+  "next": "local bridge bootstrap"
+}
