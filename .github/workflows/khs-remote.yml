@@ -56,16 +56,39 @@ jobs:
           git config user.name "KHS Remote Runner"
           git config user.email "khs-remote-runner@users.noreply.github.com"
           if (Test-Path "KHS_REMOTE/results/minijev") {
+            # This is the disposable GitHub Actions checkout, not the user's project repo.
+            # Clear only stale rebase metadata left by a previous failed result push.
+            git rebase --abort 2>$null
+            Remove-Item ".git\rebase-merge",".git\rebase-apply" -Recurse -Force -ErrorAction SilentlyContinue
+
             git add KHS_REMOTE/results/minijev
             git diff --cached --quiet
             $diffExit = $LASTEXITCODE
             if ($diffExit -eq 1) {
               git commit -m "KHS_RESULT: $env:GITHUB_RUN_ID"
               if ($LASTEXITCODE -ne 0) { throw "git commit failed" }
-              git pull --rebase origin main
-              if ($LASTEXITCODE -ne 0) { throw "git pull --rebase failed" }
-              git push origin HEAD:main
-              if ($LASTEXITCODE -ne 0) { throw "git push failed" }
+
+              $pushed = $false
+              for ($i=1; $i -le 3 -and -not $pushed; $i++) {
+                git fetch origin main
+                if ($LASTEXITCODE -ne 0) { Start-Sleep -Seconds 2; continue }
+
+                git rebase origin/main
+                if ($LASTEXITCODE -ne 0) {
+                  git rebase --abort 2>$null
+                  Remove-Item ".git\rebase-merge",".git\rebase-apply" -Recurse -Force -ErrorAction SilentlyContinue
+                  Start-Sleep -Seconds 2
+                  continue
+                }
+
+                git push origin HEAD:main
+                if ($LASTEXITCODE -eq 0) {
+                  $pushed = $true
+                } else {
+                  Start-Sleep -Seconds 2
+                }
+              }
+              if (-not $pushed) { throw "result push failed after 3 attempts" }
             } elseif ($diffExit -ne 0) {
               throw "git diff --cached --quiet failed: $diffExit"
             }
