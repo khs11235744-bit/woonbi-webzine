@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   earlyheat:
-    runs-on: [self-hosted, Windows, X64, khs-remote]
+    runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
