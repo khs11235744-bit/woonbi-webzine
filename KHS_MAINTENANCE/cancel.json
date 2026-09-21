@@ -1,7 +1,7 @@
 {
-  "requested_at": "2026-09-21T05:47:44.717Z",
-  "reason": "preserve provider hardening partial overlay and switch to direct verification",
+  "requested_at": "2026-09-21T06:49:59.373Z",
+  "reason": "switch INDIE work to direct GitHub patch while self-hosted runner is queued/offline",
   "run_ids": [
-    35565726045
+    35569646428
   ]
 }
