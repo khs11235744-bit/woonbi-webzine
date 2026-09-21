@@ -51,7 +51,7 @@ jobs:
         run: |
           Set-ExecutionPolicy -Scope Process Bypass -Force
           $cmdPath = Join-Path $env:GITHUB_WORKSPACE ("${{ steps.job.outputs.job }}" -replace '/', '\')
-          .\KHS_REMOTE\autodirector_dispatcher_v2.ps1 -CmdPath $cmdPath
+          .\KHS_REMOTE\autodirector_dispatcher_v3.ps1 -CmdPath $cmdPath
       - name: Commit real result
         if: always()
         shell: powershell
