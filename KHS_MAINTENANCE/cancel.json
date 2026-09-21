@@ -1,7 +1,7 @@
 {
-  "requested_at": "2026-09-21T04:58:34.664Z",
-  "reason": "replace long INDIE emergency UI run with short focused repair; preserve local overlay if any",
+  "requested_at": "2026-09-21T05:01:09.389Z",
+  "reason": "cancel old Mini-Jev snapshot after isolated dispatcher latency fix; INDIE untouched",
   "run_ids": [
-    35562416039
+    35562830006
   ]
 }
