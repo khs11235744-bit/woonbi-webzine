@@ -50,16 +50,42 @@ function RunNativeBounded([string]$exe,[string[]]$nativeArgs,[string]$workingDir
 }
 
 function GitInfo([string]$root) {
-  if(-not(Test-Path (Join-Path $root ".git"))){ return @{git=$false} }
-  $head=RunNativeBounded "git.exe" @("rev-parse","HEAD") $root 8000
-  $branch=RunNativeBounded "git.exe" @("branch","--show-current") $root 8000
-  $status=RunNativeBounded "git.exe" @("status","--porcelain") $root 12000
+  $gitPath=Join-Path $root ".git"
+  if(-not(Test-Path $gitPath)){ return @{git=$false} }
+
+  $headValue=$null
+  $branchValue=$null
+  try {
+    if(Test-Path $gitPath -PathType Container) {
+      $headText=(Get-Content (Join-Path $gitPath "HEAD") -Raw -ErrorAction Stop).Trim()
+      if($headText.StartsWith("ref: ")) {
+        $ref=$headText.Substring(5).Trim()
+        if($ref.StartsWith("refs/heads/")){$branchValue=$ref.Substring(11)}
+        $refFile=Join-Path $gitPath ($ref -replace "/","\")
+        if(Test-Path $refFile){$headValue=(Get-Content $refFile -Raw).Trim()}
+        elseif(Test-Path (Join-Path $gitPath "packed-refs")) {
+          $packed=Get-Content (Join-Path $gitPath "packed-refs") | Where-Object { $_ -match ("^[0-9a-fA-F]+\s+"+[regex]::Escape($ref)+"$") } | Select-Object -First 1
+          if($packed){$headValue=($packed -split "\s+")[0]}
+        }
+      } else {
+        $headValue=$headText
+      }
+    }
+  } catch {}
+
+  if(-not $headValue) {
+    $head=RunNativeBounded "git.exe" @("rev-parse","HEAD") $root 4000
+    if($head.exit -eq 0){$headValue=$head.output.Trim()}
+  }
+
+  $status=RunNativeBounded "git.exe" @("status","--porcelain") $root 5000
   $dirtyLines=@()
   if(-not $status.timed_out -and $status.output){$dirtyLines=@($status.output -split "`r?`n")}
+
   return @{
     git=$true
-    head=if($head.exit -eq 0){$head.output.Trim()}else{$null}
-    branch=if($branch.exit -eq 0){$branch.output.Trim()}else{$null}
+    head=$headValue
+    branch=$branchValue
     dirty=if($status.timed_out){$null}else{($dirtyLines.Count -gt 0)}
     dirty_count=if($status.timed_out){$null}else{$dirtyLines.Count}
     dirty_files=$dirtyLines
@@ -90,7 +116,7 @@ function SystemSnapshot {
   }
 }
 
-function HarnessSnapshot {
+function HarnessSnapshot([bool]$includeGit=$true) {
   $hbPath=Join-Path $Mini ".harness\heartbeat.json"
   $hbAge=$null
   if(Test-Path $hbPath){$hbAge=[math]::Round(((Get-Date)-(Get-Item $hbPath).LastWriteTime).TotalSeconds,1)}
@@ -102,7 +128,7 @@ function HarnessSnapshot {
     webchat_todo=ReadTextBounded (Join-Path $Mini "WEBCHAT_TODO.md") 160000
     research_router_user_patterns=ReadTextBounded (Join-Path $Mini "research\ROUTER_USER_PATTERNS_20260921.md") 200000
     stop_present=Test-Path (Join-Path $Mini ".harness\STOP")
-    git=GitInfo $Mini
+    git=if($includeGit){GitInfo $Mini}else{$null}
   }
 }
 
@@ -215,7 +241,7 @@ $result=[ordered]@{request_id=$cmd.request_id;action=$cmd.action;project="KHS_MI
 try{
   switch([string]$cmd.action){
     "snapshot_guard" {
-      $before=HarnessSnapshot
+      $before=HarnessSnapshot $false
       $restarted=$false
       $watchdogOutput=$null
       if(-not $before.stop_present -and ($null -eq $before.heartbeat_file_age_sec -or $before.heartbeat_file_age_sec -gt 300)){
@@ -226,7 +252,7 @@ try{
         $restarted=$true
       }
       $result.before=$before
-      $result.after=HarnessSnapshot
+      $result.after=HarnessSnapshot $true
       $result.system=SystemSnapshot
       $result.flow_git=GitInfo $Flow
       $result.restart_occurred=$restarted
