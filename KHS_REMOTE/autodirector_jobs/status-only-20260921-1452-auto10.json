@@ -1,0 +1,5 @@
+{
+  "request_id": "status-only-20260921-1452-auto10",
+  "action": "autodirector_read_nogit",
+  "paths": ["reports\\harness\\status.json"]
+}
