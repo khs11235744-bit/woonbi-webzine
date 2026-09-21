@@ -1,9 +1,8 @@
 {
-  "requested_at": "2026-09-21T14:15:00+09:00",
-  "reason": "force-cancel stale self-hosted runs so the current AutoDirector recovery cycle can acquire the shared Windows runner",
+  "requested_at": "2026-09-21T14:27:00+09:00",
+  "reason": "cancel hung AutoDirector status probes before replacing dispatcher git status with bounded logic",
   "run_ids": [
-    35559054454,
-    35557329885,
-    35559126100
+    35559718392,
+    35559543532
   ]
 }
