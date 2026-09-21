@@ -1,6 +1,6 @@
 {
-  "requested_at": "2026-09-21T14:10:00+09:00",
-  "reason": "free the shared Windows self-hosted runner for the current AutoDirector recovery cycle; cancel stale Mini-Jev and stale AutoDirector status runs only",
+  "requested_at": "2026-09-21T14:15:00+09:00",
+  "reason": "force-cancel stale self-hosted runs so the current AutoDirector recovery cycle can acquire the shared Windows runner",
   "run_ids": [
     35559054454,
     35557329885,
