@@ -86,9 +86,10 @@ function RunNativeBounded([string]$exe,[string[]]$nativeArgs,[string]$workingDir
     try { $p.Kill($true) } catch {}
     return @{exit=124;timed_out=$true;output=("timeout after "+$timeoutMs+"ms")}
   }
-  $stdout = $stdoutTask.Result
-  $stderr = $stderrTask.Result
-  return @{exit=$p.ExitCode;timed_out=$false;output=(($stdout+"`n"+$stderr).Trim())}
+  $stdout = [string]$stdoutTask.Result
+  $stderr = [string]$stderrTask.Result
+  $combined = ([string]$stdout + [Environment]::NewLine + [string]$stderr)
+  return @{exit=$p.ExitCode;timed_out=$false;output=$combined.Trim()}
 }
 function GitInfo([string]$root) {
   if (-not (Test-Path (Join-Path $root ".git"))) { return @{ git = $false } }
@@ -387,6 +388,9 @@ try {
   }
 } catch {
   $result.error = $_.Exception.Message
+  $result.error_type = $_.Exception.GetType().FullName
+  $result.error_script_stack = $_.ScriptStackTrace
+  $result.error_position = $_.InvocationInfo.PositionMessage
   $result.status = "FAIL"
   $result.retryable = $true
 }
