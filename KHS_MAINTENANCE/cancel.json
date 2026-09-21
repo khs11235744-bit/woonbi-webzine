@@ -1,9 +1,9 @@
 {
-  "requested_at": "2026-09-21T13:02:00+09:00",
-  "reason": "clear stuck pre-timeout self-hosted jobs after 3-runner recovery",
+  "requested_at": "2026-09-21T14:10:00+09:00",
+  "reason": "free the shared Windows self-hosted runner for the current AutoDirector recovery cycle; cancel stale Mini-Jev and stale AutoDirector status runs only",
   "run_ids": [
-    35558791474,
-    35558148415,
-    35559123993
+    35559054454,
+    35557329885,
+    35559126100
   ]
 }
