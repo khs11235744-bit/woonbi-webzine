@@ -1,7 +1,7 @@
 {
-  "requested_at": "2026-09-21T04:27:57.473Z",
-  "reason": "cancel pre-ProcessStartInfo Mini-Jev probe",
+  "requested_at": "2026-09-21T04:32:46.815Z",
+  "reason": "cancel pre-WMI-free Mini-Jev probe",
   "run_ids": [
-    35560987512
+    35561191082
   ]
 }
