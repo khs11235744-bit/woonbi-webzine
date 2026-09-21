@@ -1,7 +1,8 @@
 {
-  "requested_at": "2026-09-21T05:16:27.677Z",
-  "reason": "switch slow INDIE Codex UI task to WebChat Direct patch",
+  "requested_at": "2026-09-21T05:20:50.283Z",
+  "reason": "dedupe INDIE UI jobs; keep only direct verifier on dedicated khs-indie lane",
   "run_ids": [
-    35563646695
+    35564191483,
+    35564145099
   ]
 }
