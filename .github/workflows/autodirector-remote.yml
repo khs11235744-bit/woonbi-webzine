@@ -8,10 +8,6 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  group: autodirector-remote-control
-  cancel-in-progress: false
-
 jobs:
   autodirector:
     runs-on: [self-hosted, Windows, X64]
