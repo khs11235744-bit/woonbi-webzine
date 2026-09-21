@@ -4,6 +4,12 @@ on:
     branches: [main]
     paths:
       - "KHS_REMOTE/indie_jobs/**/*.json"
+  workflow_dispatch:
+    inputs:
+      job_path:
+        description: "KHS INDIE job JSON path"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -22,6 +28,8 @@ jobs:
           fetch-depth: 2
       - name: Execute bounded INDIE command
         shell: powershell
+        env:
+          KHS_JOB_PATH: ${{ github.event.inputs.job_path || '' }}
         run: |
           Set-ExecutionPolicy -Scope Process Bypass -Force
           .\KHS_REMOTE\dispatcher.ps1
