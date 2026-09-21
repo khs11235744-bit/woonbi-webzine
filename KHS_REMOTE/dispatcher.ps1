@@ -8,9 +8,18 @@ $DefaultCmdPath = Join-Path $env:GITHUB_WORKSPACE "KHS_REMOTE\command.json"
 $CmdPath = $DefaultCmdPath
 $JobRelPath = $null
 
-# Unique job mailbox: determine the job file that triggered this push.
-# This prevents one project's command from overwriting another project's queued job.
-if ($env:GITHUB_EVENT_PATH -and (Test-Path $env:GITHUB_EVENT_PATH)) {
+# workflow_dispatch may provide an explicit job path.
+if (-not [string]::IsNullOrWhiteSpace($env:KHS_JOB_PATH)) {
+  $candidate = [string]$env:KHS_JOB_PATH
+  if ($candidate -notlike "KHS_REMOTE/minijev_jobs/*.json" -and
+      $candidate -notlike "KHS_REMOTE/indie_jobs/*.json" -and
+      $candidate -notlike "KHS_REMOTE/jobs/*.json") {
+    throw "KHS_JOB_PATH outside allowed mailboxes: $candidate"
+  }
+  $JobRelPath = $candidate
+  $CmdPath = Join-Path $env:GITHUB_WORKSPACE ($JobRelPath -replace '/', '\')
+}
+elseif ($env:GITHUB_EVENT_PATH -and (Test-Path $env:GITHUB_EVENT_PATH)) {
   try {
     $evt = Get-Content $env:GITHUB_EVENT_PATH -Raw -Encoding UTF8 | ConvertFrom-Json
     $changed = @()
@@ -103,6 +112,51 @@ function HarnessSnapshot {
     stop_present = Test-Path (Join-Path $Mini ".harness\STOP")
     git = GitInfo $Mini
   }
+}
+
+function RunCodexBounded([string]$root,[string]$prompt,[int]$timeoutSec=1800) {
+  if ([string]::IsNullOrWhiteSpace($prompt)) { throw "prompt is empty" }
+  if ($prompt.Length -gt 60000) { throw "prompt too long" }
+  $codexCmd = (Get-Command codex.cmd -ErrorAction SilentlyContinue).Source
+  if (-not $codexCmd) {
+    $candidate = Join-Path $env:APPDATA "npm\codex.cmd"
+    if (Test-Path $candidate) { $codexCmd = $candidate }
+  }
+  if (-not $codexCmd) { throw "codex.cmd not found" }
+  $id = [guid]::NewGuid().ToString("N")
+  $promptFile = Join-Path $env:TEMP ("khs-codex-prompt-" + $id + ".txt")
+  $stdoutFile = Join-Path $env:TEMP ("khs-codex-out-" + $id + ".txt")
+  $stderrFile = Join-Path $env:TEMP ("khs-codex-err-" + $id + ".txt")
+  [IO.File]::WriteAllText($promptFile,$prompt,(New-Object Text.UTF8Encoding($false)))
+  try {
+    $cmdLine = 'type "' + $promptFile + '" | "' + $codexCmd + '" exec --sandbox workspace-write -'
+    $p = Start-Process "cmd.exe" -PassThru -WindowStyle Hidden -ArgumentList @("/d","/s","/c",$cmdLine) -WorkingDirectory $root -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile
+    if (-not $p.WaitForExit($timeoutSec*1000)) {
+      try { $p.Kill($true) } catch {}
+      return @{ exit=124; timed_out=$true; output=("Codex timeout after " + $timeoutSec + "s"); codex_cmd=$codexCmd }
+    }
+    $outText = if(Test-Path $stdoutFile){Get-Content $stdoutFile -Raw -ErrorAction SilentlyContinue}else{""}
+    $errText = if(Test-Path $stderrFile){Get-Content $stderrFile -Raw -ErrorAction SilentlyContinue}else{""}
+    $combined = (($outText + "`n" + $errText).Trim())
+    if($combined.Length -gt 120000){$combined=$combined.Substring($combined.Length-120000)}
+    return @{ exit=$p.ExitCode; timed_out=$false; output=$combined; codex_cmd=$codexCmd }
+  } finally {
+    Remove-Item $promptFile,$stdoutFile,$stderrFile -Force -ErrorAction SilentlyContinue
+  }
+}
+
+function QueueSidecar([string]$root,[string]$worker,[string]$prompt,[string]$requestId) {
+  if ($worker -notin @("antigravity","webchat")) { throw "unsupported sidecar worker: $worker" }
+  if ([string]::IsNullOrWhiteSpace($prompt)) { $prompt = "Inspect current project state and assist with one bounded task. Do not claim completion without verification." }
+  if ($prompt.Length -gt 30000) { throw "sidecar prompt too long" }
+  $dir = Join-Path $root ".harness"
+  New-Item -ItemType Directory -Path $dir -Force | Out-Null
+  $path = Join-Path $dir "SIDECAR_TODO.json"
+  $payload = [ordered]@{ request_id=$requestId; worker=$worker; status="READY"; prompt=$prompt; created_at=(Get-Date).ToString("o"); note="Sidecar request only. READY does not mean the worker completed the task." }
+  [IO.File]::WriteAllText($path,($payload|ConvertTo-Json -Depth 8),(New-Object Text.UTF8Encoding($false)))
+  $verify = Get-Content $path -Raw -Encoding UTF8 | ConvertFrom-Json
+  if ($verify.request_id -ne $requestId -or $verify.status -ne "READY") { throw "sidecar queue verification failed" }
+  return @{path=$path; worker=$worker; status="READY"}
 }
 
 $cmd = Get-Content $CmdPath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -203,6 +257,39 @@ try {
       $result.final_git = GitInfo $Indie
       $result.status = "PASS"
       $result.retryable = $false
+    }
+    "minijev_codex" {
+      if (-not (Test-Path $Mini)) { throw "KHS_MINI_JEV project missing: $Mini" }
+      if (Test-Path (Join-Path $Mini ".harness\STOP")) { $result.status="STOPPED"; $result.retryable=$false; break }
+      $beforeGit = GitInfo $Mini
+      $result.before_git = $beforeGit
+      $prompt = [string]$cmd.prompt
+      if ([string]::IsNullOrWhiteSpace($prompt)) {
+        $prompt = "Work inside current KHS_MINI_JEV local HEAD and dirty overlay. Do not reset, clean, checkout, or assume origin/main. Read reports/latest-status.json, .harness/heartbeat.json, .harness/state.json, WEBCHAT_TODO.md, and research/ROUTER_USER_PATTERNS_20260921.md if present. Preserve deterministic guard before learned routing; local model only for small bounded routing/classification/review; frontier/WebChat authority for complex implementation; worker output untrusted until actual files/tests are checked; log routing and verifier PASS/FAIL. Perform exactly one bounded task. If MJ-001..MJ-007 are DONE, follow P2-1 then P2-2 then P2-3 order. Leave failures retryable. Do not touch projects outside KHS_MINI_JEV or KHS_FLOW_OS_v0.3."
+      }
+      $r = RunCodexBounded $Mini $prompt 1800
+      $result.worker="codex"
+      $result.codex_exit=$r.exit
+      $result.codex_timeout=$r.timed_out
+      $result.codex_output=$r.output
+      $result.after_git=GitInfo $Mini
+      Push-Location $Mini
+      try { $diffCheck = (& git diff --check 2>&1 | Out-String).Trim(); $diffExit = $LASTEXITCODE } finally { Pop-Location }
+      $result.verifier = @{ name="git diff --check"; exit=$diffExit; output=$diffCheck }
+      if ($r.exit -ne 0 -or $diffExit -ne 0) { $result.status="FAIL"; $result.retryable=$true }
+      else { $result.status="NEEDS_VERIFICATION"; $result.retryable=$true }
+    }
+    "sidecar_request" {
+      $target = switch ([string]$cmd.project) {
+        "KHS_MINI_JEV" { $Mini }
+        "INDIE" { $Indie }
+        default { throw "sidecar project not allowed: $($cmd.project)" }
+      }
+      $worker = ([string]$cmd.worker).ToLowerInvariant()
+      $queued = QueueSidecar $target $worker ([string]$cmd.prompt) ([string]$cmd.request_id)
+      $result.sidecar=$queued
+      $result.status="QUEUED"
+      $result.retryable=$false
     }
     "snapshot_guard" {
       $before = HarnessSnapshot
