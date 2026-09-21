@@ -92,10 +92,12 @@ function GitInfo([string]$root) {
   $statusR=RunNativeBounded "git.exe" @("status","--porcelain") $root 12000
   $dirtyLines=@()
   if(-not $statusR.timed_out -and $statusR.output){$dirtyLines=@($statusR.output -split "`r?`n")}
+  $headText = if($null -eq $headR.output){""}else{[string]$headR.output}
+  $branchText = if($null -eq $branchR.output){""}else{[string]$branchR.output}
   return @{
     git=$true
-    head=if($headR.exit -eq 0){$headR.output.Trim()}else{$null}
-    branch=if($branchR.exit -eq 0){$branchR.output.Trim()}else{$null}
+    head=if($headR.exit -eq 0){$headText.Trim()}else{$null}
+    branch=if($branchR.exit -eq 0){$branchText.Trim()}else{$null}
     dirty=if($statusR.timed_out){$null}else{($dirtyLines.Count -gt 0)}
     dirty_count=if($statusR.timed_out){$null}else{$dirtyLines.Count}
     dirty_files=$dirtyLines
