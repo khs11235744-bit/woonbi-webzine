@@ -1,7 +1,4 @@
 {
-  "request_id": "indieplus-codex-diagnostic-20260921-1256",
-  "action": "indieplus_codex",
-  "allow_known_stash": false,
-  "push_after": false,
-  "prompt": "Do not modify any files. Confirm you are running inside the indieplus-pohang repository. Read git status only, then respond exactly with CODEX_OK followed by the current branch and HEAD. Do not edit, commit, or push."
+  "request_id": "indieplus-idle-20260921",
+  "action": "idle"
 }
