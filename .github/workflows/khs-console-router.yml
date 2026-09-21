@@ -41,6 +41,8 @@ jobs:
 
             let workflowId;
             let jobPath;
+            let dispatchWorkflow = true;
+            let laneNote = '';
             let job = {
               request_id: requestId,
               issue_number: issueNumber,
@@ -106,11 +108,15 @@ jobs:
               job.project = 'EARLY_HEAT_RADAR';
               if (requestedAction === '상태 확인') {
                 job.action = 'status';
+                laneNote = '공유 runner의 읽기 전용 상태 확인';
               } else if (forceSidecar) {
                 core.setFailed('Early Heat Radar remote currently supports Codex only; Paper/Shadow safety path preserved.');
                 return;
               } else {
                 job.action = 'earlyheat_codex';
+                job.agent_mode = true;
+                dispatchWorkflow = false;
+                laneNote = 'KHS EarlyHeat 전용 로컬 에이전트 메일함';
                 job.prompt = prompt || 'Read the latest Early Heat Radar handoff and harness state, then perform exactly one bounded next-priority task. Preserve current HEAD/dirty overlay. Real/live order execution must remain disabled; Paper/Shadow only. Run relevant verification and do not claim PASS without evidence.';
               }
             } else {
@@ -128,13 +134,15 @@ jobs:
               branch: 'main'
             });
 
-            await github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: workflowId,
-              ref: 'main',
-              inputs: { job_path: jobPath }
-            });
+            if (dispatchWorkflow) {
+              await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: workflowId,
+                ref: 'main',
+                inputs: { job_path: jobPath }
+              });
+            }
 
             const actionsUrl = 'https://github.com/' + context.repo.owner + '/' + context.repo.repo + '/actions';
             await github.rest.issues.createComment({
@@ -147,7 +155,8 @@ jobs:
                 '- Project: **' + project + '**\n' +
                 '- Action: **' + requestedAction + '**\n' +
                 '- Worker: **' + selectedWorker + '**\n' +
-                '- Job: `' + jobPath + '`\n\n' +
-                '[Actions 진행 상태 보기](' + actionsUrl + ')\n\n' +
+                '- Job: `' + jobPath + '`\n' +
+                (laneNote ? '- Lane: **' + laneNote + '**\n' : '') +
+                '\n[Actions 진행 상태 보기](' + actionsUrl + ')\n\n' +
                 '> Codex는 검증 전 NEEDS_VERIFICATION, Antigravity/WebChat은 실제 완료 전 QUEUED로 남습니다.'
             });
