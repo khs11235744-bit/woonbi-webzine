@@ -1,0 +1,25 @@
+name: KHS Maintenance
+on:
+  push:
+    branches: [main]
+    paths:
+      - "KHS_MAINTENANCE/cancel.json"
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cancel-stuck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cancel requested workflow runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          jq -r '.run_ids[]' KHS_MAINTENANCE/cancel.json | while read -r run_id; do
+            echo "Cancelling run $run_id"
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/cancel" || true
+          done
