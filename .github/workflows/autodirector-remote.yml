@@ -20,7 +20,9 @@ concurrency:
 
 jobs:
   autodirector:
-    runs-on: [self-hosted, Windows, X64, khs-autodirector]
+    # Reuse the already-online Windows runner service. The dispatcher below still
+    # hard-bounds all file and command access to the local AutoDirector folder.
+    runs-on: [self-hosted, Windows, X64, khs-indie]
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
