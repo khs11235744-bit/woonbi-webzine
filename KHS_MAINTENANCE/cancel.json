@@ -1,7 +1,7 @@
 {
-  "requested_at": "2026-09-21T05:23:34.437Z",
-  "reason": "replace stalled dedicated verifier with generic Windows fallback",
+  "requested_at": "2026-09-21T05:24:12.140Z",
+  "reason": "dedupe INDIE verifier; keep in-progress dedicated verifier",
   "run_ids": [
-    35564264323
+    35564405283
   ]
 }
