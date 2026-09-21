@@ -4,9 +4,9 @@ $Auto = Join-Path $env:USERPROFILE "Documents\ChatGPT\동영상편집기 만들�
 $ResultDir = Join-Path $env:GITHUB_WORKSPACE "KHS_REMOTE\autodirector_results"
 New-Item -ItemType Directory -Path $ResultDir -Force | Out-Null
 function StopPresent { Test-Path (Join-Path $Auto ".harness\STOP") }
-function RunProc([string]$File,[string[]]$Args,[string]$InputText="",[int]$TimeoutSec=3600){
+function RunProc([string]$File,[string[]]$ArgList,[string]$InputText="",[int]$TimeoutSec=3600){
   $psi=New-Object Diagnostics.ProcessStartInfo; $psi.FileName=$File; $psi.WorkingDirectory=$Auto; $psi.UseShellExecute=$false; $psi.RedirectStandardOutput=$true; $psi.RedirectStandardError=$true; $psi.RedirectStandardInput=$true
-  foreach($a in $Args){[void]$psi.ArgumentList.Add($a)}
+  foreach($a in $ArgList){[void]$psi.ArgumentList.Add($a)}
   $p=New-Object Diagnostics.Process; $p.StartInfo=$psi; [void]$p.Start(); if($InputText){$p.StandardInput.Write($InputText)}; $p.StandardInput.Close(); $o=$p.StandardOutput.ReadToEndAsync(); $e=$p.StandardError.ReadToEndAsync()
   if(-not $p.WaitForExit($TimeoutSec*1000)){try{$p.Kill($true)}catch{}; throw "timeout: $File"}; return @{exit=$p.ExitCode;stdout=$o.Result;stderr=$e.Result}
 }
