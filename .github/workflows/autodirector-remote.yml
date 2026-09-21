@@ -15,7 +15,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: autodirector-remote-control-v3
+  group: autodirector-remote-control-v2
   cancel-in-progress: true
 
 jobs:
