@@ -211,14 +211,28 @@ try {
       if (-not $before.stop_present -and ($null -eq $before.heartbeat_file_age_sec -or $before.heartbeat_file_age_sec -gt 300)) {
         $watchdog = Join-Path $Mini "scripts\watchdog.ps1"
         if (-not (Test-Path $watchdog)) { throw "watchdog.ps1 missing" }
-        Push-Location $Mini
+        $stdoutFile = Join-Path $env:TEMP ("khs-watchdog-out-" + [guid]::NewGuid().ToString("N") + ".txt")
+        $stderrFile = Join-Path $env:TEMP ("khs-watchdog-err-" + [guid]::NewGuid().ToString("N") + ".txt")
         try {
-          $watchdogOutput = (& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $watchdog 2>&1 | Out-String).Trim()
-          $watchdogExit = $LASTEXITCODE
-        } finally { Pop-Location }
-        if ($watchdogExit -ne 0) { throw "watchdog failed exit=$watchdogExit" }
-        Start-Sleep -Seconds 3
-        $restarted = $true
+          $p = Start-Process powershell.exe -PassThru -WindowStyle Hidden `
+            -ArgumentList @("-NoProfile","-ExecutionPolicy","Bypass","-File",$watchdog) `
+            -WorkingDirectory $Mini `
+            -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile
+          if (-not $p.WaitForExit(30000)) {
+            try { $p.Kill($true) } catch {}
+            $watchdogOutput = "TIMEOUT after 30s; watchdog was terminated"
+            throw $watchdogOutput
+          }
+          $watchdogExit = $p.ExitCode
+          $outText = if (Test-Path $stdoutFile) { Get-Content $stdoutFile -Raw -ErrorAction SilentlyContinue } else { "" }
+          $errText = if (Test-Path $stderrFile) { Get-Content $stderrFile -Raw -ErrorAction SilentlyContinue } else { "" }
+          $watchdogOutput = (($outText + "`n" + $errText).Trim())
+          if ($watchdogExit -ne 0) { throw "watchdog failed exit=$watchdogExit" }
+          Start-Sleep -Seconds 3
+          $restarted = $true
+        } finally {
+          Remove-Item $stdoutFile,$stderrFile -Force -ErrorAction SilentlyContinue
+        }
       }
       $result.before = $before
       $result.after = HarnessSnapshot
