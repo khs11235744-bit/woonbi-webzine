@@ -344,6 +344,44 @@ try {
       $result.status="QUEUED"
       $result.retryable=$false
     }
+    "indie_runner_guard" {
+      $runnerRoot = Join-Path $env:LOCALAPPDATA "KHS_Runners\indie"
+      $runCmd = Join-Path $runnerRoot "run.cmd"
+      $runnerConfig = Join-Path $runnerRoot ".runner"
+      $result.runner_root = $runnerRoot
+      $result.run_cmd_exists = Test-Path $runCmd
+      $result.runner_config_exists = Test-Path $runnerConfig
+      if (-not (Test-Path $runCmd)) { throw "KHS-INDIE run.cmd missing: $runCmd" }
+
+      function GetIndieRunnerProcess {
+        $needle = [IO.Path]::GetFullPath($runnerRoot).ToLowerInvariant()
+        return @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+          $cmdLine = [string]$_.CommandLine
+          $exePath = [string]$_.ExecutablePath
+          (($cmdLine.ToLowerInvariant().Contains($needle)) -or ($exePath.ToLowerInvariant().Contains($needle))) -and
+          ($_.Name -match "Runner\.Listener|Runner\.Worker|cmd\.exe|powershell\.exe")
+        })
+      }
+
+      $before = @(GetIndieRunnerProcess)
+      $result.before_count = $before.Count
+      $result.before = @($before | Select-Object ProcessId,Name,CommandLine)
+      $started = $false
+      if ($before.Count -eq 0) {
+        Start-Process -FilePath "cmd.exe" -ArgumentList @("/c", "`"$runCmd`"") -WorkingDirectory $runnerRoot -WindowStyle Hidden | Out-Null
+        Start-Sleep -Seconds 6
+        $started = $true
+      }
+      $after = @(GetIndieRunnerProcess)
+      $result.after_count = $after.Count
+      $result.after = @($after | Select-Object ProcessId,Name,CommandLine)
+      $result.started = $started
+      if ($after.Count -eq 0) {
+        throw "KHS-INDIE runner process not detected after guard"
+      }
+      $result.status = "PASS"
+      $result.retryable = $false
+    }
     "snapshot_guard" {
       $before = HarnessSnapshot
       $restarted = $false
