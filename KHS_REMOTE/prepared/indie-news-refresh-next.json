@@ -1,0 +1,8 @@
+{
+  "request_id": "indie-news-refresh-prepared-20260921-2135",
+  "project": "INDIE",
+  "action": "indieplus_harness_run",
+  "mode": "news-only",
+  "requested_at": "2026-09-21T12:34:41.150Z",
+  "requested_by": "webchat"
+}
