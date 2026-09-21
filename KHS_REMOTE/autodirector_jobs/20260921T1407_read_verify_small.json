@@ -1,0 +1,9 @@
+{
+  "request_id": "20260921T1407_read_verify_small",
+  "action": "autodirector_read",
+  "paths": [
+    "WEBCHAT_TODO.md",
+    "reports/harness/status.json",
+    "scripts/verify-firstcut.mjs"
+  ]
+}
