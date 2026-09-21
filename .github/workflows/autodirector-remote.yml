@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   autodirector:
-    runs-on: [self-hosted, Windows, X64, khs-autodirector]
+    runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
