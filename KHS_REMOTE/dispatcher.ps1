@@ -301,6 +301,76 @@ try {
       $result.status = "PASS"
       $result.retryable = $false
     }
+    "indieplus_verify_commit" {
+      if (-not (Test-Path $Indie)) { throw "indieplus-pohang project missing: $Indie" }
+      $lockPath = Join-Path $Indie ".harness.lock"
+      if (Test-Path $lockPath) { throw "HARNESS_LOCK" }
+      $beforeGit = GitInfo $Indie
+      $result.before_git = $beforeGit
+
+      if ($cmd.expected_dirty_files) {
+        $actual = @()
+        foreach ($line in @($beforeGit.dirty_files)) {
+          $t = [string]$line
+          if ($t.Length -ge 4) { $actual += $t.Substring(3).Trim() } else { $actual += $t.Trim() }
+        }
+        $actual = @($actual | Sort-Object -Unique)
+        $expected = @($cmd.expected_dirty_files | ForEach-Object { [string]$_ } | Sort-Object -Unique)
+        $delta = @(Compare-Object $expected $actual)
+        if ($delta.Count -ne 0) {
+          $result.blocked = "DIRTY_WORKTREE_MISMATCH"
+          $result.expected_dirty = $expected
+          $result.actual_dirty = $actual
+          $result.status = "BLOCKED"
+          $result.retryable = $false
+          break
+        }
+      }
+
+      $checks = @()
+      foreach ($j in Get-ChildItem (Join-Path $Indie "data") -Filter "*.json" -File) {
+        try { Get-Content $j.FullName -Raw -Encoding UTF8 | ConvertFrom-Json | Out-Null }
+        catch { throw "JSON parse failed: $($j.Name): $($_.Exception.Message)" }
+      }
+      $checks += @{name="data-json";exit=0}
+
+      $js = @("app.js","features-v04.js","features-v05.js","features-v06.js","features-v07.js","features-v08.js","features-v17.js","sw.js")
+      if ($cmd.extra_js) { $js += @($cmd.extra_js) }
+      foreach ($rel in ($js | Select-Object -Unique)) {
+        $full = Join-Path $Indie ([string]$rel)
+        if (-not (Test-Path $full)) { throw "missing JS: $rel" }
+        $nr = RunNativeBounded "node.exe" @("--check",[string]$rel) $Indie 15000
+        $checks += @{name=("node --check " + $rel);exit=$nr.exit;output=$nr.output}
+        if ($nr.exit -ne 0 -or $nr.timed_out) { throw "node --check failed: $rel $($nr.output)" }
+      }
+
+      $dr = RunNativeBounded "git.exe" @("diff","--check") $Indie 15000
+      $checks += @{name="git diff --check";exit=$dr.exit;output=$dr.output}
+      if ($dr.exit -ne 0 -or $dr.timed_out) { throw "git diff --check failed: $($dr.output)" }
+      $result.checks = $checks
+
+      Push-Location $Indie
+      try {
+        if (-not $cmd.files) { throw "files list required for bounded commit" }
+        foreach ($rel in @($cmd.files)) { git add -- ([string]$rel) }
+        if ($LASTEXITCODE -ne 0) { throw "git add failed" }
+        git diff --cached --quiet
+        if ($LASTEXITCODE -eq 0) { throw "no staged changes" }
+        if ($LASTEXITCODE -ne 1) { throw "git diff --cached --quiet failed" }
+        git commit -m ([string]$cmd.commit_message)
+        if ($LASTEXITCODE -ne 0) { throw "git commit failed" }
+        $result.commit_sha = ((git rev-parse HEAD | Out-String).Trim())
+        if ([bool]$cmd.push) {
+          git push origin HEAD:main
+          if ($LASTEXITCODE -ne 0) { throw "git push failed" }
+          $result.pushed = $true
+        }
+      } finally { Pop-Location }
+
+      $result.after_git = GitInfo $Indie
+      $result.status = "PASS"
+      $result.retryable = $false
+    }
     "indieplus_codex" {
       if (-not (Test-Path $Indie)) { throw "indieplus-pohang project missing: $Indie" }
       $lockPath = Join-Path $Indie ".harness.lock"
