@@ -1,8 +1,7 @@
 {
-  "requested_at": "2026-09-21T04:22:36.881Z",
-  "reason": "replace pre-bounded Mini-Jev/INDIE status probes with bounded dispatcher",
+  "requested_at": "2026-09-21T04:24:02.412Z",
+  "reason": "cancel pre-bounded console Mini-Jev test",
   "run_ids": [
-    35560386807,
-    35560389199
+    35560689441
   ]
 }
