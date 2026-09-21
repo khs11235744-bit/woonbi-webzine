@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - "KHS_REMOTE/command.json"
+      - "KHS_REMOTE/jobs/**/*.json"
 
 permissions:
   contents: write
