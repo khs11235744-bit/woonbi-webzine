@@ -16,9 +16,10 @@ permissions:
 
 concurrency:
   # v2 separates current jobs from the stale pending run that targeted the
-  # retired khs-autodirector runner label.
+  # retired khs-autodirector runner label. A newly queued probe/coding job may
+  # cancel an older read-only control job that is stuck on the same runner.
   group: autodirector-remote-control-v2
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   autodirector:
