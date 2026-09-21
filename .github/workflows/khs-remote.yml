@@ -43,13 +43,12 @@ jobs:
           if ($job -notlike "KHS_REMOTE/minijev_jobs/*.json") { throw "Invalid Mini-Jev job path: $job" }
           "job=$job" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
-      - name: Execute bounded KHS command
+      - name: Execute bounded Mini-Jev command
         shell: powershell
-        env:
-          KHS_JOB_PATH: ${{ steps.job.outputs.job }}
         run: |
           Set-ExecutionPolicy -Scope Process Bypass -Force
-          .\KHS_REMOTE\dispatcher.ps1
+          $cmdPath = Join-Path $env:GITHUB_WORKSPACE ("${{ steps.job.outputs.job }}" -replace '/', '\')
+          .\KHS_REMOTE\minijev_dispatcher.ps1 -CmdPath $cmdPath
       - name: Commit real result
         if: always()
         shell: powershell
