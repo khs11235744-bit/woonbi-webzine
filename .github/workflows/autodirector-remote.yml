@@ -28,6 +28,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+        timeout-minutes: 3
         with:
           fetch-depth: 2
       - name: Resolve AutoDirector job file
