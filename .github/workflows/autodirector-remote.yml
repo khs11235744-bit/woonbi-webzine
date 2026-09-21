@@ -15,7 +15,9 @@ permissions:
   contents: write
 
 concurrency:
-  group: autodirector-remote-control
+  # v2 separates current jobs from the stale pending run that targeted the
+  # retired khs-autodirector runner label.
+  group: autodirector-remote-control-v2
   cancel-in-progress: false
 
 jobs:
