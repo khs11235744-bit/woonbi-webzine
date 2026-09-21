@@ -1,7 +1,7 @@
 {
-  "requested_at": "2026-09-21T05:24:12.140Z",
-  "reason": "dedupe INDIE verifier; keep in-progress dedicated verifier",
+  "requested_at": "2026-09-21T05:32:54.914Z",
+  "reason": "stop long INDIE harness Codex run; preserve partial overlay for direct verification",
   "run_ids": [
-    35564405283
+    35564608594
   ]
 }
