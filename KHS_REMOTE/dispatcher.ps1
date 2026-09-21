@@ -312,7 +312,8 @@ try {
         $actual = @()
         foreach ($line in @($beforeGit.dirty_files)) {
           $t = [string]$line
-          if ($t.Length -ge 4) { $actual += $t.Substring(3).Trim() } else { $actual += $t.Trim() }
+          $clean = ($t -replace '^[ MARCUD?!]{1,2}\s+','').Trim()
+          if (-not [string]::IsNullOrWhiteSpace($clean)) { $actual += $clean }
         }
         $actual = @($actual | Sort-Object -Unique)
         $expected = @($cmd.expected_dirty_files | ForEach-Object { [string]$_ } | Sort-Object -Unique)
