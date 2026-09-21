@@ -1,8 +1,7 @@
 {
-  "requested_at": "2026-09-21T05:04:15.960Z",
-  "reason": "cancel obsolete Mini-Jev snapshot after pipe-hang fix; INDIE untouched",
+  "requested_at": "2026-09-21T05:07:49.685Z",
+  "reason": "cancel stale INDIE run started before dispatcher syntax repair",
   "run_ids": [
-    35562830006,
-    35563004950
+    35563360391
   ]
 }
