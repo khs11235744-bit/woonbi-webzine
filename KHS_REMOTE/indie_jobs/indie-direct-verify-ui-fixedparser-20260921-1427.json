@@ -1,0 +1,19 @@
+{
+  "request_id": "indie-direct-verify-ui-fixedparser-20260921-1427",
+  "project": "INDIE",
+  "action": "indieplus_verify_commit",
+  "expected_dirty_files": [
+    "app.js",
+    "editorial-v18.css",
+    "sw.js"
+  ],
+  "files": [
+    "app.js",
+    "editorial-v18.css",
+    "sw.js"
+  ],
+  "commit_message": "fix: repair critical responsive editorial UI",
+  "push": true,
+  "requested_at": "2026-09-21T05:25:58.289Z",
+  "requested_by": "webchat"
+}
