@@ -12,13 +12,13 @@ function ReadTextBounded([string]$Path,[int]$Max=120000) {
   return Get-Content $Path -Raw -Encoding UTF8
 }
 
-function RunNative([string]$Exe,[string[]]$Args,[string]$WorkingDir,[int]$TimeoutMs=15000) {
+function RunNative([string]$Exe,[string[]]$NativeArgs,[string]$WorkingDir,[int]$TimeoutMs=15000) {
   $id=[guid]::NewGuid().ToString("N")
   $out=Join-Path $env:TEMP ("ehr-out-"+$id+".txt")
   $err=Join-Path $env:TEMP ("ehr-err-"+$id+".txt")
   try {
     $quoted=@()
-    foreach($a in $Args){
+    foreach($a in $NativeArgs){
       if($null -ne $a){
         $s=[string]$a
         $quoted += ('"' + ($s -replace '"','\"') + '"')
