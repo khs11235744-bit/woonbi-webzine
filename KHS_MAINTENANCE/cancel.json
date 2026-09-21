@@ -1,8 +1,7 @@
 {
-  "requested_at": "2026-09-21T14:42:00+09:00",
-  "reason": "free self-hosted runners from read-only AutoDirector probes while the local continuous harness owns the source worktree",
+  "requested_at": "2026-09-21T14:51:00+09:00",
+  "reason": "free KHS-AUTODIRECTOR from a hung read-only status check; local continuous harness remains the sole source editor",
   "run_ids": [
-    35559963434,
-    35559989227
+    35560391344
   ]
 }
