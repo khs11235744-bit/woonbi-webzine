@@ -1,7 +1,8 @@
 {
-  "requested_at": "2026-09-21T14:51:00+09:00",
-  "reason": "free KHS-AUTODIRECTOR from a hung read-only status check; local continuous harness remains the sole source editor",
+  "requested_at": "2026-09-21T04:22:36.881Z",
+  "reason": "replace pre-bounded Mini-Jev/INDIE status probes with bounded dispatcher",
   "run_ids": [
-    35560391344
+    35560386807,
+    35560389199
   ]
 }
