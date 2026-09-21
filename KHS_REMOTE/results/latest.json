@@ -1,13 +1,16 @@
 {
-    "request_id":  "indieplus-codex-aq123-20260921-1131",
-    "action":  "indieplus_codex",
-    "started_at":  "2026-09-21T11:29:19.3669789+09:00",
-    "status":  "BLOCKED",
-    "reason":  "DIRTY_WORKTREE",
-    "dirty":  [
-                  " M sw.js",
-                  "?? editorial-v19.css",
-                  "?? features-v19.js"
-              ],
-    "finished_at":  "2026-09-21T11:29:19.5297885+09:00"
+    "request_id":  "indieplus-status-20260921-1134b",
+    "action":  "indieplus_status",
+    "started_at":  "2026-09-21T11:55:51.6525655+09:00",
+    "status":  "PASS",
+    "lock_present":  false,
+    "lock_content":  null,
+    "head":  "bf0328c2dcbe09cfc1fabe0084261348825e8703",
+    "branch":  "main",
+    "status_porcelain":  [
+                             " M sw.js",
+                             "?? editorial-v19.css",
+                             "?? features-v19.js"
+                         ],
+    "finished_at":  "2026-09-21T11:55:51.9180307+09:00"
 }
