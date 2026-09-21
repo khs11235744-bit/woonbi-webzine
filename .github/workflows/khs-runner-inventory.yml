@@ -1,0 +1,40 @@
+name: KHS Runner Inventory
+on:
+  push:
+    branches: [main]
+    paths:
+      - "KHS_MAINTENANCE/runner_inventory.json"
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Capture runner inventory
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p KHS_REMOTE
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runners" > /tmp/runners.json
+          jq '{
+            captured_at: (now | todateiso8601),
+            total_count,
+            runners: [.runners[] | {
+              id, name, os, status, busy,
+              labels: [.labels[].name]
+            }]
+          }' /tmp/runners.json > KHS_REMOTE/runner_status.json
+
+      - name: Commit inventory
+        run: |
+          git config user.name "KHS Runner Inventory"
+          git config user.email "khs-runner-inventory@users.noreply.github.com"
+          git add KHS_REMOTE/runner_status.json
+          git diff --cached --quiet && exit 0
+          git commit -m "KHS_RUNNER_STATUS: ${GITHUB_RUN_ID}"
+          git pull --rebase origin main
+          git push origin HEAD:main
