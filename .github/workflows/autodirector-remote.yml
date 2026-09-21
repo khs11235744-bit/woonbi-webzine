@@ -57,9 +57,18 @@ jobs:
         run: |
           git config user.name "KHS AutoDirector Runner"
           git config user.email "khs-autodirector-runner@users.noreply.github.com"
-          git add KHS_REMOTE/autodirector_results
-          if (-not (git diff --cached --quiet)) {
-            git commit -m "AUTODIRECTOR_RESULT: $env:GITHUB_RUN_ID"
-            git pull --rebase origin main
-            git push origin HEAD:main
+          if (Test-Path "KHS_REMOTE/autodirector_results") {
+            git add KHS_REMOTE/autodirector_results
+            git diff --cached --quiet
+            $diffExit = $LASTEXITCODE
+            if ($diffExit -eq 1) {
+              git commit -m "AUTODIRECTOR_RESULT: $env:GITHUB_RUN_ID"
+              if ($LASTEXITCODE -ne 0) { throw "git commit failed" }
+              git pull --rebase origin main
+              if ($LASTEXITCODE -ne 0) { throw "git pull --rebase failed" }
+              git push origin HEAD:main
+              if ($LASTEXITCODE -ne 0) { throw "git push failed" }
+            } elseif ($diffExit -ne 0) {
+              throw "git diff --cached --quiet failed: $diffExit"
+            }
           }
