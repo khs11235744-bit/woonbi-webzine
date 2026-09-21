@@ -1,0 +1,12 @@
+{
+  "request_id": "read-state-20260921-1442-auto10",
+  "action": "autodirector_read_fast",
+  "paths": [
+    "reports\\harness\\status.json",
+    "reports\\harness\\last-agent-message.md",
+    "WEBCHAT_TODO.md",
+    "NEXT_TASK.md",
+    "CURRENT_STATE.md",
+    "reports\\harness\\cycles\\001-2026-09-21T04-53-58-191Z.log"
+  ]
+}
