@@ -36,7 +36,7 @@ jobs:
 
             const now = new Date();
             const stamp = now.toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
-            const projectSlug = project === 'Mini-Jev' ? 'minijev' : project === 'INDIE' ? 'indie' : 'autodirector';
+            const projectSlug = project === 'Mini-Jev' ? 'minijev' : project === 'INDIE' ? 'indie' : project === 'AutoDirector' ? 'autodirector' : project === 'Early Heat Radar' ? 'earlyheat' : 'unknown';
             const requestId = 'console-' + projectSlug + '-' + issueNumber + '-' + stamp;
 
             let workflowId;
@@ -99,6 +99,19 @@ jobs:
               } else {
                 job.action = 'autodirector_codex';
                 job.prompt = prompt || 'Read the authoritative current AutoDirector state and perform exactly one bounded next task. Preserve the current local worktree and do not treat worker output as verified.';
+              }
+            } else if (project === 'Early Heat Radar') {
+              workflowId = 'earlyheat-remote.yml';
+              jobPath = 'KHS_REMOTE/earlyheat_jobs/' + requestId + '.json';
+              job.project = 'EARLY_HEAT_RADAR';
+              if (requestedAction === '상태 확인') {
+                job.action = 'status';
+              } else if (forceSidecar) {
+                core.setFailed('Early Heat Radar remote currently supports Codex only; Paper/Shadow safety path preserved.');
+                return;
+              } else {
+                job.action = 'earlyheat_codex';
+                job.prompt = prompt || 'Read the latest Early Heat Radar handoff and harness state, then perform exactly one bounded next-priority task. Preserve current HEAD/dirty overlay. Real/live order execution must remain disabled; Paper/Shadow only. Run relevant verification and do not claim PASS without evidence.';
               }
             } else {
               core.setFailed('Unknown project: ' + project);
