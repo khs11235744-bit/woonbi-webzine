@@ -372,6 +372,47 @@ try {
       $result.status = "PASS"
       $result.retryable = $false
     }
+    "indieplus_harness_run" {
+      if (-not (Test-Path $Indie)) { throw "indieplus-pohang project missing: $Indie" }
+      $lockPath = Join-Path $Indie ".harness.lock"
+      if (Test-Path $lockPath) { throw "HARNESS_LOCK" }
+      $mode = [string]$cmd.mode
+      if ([string]::IsNullOrWhiteSpace($mode)) { $mode = "validate-only" }
+      $allowed = @("validate-only","data-only","news-only","full","full-skip-images")
+      if ($mode -notin $allowed) { throw "unsupported harness mode: $mode" }
+      $python = (Get-Command python.exe -ErrorAction SilentlyContinue).Source
+      if (-not $python) { $python = (Get-Command python -ErrorAction SilentlyContinue).Source }
+      if (-not $python) { throw "python not found" }
+      $pyFiles = @("scripts/harness_common.py","scripts/run_harness.py")
+      foreach ($py in $pyFiles) {
+        if (-not (Test-Path (Join-Path $Indie $py))) { throw "missing harness file: $py" }
+        $pc = RunNativeBounded $python @("-m","py_compile",$py) $Indie 20000
+        if ($pc.exit -ne 0 -or $pc.timed_out) { throw "py_compile failed: $py $($pc.output)" }
+      }
+      $args = @("scripts/run_harness.py")
+      switch ($mode) {
+        "validate-only" { $args += "--validate-only" }
+        "data-only" { $args += "--data-only" }
+        "news-only" { $args += "--news-only" }
+        "full-skip-images" { $args += "--skip-images" }
+      }
+      $timeoutMs = if ($mode -eq "validate-only") { 180000 } else { 1200000 }
+      $hr = RunNativeBounded $python $args $Indie $timeoutMs
+      $result.harness_mode = $mode
+      $result.harness_exit = $hr.exit
+      $result.harness_timeout = $hr.timed_out
+      $out = [string]$hr.output
+      if ($out.Length -gt 120000) { $out = $out.Substring($out.Length-120000) }
+      $result.harness_output = $out
+      $result.git_after = GitInfo $Indie
+      if ($hr.exit -ne 0 -or $hr.timed_out) {
+        $result.status = "FAIL"
+        $result.retryable = $true
+      } else {
+        $result.status = "PASS"
+        $result.retryable = $false
+      }
+    }
     "indieplus_codex" {
       if (-not (Test-Path $Indie)) { throw "indieplus-pohang project missing: $Indie" }
       $lockPath = Join-Path $Indie ".harness.lock"
