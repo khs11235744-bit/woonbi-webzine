@@ -1,0 +1,53 @@
+name: AutoDirector Remote Control
+on:
+  push:
+    branches: [main]
+    paths:
+      - "KHS_REMOTE/autodirector_jobs/**/*.json"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: autodirector-remote-control
+  cancel-in-progress: false
+
+jobs:
+  autodirector:
+    runs-on: [self-hosted, Windows, X64, khs-remote]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Resolve AutoDirector job file
+        id: job
+        shell: powershell
+        run: |
+          $evt = Get-Content $env:GITHUB_EVENT_PATH -Raw -Encoding UTF8 | ConvertFrom-Json
+          $changed = @()
+          if ($evt.head_commit) {
+            $changed += @($evt.head_commit.added)
+            $changed += @($evt.head_commit.modified)
+          }
+          $job = $changed | Where-Object { $_ -like "KHS_REMOTE/autodirector_jobs/*.json" } | Select-Object -First 1
+          if (-not $job) { throw "AutoDirector job file not found in push event" }
+          "job=$job" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+      - name: Execute bounded AutoDirector command
+        shell: powershell
+        run: |
+          Set-ExecutionPolicy -Scope Process Bypass -Force
+          $cmdPath = Join-Path $env:GITHUB_WORKSPACE ("${{ steps.job.outputs.job }}" -replace '/', '\')
+          .\KHS_REMOTE\autodirector_dispatcher.ps1 -CmdPath $cmdPath
+      - name: Commit real result
+        if: always()
+        shell: powershell
+        run: |
+          git config user.name "KHS AutoDirector Runner"
+          git config user.email "khs-autodirector-runner@users.noreply.github.com"
+          git add KHS_REMOTE/autodirector_results
+          if (-not (git diff --cached --quiet)) {
+            git commit -m "AUTODIRECTOR_RESULT: $env:GITHUB_RUN_ID"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          }
