@@ -1,0 +1,25 @@
+name: AutoDirector Cancel Stale Runner Job
+on:
+  push:
+    branches: [main]
+    paths:
+      - "KHS_REMOTE/autodirector_cancel/*.json"
+permissions:
+  actions: write
+  contents: read
+jobs:
+  cancel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Cancel exact stale AutoDirector run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          run_id=$(jq -r '.run_id' "${GITHUB_EVENT_PATH}" 2>/dev/null || true)
+          # push event payload does not contain custom file content; this workflow is intentionally pinned to the known stale read run.
+          run_id=35564995934
+          gh api --method POST "repos/${REPO}/actions/runs/${run_id}/cancel" || true
+          echo "cancel requested for ${run_id}"
