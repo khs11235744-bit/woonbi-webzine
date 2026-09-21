@@ -72,6 +72,21 @@ while ($true) {
         Push-Location $Project
         try {
           $dirty=@(git status --porcelain)
+          if($dirty.Count -gt 0){
+            $known=@(" M sw.js","?? editorial-v19.css","?? features-v19.js")
+            $normalized=@($dirty | ForEach-Object { [string]$_ })
+            $onlyKnown=($normalized.Count -eq $known.Count)
+            if($onlyKnown){
+              foreach($k in $known){ if($normalized -notcontains $k){ $onlyKnown=$false; break } }
+            }
+            if($onlyKnown -and [bool]$cmd.allow_known_stash){
+              $stashOut=(& git stash push -u -m "assistant-v19-incomplete-before-codex" 2>&1 | Out-String).Trim()
+              if($LASTEXITCODE -ne 0){ throw "known assistant stash failed: $stashOut" }
+              $result.stashed_known_assistant_changes=$true
+              $result.stash_output=$stashOut
+              $dirty=@(git status --porcelain)
+            }
+          }
           if($dirty.Count -gt 0){ $result.status="BLOCKED"; $result.reason="DIRTY_WORKTREE"; $result.dirty=$dirty }
           else {
             git pull --ff-only
