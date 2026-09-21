@@ -15,16 +15,11 @@ permissions:
   contents: write
 
 concurrency:
-  # v2 separates current jobs from the stale pending run that targeted the
-  # retired khs-autodirector runner label. A newly queued probe/coding job may
-  # cancel an older read-only control job that is stuck on the same runner.
-  group: autodirector-remote-control-v2
+  group: autodirector-remote-control-v3
   cancel-in-progress: true
 
 jobs:
   autodirector:
-    # Reuse the already-online Windows runner service. The dispatcher below still
-    # hard-bounds all file and command access to the local AutoDirector folder.
     runs-on: [self-hosted, Windows, X64, khs-indie]
     timeout-minutes: 60
     steps:
@@ -56,7 +51,7 @@ jobs:
         run: |
           Set-ExecutionPolicy -Scope Process Bypass -Force
           $cmdPath = Join-Path $env:GITHUB_WORKSPACE ("${{ steps.job.outputs.job }}" -replace '/', '\')
-          .\KHS_REMOTE\autodirector_dispatcher.ps1 -CmdPath $cmdPath
+          .\KHS_REMOTE\autodirector_dispatcher_v2.ps1 -CmdPath $cmdPath
       - name: Commit real result
         if: always()
         shell: powershell
@@ -70,10 +65,15 @@ jobs:
             if ($diffExit -eq 1) {
               git commit -m "AUTODIRECTOR_RESULT: $env:GITHUB_RUN_ID"
               if ($LASTEXITCODE -ne 0) { throw "git commit failed" }
-              git pull --rebase origin main
-              if ($LASTEXITCODE -ne 0) { throw "git pull --rebase failed" }
-              git push origin HEAD:main
-              if ($LASTEXITCODE -ne 0) { throw "git push failed" }
+              $pushed = $false
+              for ($i = 1; $i -le 4; $i++) {
+                git pull --rebase origin main
+                if ($LASTEXITCODE -ne 0) { throw "git pull --rebase failed" }
+                git push origin HEAD:main
+                if ($LASTEXITCODE -eq 0) { $pushed = $true; break }
+                Start-Sleep -Seconds (2 * $i)
+              }
+              if (-not $pushed) { throw "git push failed after retries" }
             } elseif ($diffExit -ne 0) {
               throw "git diff --cached --quiet failed: $diffExit"
             }
