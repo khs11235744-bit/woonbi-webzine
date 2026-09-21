@@ -1,0 +1,77 @@
+name: Early Heat Radar Remote
+on:
+  push:
+    branches: [main]
+    paths:
+      - "KHS_REMOTE/earlyheat_jobs/*.json"
+  workflow_dispatch:
+    inputs:
+      job_path:
+        description: "Early Heat Radar job JSON path"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: khs-earlyheat-remote
+  cancel-in-progress: false
+
+jobs:
+  earlyheat:
+    runs-on: [self-hosted, Windows, X64, khs-remote]
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        timeout-minutes: 3
+        with:
+          fetch-depth: 2
+      - name: Resolve Early Heat job
+        id: job
+        shell: powershell
+        env:
+          INPUT_JOB_PATH: ${{ github.event.inputs.job_path || '' }}
+        run: |
+          if (-not [string]::IsNullOrWhiteSpace($env:INPUT_JOB_PATH)) {
+            $job = $env:INPUT_JOB_PATH
+          } else {
+            $changed = @(& git diff-tree --no-commit-id --name-only -r $env:GITHUB_SHA)
+            $job = $changed | Where-Object { $_ -like "KHS_REMOTE/earlyheat_jobs/*.json" } | Select-Object -First 1
+          }
+          if (-not $job) { throw "Early Heat job file not found" }
+          if ($job -notlike "KHS_REMOTE/earlyheat_jobs/*.json") { throw "Invalid Early Heat job path: $job" }
+          "job=$job" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+      - name: Execute bounded Early Heat command
+        shell: powershell
+        run: |
+          Set-ExecutionPolicy -Scope Process Bypass -Force
+          $cmdPath = Join-Path $env:GITHUB_WORKSPACE ("${{ steps.job.outputs.job }}" -replace '/', '\')
+          .\KHS_REMOTE\earlyheat_dispatcher.ps1 -CmdPath $cmdPath
+      - name: Commit bounded result
+        if: always()
+        shell: powershell
+        run: |
+          git config user.name "KHS Remote Runner"
+          git config user.email "khs-remote-runner@users.noreply.github.com"
+          if (Test-Path "KHS_REMOTE/results/earlyheat") {
+            git add KHS_REMOTE/results/earlyheat
+            git diff --cached --quiet
+            $diffExit = $LASTEXITCODE
+            if ($diffExit -eq 1) {
+              git commit -m "KHS_RESULT earlyheat $env:GITHUB_RUN_ID"
+              if ($LASTEXITCODE -ne 0) { throw "git commit failed" }
+              $pushed = $false
+              for ($i=1; $i -le 3 -and -not $pushed; $i++) {
+                git fetch origin main
+                if ($LASTEXITCODE -ne 0) { Start-Sleep -Seconds 2; continue }
+                git rebase origin/main
+                if ($LASTEXITCODE -ne 0) { git rebase --abort 2>$null; Start-Sleep -Seconds 2; continue }
+                git push origin HEAD:main
+                if ($LASTEXITCODE -eq 0) { $pushed = $true } else { Start-Sleep -Seconds 2 }
+              }
+              if (-not $pushed) { throw "result push failed after 3 attempts" }
+            } elseif ($diffExit -ne 0) {
+              throw "git diff --cached --quiet failed: $diffExit"
+            }
+          }
