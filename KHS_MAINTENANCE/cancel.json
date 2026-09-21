@@ -1,8 +1,8 @@
 {
-  "requested_at": "2026-09-21T04:50:10.152Z",
-  "reason": "free INDIE concurrency slot for emergency UI repair after Codex runner fix",
+  "requested_at": "2026-09-21T04:53:13.915Z",
+  "reason": "clear only obsolete Mini-Jev runs before isolated dispatcher verification",
   "run_ids": [
-    35561994086,
-    35562367961
+    35561424717,
+    35561575294
   ]
 }
