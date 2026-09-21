@@ -12,14 +12,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - name: Cancel exact stale AutoDirector run
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Cancel requested stale AutoDirector run
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          run_id=$(jq -r '.run_id' "${GITHUB_EVENT_PATH}" 2>/dev/null || true)
-          # push event payload does not contain custom file content; this workflow is intentionally pinned to the known stale read run.
-          run_id=35564995934
+          changed=$(git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA" | grep '^KHS_REMOTE/autodirector_cancel/.*\.json$' | head -n 1)
+          test -n "$changed"
+          run_id=$(jq -r '.run_id' "$changed")
+          case "$run_id" in (*[!0-9]*|'') echo "invalid run_id" >&2; exit 2;; esac
           gh api --method POST "repos/${REPO}/actions/runs/${run_id}/cancel" || true
           echo "cancel requested for ${run_id}"
