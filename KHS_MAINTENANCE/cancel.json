@@ -1,7 +1,8 @@
 {
-  "requested_at": "2026-09-21T04:49:06.215Z",
-  "reason": "replace stale broken INDIE Codex run with fixed bounded runner",
+  "requested_at": "2026-09-21T04:50:10.152Z",
+  "reason": "free INDIE concurrency slot for emergency UI repair after Codex runner fix",
   "run_ids": [
-    35561994086
+    35561994086,
+    35562367961
   ]
 }
