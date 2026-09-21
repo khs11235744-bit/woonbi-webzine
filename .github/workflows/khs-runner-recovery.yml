@@ -1,0 +1,55 @@
+name: KHS Runner Recovery
+on:
+  push:
+    branches: [main]
+    paths:
+      - "KHS_MAINTENANCE/runner_recovery.json"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: khs-runner-recovery
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    runs-on: [self-hosted, Windows, X64, khs-autodirector]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        timeout-minutes: 3
+      - name: Recover requested runner
+        shell: powershell
+        run: |
+          $cfg = Get-Content "KHS_MAINTENANCE/runner_recovery.json" -Raw -Encoding UTF8 | ConvertFrom-Json
+          if ($cfg.target -ne "minijev") { throw "Only minijev recovery is allowed from this workflow" }
+
+          $root = Join-Path $env:LOCALAPPDATA "KHS_Runners\minijev"
+          $run = Join-Path $root "run.cmd"
+          if (-not (Test-Path $run)) { throw "Mini-Jev runner run.cmd missing: $run" }
+
+          $rootFull = [IO.Path]::GetFullPath($root).TrimEnd('\')
+          $targets = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+            $_.ExecutablePath -and
+            $_.ExecutablePath.StartsWith($rootFull,[StringComparison]::OrdinalIgnoreCase) -and
+            $_.Name -in @("Runner.Listener.exe","Runner.Worker.exe")
+          })
+
+          foreach ($p in $targets) {
+            Write-Host "Stopping $($p.Name) PID=$($p.ProcessId)"
+            Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
+          }
+
+          Start-Sleep -Seconds 2
+
+          Write-Host "Starting Mini-Jev runner"
+          Start-Process -FilePath "cmd.exe" -ArgumentList "/c","cd /d `"$root`" && call run.cmd" -WorkingDirectory $root -WindowStyle Hidden
+          Start-Sleep -Seconds 8
+
+          $alive = @(Get-CimInstance Win32_Process -Filter "Name='Runner.Listener.exe'" -ErrorAction SilentlyContinue | Where-Object {
+            $_.ExecutablePath -and $_.ExecutablePath.StartsWith($rootFull,[StringComparison]::OrdinalIgnoreCase)
+          })
+
+          if ($alive.Count -lt 1) { throw "Mini-Jev runner listener did not restart" }
+          $alive | ForEach-Object { Write-Host "ONLINE_LOCAL PID=$($_.ProcessId) PATH=$($_.ExecutablePath)" }
