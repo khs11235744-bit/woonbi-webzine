@@ -103,6 +103,8 @@ function Snapshot {
     other_codex=if(Test-Path $Project){OtherCodexRunning}else{@()}
     handoff=ReadTextBounded (Join-Path $Project ".runtime\automation-handoff-latest.json") 120000
     harness=ReadTextBounded (Join-Path $Project ".runtime\harness-state.json") 120000
+    agent_heartbeat=ReadTextBounded (Join-Path $env:LOCALAPPDATA "KHS_EARLYHEAT_REMOTE\heartbeat.json") 50000
+    agent_state=ReadTextBounded (Join-Path $env:LOCALAPPDATA "KHS_EARLYHEAT_REMOTE\state.json") 50000
     safety=if(Test-Path $Project){SafetySnapshot}else{$null}
   }
 }
