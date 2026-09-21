@@ -62,15 +62,40 @@ function ReadTextBounded([string]$p, [int]$max = 200000) {
   return Get-Content $p -Raw -Encoding UTF8
 }
 
+function RunNativeBounded([string]$exe,[string[]]$args,[string]$workingDir,[int]$timeoutMs=10000) {
+  $id=[guid]::NewGuid().ToString("N")
+  $outFile=Join-Path $env:TEMP ("khs-native-out-"+$id+".txt")
+  $errFile=Join-Path $env:TEMP ("khs-native-err-"+$id+".txt")
+  try {
+    $p=Start-Process -FilePath $exe -PassThru -WindowStyle Hidden -ArgumentList $args -WorkingDirectory $workingDir -RedirectStandardOutput $outFile -RedirectStandardError $errFile
+    if(-not $p.WaitForExit($timeoutMs)){
+      try{$p.Kill($true)}catch{}
+      return @{exit=124;timed_out=$true;output=("timeout after "+$timeoutMs+"ms")}
+    }
+    $o=if(Test-Path $outFile){Get-Content $outFile -Raw -ErrorAction SilentlyContinue}else{""}
+    $e=if(Test-Path $errFile){Get-Content $errFile -Raw -ErrorAction SilentlyContinue}else{""}
+    return @{exit=$p.ExitCode;timed_out=$false;output=(($o+"`n"+$e).Trim())}
+  } finally {
+    Remove-Item $outFile,$errFile -Force -ErrorAction SilentlyContinue
+  }
+}
+
 function GitInfo([string]$root) {
   if (-not (Test-Path (Join-Path $root ".git"))) { return @{ git = $false } }
-  Push-Location $root
-  try {
-    $head = (& git rev-parse HEAD 2>$null | Out-String).Trim()
-    $branch = (& git branch --show-current 2>$null | Out-String).Trim()
-    $dirty = @(& git status --porcelain 2>$null)
-    return @{ git=$true; head=$head; branch=$branch; dirty=($dirty.Count -gt 0); dirty_count=$dirty.Count; dirty_files=@($dirty) }
-  } finally { Pop-Location }
+  $headR=RunNativeBounded "git.exe" @("rev-parse","HEAD") $root 8000
+  $branchR=RunNativeBounded "git.exe" @("branch","--show-current") $root 8000
+  $statusR=RunNativeBounded "git.exe" @("status","--porcelain") $root 12000
+  $dirtyLines=@()
+  if(-not $statusR.timed_out -and $statusR.output){$dirtyLines=@($statusR.output -split "`r?`n")}
+  return @{
+    git=$true
+    head=if($headR.exit -eq 0){$headR.output.Trim()}else{$null}
+    branch=if($branchR.exit -eq 0){$branchR.output.Trim()}else{$null}
+    dirty=if($statusR.timed_out){$null}else{($dirtyLines.Count -gt 0)}
+    dirty_count=if($statusR.timed_out){$null}else{$dirtyLines.Count}
+    dirty_files=$dirtyLines
+    git_status_timeout=$statusR.timed_out
+  }
 }
 
 function SystemSnapshot {
@@ -79,10 +104,13 @@ function SystemSnapshot {
   $gpu = $null
   if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) {
     try {
-      $line = (& nvidia-smi --query-gpu=name,utilization.gpu,memory.total,memory.used,memory.free,temperature.gpu --format=csv,noheader,nounits 2>$null | Select-Object -First 1)
-      if ($line) {
+      $nr=RunNativeBounded "nvidia-smi.exe" @("--query-gpu=name,utilization.gpu,memory.total,memory.used,memory.free,temperature.gpu","--format=csv,noheader,nounits") $env:TEMP 5000
+      if ($nr.exit -eq 0 -and -not $nr.timed_out -and $nr.output) {
+        $line=($nr.output -split "`r?`n")[0]
         $p = $line -split ',\s*'
-        $gpu = @{name=$p[0]; utilization_pct=[int]$p[1]; memory_total_mb=[int]$p[2]; memory_used_mb=[int]$p[3]; memory_free_mb=[int]$p[4]; temperature_c=[int]$p[5]}
+        $gpu = @{name=$p[0]; utilization_pct=[int]$p[1]; memory_total_mb=[int]$p[2]; memory_used_mb=[int]$p[3]; memory_free_mb=[int]$p[4]; temperature_c=[int]$p[5]; timed_out=$false}
+      } elseif ($nr.timed_out) {
+        $gpu=@{timed_out=$true}
       }
     } catch {}
   }
