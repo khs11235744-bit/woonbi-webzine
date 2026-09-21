@@ -1,0 +1,64 @@
+name: KHS Remote Console
+description: 휴대폰에서 Mini-Jev / INDIE / AutoDirector 원격 작업을 큐잉합니다.
+title: "[KHS Console] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## KHS Remote Console
+        비밀키·토큰·비밀번호는 입력하지 마세요.
+        Codex 출력은 실제 검증 전 PASS 처리되지 않습니다.
+        Antigravity/WebChat은 sidecar 요청으로 큐에 들어갑니다.
+
+  - type: dropdown
+    id: project
+    attributes:
+      label: "[PROJECT] 프로젝트"
+      options:
+        - Mini-Jev
+        - INDIE
+        - AutoDirector
+    validations:
+      required: true
+
+  - type: dropdown
+    id: action
+    attributes:
+      label: "[ACTION] 작업"
+      options:
+        - 상태 확인
+        - 한 단계 계속
+        - Codex 실행
+        - Antigravity 보조 요청
+        - WebChat 보조 요청
+    validations:
+      required: true
+
+  - type: dropdown
+    id: worker
+    attributes:
+      label: "[WORKER] 워커"
+      options:
+        - 자동
+        - Codex
+        - Antigravity
+        - WebChat
+    validations:
+      required: true
+
+  - type: textarea
+    id: instruction
+    attributes:
+      label: "[INSTRUCTION] 추가 지시"
+      description: 비워도 됩니다. 한 단계 계속/Codex/sidecar 요청이면 필요한 지시를 적으세요.
+      placeholder: 예) 현재 상태를 읽고 한 번에 하나의 bounded task만 진행. 기존 dirty overlay 보존.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: "[SAFETY] 확인"
+      options:
+        - label: 비밀키·토큰·비밀번호를 적지 않았습니다.
+          required: true
