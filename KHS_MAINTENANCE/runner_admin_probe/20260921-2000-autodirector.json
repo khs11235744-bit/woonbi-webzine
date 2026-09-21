@@ -1,0 +1,5 @@
+{
+  "request_id": "autodirector-runner-admin-probe-20260921-2000",
+  "requested_at": "2026-09-21T20:00:00+09:00",
+  "purpose": "Diagnose whether GitHub-hosted control can mint a self-hosted runner registration token while AutoDirector runner jobs are queued"
+}
