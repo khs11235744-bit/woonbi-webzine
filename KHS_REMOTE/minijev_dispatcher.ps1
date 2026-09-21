@@ -176,6 +176,9 @@ function ConsumeSidecar([string]$requestId) {
   if($todo.status -ne "READY"){return @{status="IDLE";retryable=$false;reason=("TODO_"+$todo.status)}}
   $configPath=Join-Path $Mini ".harness\SIDECAR_EXECUTOR.json"
   if(-not(Test-Path $configPath)){
+    $todo.status="BLOCKED_NO_EXECUTOR"
+    $todo.blocked_at=(Get-Date).ToString("o")
+    [IO.File]::WriteAllText($todoPath,($todo|ConvertTo-Json -Depth 12),(New-Object Text.UTF8Encoding($false)))
     $r=@{request_id=$todo.request_id;worker=$todo.worker;status="BLOCKED_NO_EXECUTOR";retryable=$true;probed=(ProbeSidecars);finished_at=(Get-Date).ToString("o")}
     [IO.File]::WriteAllText($resultPath,($r|ConvertTo-Json -Depth 12),(New-Object Text.UTF8Encoding($false)))
     return $r
@@ -194,7 +197,11 @@ function ConsumeSidecar([string]$requestId) {
       $args+=($s.Replace("{promptFile}",$promptFile).Replace("{projectRoot}",$Mini))
     }
     $run=RunNativeBounded $exe $args $Mini 1200000
-    $r=@{request_id=$todo.request_id;worker=$todo.worker;status=if($run.exit -eq 0){"NEEDS_VERIFICATION"}else{"FAIL"};retryable=$true;exit=$run.exit;timed_out=$run.timed_out;output=$run.output;finished_at=(Get-Date).ToString("o")}
+    $finalStatus=if($run.exit -eq 0){"NEEDS_VERIFICATION"}else{"FAIL"}
+    $todo.status=$finalStatus
+    $todo.consumed_at=(Get-Date).ToString("o")
+    [IO.File]::WriteAllText($todoPath,($todo|ConvertTo-Json -Depth 12),(New-Object Text.UTF8Encoding($false)))
+    $r=@{request_id=$todo.request_id;worker=$todo.worker;status=$finalStatus;retryable=$true;exit=$run.exit;timed_out=$run.timed_out;output=$run.output;finished_at=(Get-Date).ToString("o")}
     [IO.File]::WriteAllText($resultPath,($r|ConvertTo-Json -Depth 12),(New-Object Text.UTF8Encoding($false)))
     return $r
   } finally {Remove-Item $promptFile -Force -ErrorAction SilentlyContinue}
