@@ -31,7 +31,7 @@ jobs:
         run: |
           git config user.name "KHS Remote Runner"
           git config user.email "khs-remote-runner@users.noreply.github.com"
-          git add KHS_REMOTE/results
+          git add KHS_REMOTE/results/minijev
           if (-not (git diff --cached --quiet)) {
             git commit -m "KHS_RESULT: $env:GITHUB_RUN_ID"
             git pull --rebase origin main
