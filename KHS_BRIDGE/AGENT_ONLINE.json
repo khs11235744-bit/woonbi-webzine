@@ -1,0 +1,12 @@
+{
+    "poll_seconds":  15,
+    "computer":  "DESKTOP-7FNKNKT",
+    "online":  true,
+    "user":  "권형석",
+    "allowed_projects":  [
+                             "KHS_MINI_JEV",
+                             "KHS_FLOW_OS_v0.3"
+                         ],
+    "version":  "1.0",
+    "started_at":  "2026-09-21T09:18:04.0836195+09:00"
+}
