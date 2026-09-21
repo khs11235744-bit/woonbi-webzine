@@ -1,0 +1,8 @@
+{
+  "request_id": "indie-harness-validate-partial-20260921-1440",
+  "project": "INDIE",
+  "action": "indieplus_harness_run",
+  "mode": "validate-only",
+  "requested_at": "2026-09-21T05:36:22.125Z",
+  "requested_by": "webchat"
+}
