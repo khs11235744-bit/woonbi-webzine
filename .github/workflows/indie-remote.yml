@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   indie:
-    runs-on: [self-hosted, Windows, X64]
+    runs-on: [self-hosted, Windows, X64, khs-indie]
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
