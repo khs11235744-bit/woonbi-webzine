@@ -1,0 +1,125 @@
+name: EarlyHeat Dedicated Agent Bootstrap
+on:
+  push:
+    branches: [main]
+    paths:
+      - "KHS_MAINTENANCE/earlyheat_agent_bootstrap/*.json"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: khs-earlyheat-agent-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        timeout-minutes: 3
+        with:
+          fetch-depth: 2
+      - name: Install EarlyHeat dedicated local agent
+        id: install
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $statusPath = Join-Path $env:GITHUB_WORKSPACE "KHS_REMOTE\earlyheat_agent_status.json"
+          $result = [ordered]@{
+            timestamp = (Get-Date).ToString("o")
+            installed = $false
+            started = $false
+            task_registered = $false
+            startup_fallback = $false
+            paper_shadow_only = $true
+            computer = $env:COMPUTERNAME
+          }
+          try {
+            $gh = (Get-Command gh.exe -ErrorAction SilentlyContinue).Source
+            if (-not $gh) { $gh = (Get-Command gh -ErrorAction SilentlyContinue).Source }
+            if (-not $gh) { throw "gh CLI not found" }
+            $result.gh = $gh
+
+            & $gh auth status --hostname github.com 1>$null 2>$null
+            if ($LASTEXITCODE -ne 0) { throw "gh CLI is not authenticated for github.com" }
+            & $gh auth setup-git 1>$null 2>$null
+
+            $base = Join-Path $env:LOCALAPPDATA "KHS_EARLYHEAT_REMOTE"
+            New-Item -ItemType Directory -Path $base -Force | Out-Null
+            $agentSrc = Join-Path $env:GITHUB_WORKSPACE "KHS_REMOTE\earlyheat_agent.ps1"
+            $agentDst = Join-Path $base "agent.ps1"
+            Copy-Item $agentSrc $agentDst -Force
+            $result.agent_path = $agentDst
+
+            $startupDir = [Environment]::GetFolderPath("Startup")
+            $startupCmd = Join-Path $startupDir "KHS_EarlyHeat_Agent.cmd"
+            $cmdLine = '@echo off' + [Environment]::NewLine +
+              'start "" /min powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $agentDst + '"' + [Environment]::NewLine
+            [IO.File]::WriteAllText($startupCmd, $cmdLine, (New-Object Text.ASCIIEncoding))
+            $result.startup_fallback = $true
+            $result.startup_cmd = $startupCmd
+
+            try {
+              $taskName = "KHS EarlyHeat Remote Agent"
+              $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument ('-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $agentDst + '"')
+              $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+              Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Description "Dedicated Early Heat Radar remote coding agent" -Force | Out-Null
+              $result.task_registered = $true
+              $result.task_name = $taskName
+            } catch {
+              $result.task_error = $_.Exception.Message
+            }
+
+            $existing = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+              ([string]$_.CommandLine) -like ("*" + $agentDst + "*")
+            })
+            if ($existing.Count -eq 0) {
+              Start-Process powershell.exe -WindowStyle Hidden -ArgumentList @("-NoProfile","-ExecutionPolicy","Bypass","-File",$agentDst) | Out-Null
+            }
+            Start-Sleep -Seconds 6
+
+            $heartbeat = Join-Path $base "heartbeat.json"
+            if (-not (Test-Path $heartbeat)) { throw "agent heartbeat not created" }
+            $hb = Get-Content $heartbeat -Raw -Encoding UTF8 | ConvertFrom-Json
+            $result.heartbeat = $hb
+            if ([string]$hb.status -eq "FATAL") { throw ("agent fatal: " + [string]$hb.detail) }
+
+            $result.installed = $true
+            $result.started = $true
+          } catch {
+            $result.error = $_.Exception.Message
+          }
+
+          $json = $result | ConvertTo-Json -Depth 20
+          [IO.File]::WriteAllText($statusPath, $json, (New-Object Text.UTF8Encoding($false)))
+          Write-Host $json
+          if (-not $result.installed) { exit 2 }
+
+      - name: Commit bootstrap status
+        if: always()
+        shell: powershell
+        run: |
+          git config user.name "KHS EarlyHeat Bootstrap"
+          git config user.email "khs-earlyheat-bootstrap@users.noreply.github.com"
+          if (Test-Path "KHS_REMOTE/earlyheat_agent_status.json") {
+            git add KHS_REMOTE/earlyheat_agent_status.json
+            git diff --cached --quiet
+            $diffExit=$LASTEXITCODE
+            if ($diffExit -eq 1) {
+              git commit -m "KHS_EARLYHEAT_AGENT_STATUS: $env:GITHUB_RUN_ID"
+              if ($LASTEXITCODE -ne 0) { throw "git commit failed" }
+              $pushed=$false
+              for ($i=1; $i -le 5 -and -not $pushed; $i++) {
+                git pull --rebase origin main
+                if ($LASTEXITCODE -eq 0) {
+                  git push origin HEAD:main
+                  if ($LASTEXITCODE -eq 0) { $pushed=$true }
+                }
+                if (-not $pushed) { git rebase --abort 2>$null; Start-Sleep -Seconds (2*$i) }
+              }
+              if (-not $pushed) { throw "status push failed" }
+            } elseif ($diffExit -ne 0) { throw "git diff failed" }
+          }
