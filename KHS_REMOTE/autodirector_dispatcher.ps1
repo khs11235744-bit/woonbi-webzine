@@ -161,7 +161,28 @@ try {
       } finally { Pop-Location }
       if($out.Length -gt 160000){$out=$out.Substring($out.Length-160000)}
       $result.worker="codex"; $result.codex_exit=$exit; $result.codex_output=$out; $result.before_git=$before; $result.after_git=GitInfo
-      $result.status=if($exit -eq 0){"PASS"}else{"FAIL"}; $result.retryable=$true
+      Push-Location $Auto
+      try { $verifyText=(& git diff --check 2>&1 | Out-String).Trim(); $verifyExit=$LASTEXITCODE } finally { Pop-Location }
+      $result.verifier=@{name="git diff --check";exit=$verifyExit;output=$verifyText}
+      if($exit -ne 0 -or $verifyExit -ne 0){$result.status="FAIL";$result.retryable=$true}
+      else{$result.status="NEEDS_VERIFICATION";$result.retryable=$true}
+    }
+    "autodirector_sidecar_request" {
+      if(StopPresent){ throw "STOP_PRESENT" }
+      $worker=([string]$cmd.worker).ToLowerInvariant()
+      if($worker -notin @("antigravity","webchat")){ throw "unsupported sidecar worker: $worker" }
+      $prompt=[string]$cmd.prompt
+      if([string]::IsNullOrWhiteSpace($prompt)){ $prompt="Inspect current AutoDirector state and assist with one bounded task. Do not claim completion without verification." }
+      if($prompt.Length -gt 30000){ throw "sidecar prompt too long" }
+      $dir=Join-Path $Auto ".harness"
+      New-Item -ItemType Directory -Path $dir -Force|Out-Null
+      $path=Join-Path $dir "SIDECAR_TODO.json"
+      $payload=[ordered]@{request_id=$cmd.request_id;worker=$worker;status="READY";prompt=$prompt;created_at=(Get-Date).ToString("o");note="Sidecar request only. READY does not mean completed."}
+      [IO.File]::WriteAllText($path,($payload|ConvertTo-Json -Depth 8),(New-Object Text.UTF8Encoding($false)))
+      $verify=Get-Content $path -Raw -Encoding UTF8|ConvertFrom-Json
+      if($verify.request_id -ne $cmd.request_id -or $verify.status -ne "READY"){throw "sidecar queue verification failed"}
+      $result.sidecar=@{path=$path;worker=$worker;status="READY"}
+      $result.status="QUEUED";$result.retryable=$false
     }
     default { throw "Unsupported AutoDirector action: $($cmd.action)" }
   }
