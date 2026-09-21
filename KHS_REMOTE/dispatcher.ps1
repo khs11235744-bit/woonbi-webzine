@@ -19,7 +19,11 @@ if ($env:GITHUB_EVENT_PATH -and (Test-Path $env:GITHUB_EVENT_PATH)) {
       $changed += @($evt.head_commit.modified)
     }
     $JobRelPath = $changed |
-      Where-Object { $_ -like "KHS_REMOTE/jobs/*.json" } |
+      Where-Object {
+        $_ -like "KHS_REMOTE/jobs/*.json" -or
+        $_ -like "KHS_REMOTE/minijev_jobs/*.json" -or
+        $_ -like "KHS_REMOTE/indie_jobs/*.json"
+      } |
       Select-Object -First 1
     if ($JobRelPath) {
       $CmdPath = Join-Path $env:GITHUB_WORKSPACE ($JobRelPath -replace '/', '\')
