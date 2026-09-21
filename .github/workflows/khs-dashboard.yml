@@ -63,13 +63,52 @@ jobs:
               return '⚪';
             }
 
-            const runnerRows = desiredRunners.map(item => {
-              const r = runners.find(x => x.name === item.name);
-              if (!r) return '| ' + item.project + ' | ' + item.name + ' | 🔴 미등록/오프라인 | - |';
-              const labels = (r.labels || []).map(x => x.name).join(', ');
-              const state = r.status === 'online' ? (r.busy ? '🟡 online · busy' : '🟢 online · idle') : '🔴 ' + r.status;
-              return '| ' + item.project + ' | ' + item.name + ' | ' + state + ' | ' + labels + ' |';
-            });
+            const runnerRows = [];
+            for (const item of desiredRunners) {
+              const direct = runners.find(x => x.name === item.name);
+              if (direct) {
+                const labels = (direct.labels || []).map(x => x.name).join(', ');
+                const state = direct.status === 'online'
+                  ? (direct.busy ? '🟡 online · busy' : '🟢 online · idle')
+                  : '🔴 ' + direct.status;
+                runnerRows.push('| ' + item.project + ' | ' + item.name + ' | ' + state + ' | ' + labels + ' |');
+                continue;
+              }
+
+              const workflowName = workflowMap[item.project];
+              const recentRuns = allRuns.filter(x => x.name === workflowName).slice(0, 6);
+              let assigned = null;
+              let assignedRun = null;
+
+              for (const rr of recentRuns) {
+                try {
+                  const jobsResp = await github.rest.actions.listJobsForWorkflowRun({
+                    owner, repo, run_id: rr.id, per_page: 100
+                  });
+                  const job = (jobsResp.data.jobs || []).find(j => j.runner_name);
+                  if (job) {
+                    assigned = job;
+                    assignedRun = rr;
+                    break;
+                  }
+                } catch (e) {
+                  core.warning('Job lookup failed for run ' + rr.id + ': ' + e.message);
+                }
+              }
+
+              if (assigned) {
+                const labels = (assigned.labels || []).join(', ');
+                const state = assignedRun && assignedRun.status === 'in_progress'
+                  ? '🟡 active · ' + assigned.runner_name
+                  : '⚪ last seen · ' + assigned.runner_name;
+                runnerRows.push('| ' + item.project + ' | ' + item.name + ' | ' + state + ' | ' + labels + ' |');
+              } else {
+                const latest = recentRuns[0];
+                const waiting = latest && ['queued','pending','requested'].includes(latest.status);
+                const state = waiting ? '🟠 waiting · runner 배정 대기' : '⚪ runner API 권한 제한';
+                runnerRows.push('| ' + item.project + ' | ' + item.name + ' | ' + state + ' | - |');
+              }
+            }
 
             const runRows = Object.entries(workflowMap).map(([project, workflowName]) => {
               const r = allRuns.find(x => x.name === workflowName);
