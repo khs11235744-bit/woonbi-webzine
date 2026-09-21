@@ -4,13 +4,23 @@ on:
     branches: [main]
     paths:
       - "KHS_REMOTE/autodirector_jobs/**/*.json"
+  workflow_dispatch:
+    inputs:
+      job_path:
+        description: "AutoDirector job JSON path"
+        required: true
+        type: string
 
 permissions:
   contents: write
 
+concurrency:
+  group: autodirector-remote-control
+  cancel-in-progress: false
+
 jobs:
   autodirector:
-    runs-on: [self-hosted, Windows, X64]
+    runs-on: [self-hosted, Windows, X64, khs-autodirector]
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -19,14 +29,21 @@ jobs:
       - name: Resolve AutoDirector job file
         id: job
         shell: powershell
+        env:
+          KHS_JOB_PATH: ${{ github.event.inputs.job_path || '' }}
         run: |
-          $changed = @(& git diff-tree --no-commit-id --name-only -r $env:GITHUB_SHA)
-          $job = $changed | Where-Object { $_ -like "KHS_REMOTE/autodirector_jobs/*.json" } | Select-Object -First 1
-          if (-not $job) {
-            Write-Host "Changed files:"
-            $changed | ForEach-Object { Write-Host $_ }
-            throw "AutoDirector job file not found in triggering commit"
+          if (-not [string]::IsNullOrWhiteSpace($env:KHS_JOB_PATH)) {
+            $job = $env:KHS_JOB_PATH
+          } else {
+            $changed = @(& git diff-tree --no-commit-id --name-only -r $env:GITHUB_SHA)
+            $job = $changed | Where-Object { $_ -like "KHS_REMOTE/autodirector_jobs/*.json" } | Select-Object -First 1
+            if (-not $job) {
+              Write-Host "Changed files:"
+              $changed | ForEach-Object { Write-Host $_ }
+              throw "AutoDirector job file not found in triggering commit"
+            }
           }
+          if ($job -notlike "KHS_REMOTE/autodirector_jobs/*.json") { throw "Invalid AutoDirector job path: $job" }
           "job=$job" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
       - name: Execute bounded AutoDirector command
         shell: powershell
