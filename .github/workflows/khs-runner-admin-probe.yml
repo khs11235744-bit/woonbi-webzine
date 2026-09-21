@@ -1,0 +1,54 @@
+name: KHS Runner Admin Probe
+on:
+  push:
+    branches: [main]
+    paths:
+      - "KHS_MAINTENANCE/runner_admin_probe/*.json"
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe registration-token permission without persisting token
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p KHS_REMOTE
+          HTTP_CODE=$(curl -sS -o /tmp/reg.json -w "%{http_code}" -X POST             -H "Authorization: Bearer $GH_TOKEN"             -H "Accept: application/vnd.github+json"             -H "X-GitHub-Api-Version: 2022-11-28"             "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runners/registration-token" || true)
+          export HTTP_CODE
+          python - <<'PY'
+import json, os, datetime
+code=os.environ.get("HTTP_CODE","")
+try:
+    raw=json.load(open("/tmp/reg.json","r",encoding="utf-8"))
+except Exception:
+    raw={}
+out={
+  "captured_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+  "http_code": code,
+  "can_mint_runner_registration_token": code in ("200","201"),
+}
+if not out["can_mint_runner_registration_token"]:
+    out["message"]=str(raw.get("message","permission probe failed"))[:1000]
+open("KHS_REMOTE/runner_admin_probe.json","w",encoding="utf-8").write(json.dumps(out,ensure_ascii=False,indent=2))
+PY
+          rm -f /tmp/reg.json
+      - name: Commit redacted probe
+        shell: bash
+        run: |
+          git config user.name "KHS Runner Probe"
+          git config user.email "khs-runner-probe@users.noreply.github.com"
+          git add KHS_REMOTE/runner_admin_probe.json
+          git diff --cached --quiet && exit 0
+          git commit -m "KHS_RUNNER_ADMIN_PROBE: ${GITHUB_RUN_ID}"
+          for i in 1 2 3 4; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep $((i*2))
+          done
+          exit 1
