@@ -1,8 +1,7 @@
 {
-  "requested_at": "2026-09-21T05:20:50.283Z",
-  "reason": "dedupe INDIE UI jobs; keep only direct verifier on dedicated khs-indie lane",
+  "requested_at": "2026-09-21T05:21:09.524Z",
+  "reason": "use direct verify/commit for existing UI overlay instead of waiting on Codex",
   "run_ids": [
-    35564191483,
-    35564145099
+    35564191483
   ]
 }
