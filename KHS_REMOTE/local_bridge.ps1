@@ -6,7 +6,7 @@ $Project = Join-Path $env:USERPROFILE "Documents\indieplus-pohang"
 $StateDir = Join-Path $env:USERPROFILE "KHS_REMOTE_STATE"
 $ResultRelDir = "KHS_REMOTE/results"
 
-function Say($m){ Write-Host ("[KHS-BRIDGE v2] " + $m) }
+function Say($m){ Write-Host ("[KHS-BRIDGE v3] " + $m) }
 function SafeId([string]$s){ return ($s -replace '[^A-Za-z0-9_.-]','_') }
 
 function GitInfo([string]$root){
@@ -122,7 +122,7 @@ function RequireCleanProject($cmd){
         } | Sort-Object)
         $ok=($paths.Count -eq $known.Count -and (Compare-Object $known $paths).Count -eq 0)
         if($ok){
-          git stash push -u -m "assistant-v19-incomplete-before-bridge-v2" | Out-Null
+          git stash push -u -m "assistant-v19-incomplete-before-bridge-v3" | Out-Null
           if($LASTEXITCODE -ne 0){ throw "known stash failed" }
           $dirty=@(git status --porcelain)
         }
@@ -192,7 +192,7 @@ if(-not $codex){
 }
 
 New-Item -ItemType Directory -Path $StateDir -Force | Out-Null
-Say "READY v2"
+Say "READY v3"
 Say "project=$Project"
 Say ("codex=" + $(if($codex){$codex}else{"NOT_FOUND"}))
 Say "polling command.json + KHS_REMOTE/jobs every 6 seconds"
