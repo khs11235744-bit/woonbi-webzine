@@ -1,4 +1,7 @@
 {
-  "request_id": "indieplus-diagnostic-status-20260921-1238",
-  "action": "indieplus_status"
+  "request_id": "indieplus-codex-heroA-20260921-1248",
+  "action": "indieplus_codex",
+  "allow_known_stash": false,
+  "push_after": true,
+  "prompt": "C:\\Users\\권형석\\Documents\\indieplus-pohang 프로젝트에서 이번 작업은 A안 모바일 홈 히어로 디자인 수정만 수행하라. Q1/Q2/Q3는 아직 건드리지 않는다.\n\n시작 즉시 HARNESS.md, ROADMAP_100.md, COMMUNITY_ROADMAP_100.md, MAGAZINE_EDITOR_WORKSHOP_100.md, DESIGN_PANEL_100_V18.md를 읽고 git status -sb, .harness.lock, git log -1 --oneline을 확인하라. 현재 worktree는 clean이어야 한다. clean이 아니거나 .harness.lock이 있으면 수정하지 말고 종료.\n\n전체 롤백 금지. Pinterest 참고 기반의 최근 에디토리얼/감각적 디자인 방향은 유지한다.\n\n모바일 390px에서 실제로 다음을 고쳐라:\n- 포스터가 가장 먼저 읽히는 시각적 주인공.\n- 제목은 두 번째 위계, 최대 2줄.\n- 설명은 2~3줄, CTA는 그 다음 위계.\n- NOW/NEXT LIVE, '오늘이 아니어도…', '포스터부터 예매까지…' 같은 editorial 카피는 삭제하지 말고 크기/폭/대비를 낮추거나 포스터 아래 보조 영역으로 이동.\n- 포스터 위 텍스트 겹침과 검은 오버레이 강도를 줄여 포스터가 더 잘 보이게.\n- 모바일 2열 인상을 없애고 사실상 1열 읽기 흐름으로.\n- 헤더는 로고/검색/프로필 중심으로 단정하게. 중복 검색/과한 박스 버튼 느낌 제거.\n- 세로 포스터 비율 안정화.\n- 일반 영화 포스터 목록에서도 제목은 포스터와 싸우지 않게 최대 2줄, 텍스트 위계 정돈.\n- 데스크톱 1440px 기존 에디토리얼 리듬은 훼손하지 않는다.\n- 목표는 영화잡지/시네마테크 프로그램북 같은 포스터 중심의 담백한 편집 디자인.\n\n회귀 금지:\n- 홈 순서 discover→criticism→newsroom\n- 비평집 모바일 하단 직접 진입\n- 2026 장문 비평 8편\n- features-v05.js 한줄평 6개 프리셋과 Editorial Cover 기본값\n- 기존 카드뉴스/비평집/뉴스룸 기능\n- 적갈색 포인트, 아이보리 비평집, 신문형 뉴스\n- 서버 DB/OAuth/실제 SNS 로그인/비밀키 금지\n\n변경 후:\n- 모든 data/*.json JSON 파싱 검증\n- node --check app.js features-v04.js features-v05.js features-v06.js features-v07.js features-v08.js features-v17.js sw.js\n- git diff --check\n- scripts/probe_v18.mjs를 모바일 390px 우선 실행하고 가능하면 1440px도 확인\n- 포스터 첫 시선, 제목 줄바꿈, CTA 압박 없음, editorial 카피 비중 감소, JS 예외 0 확인\n- .chrome-*와 캡처 commit 금지\n\n테스트 통과 시 필요한 파일만 git add 후\ngit commit -m \"fix: refine mobile poster-first editorial hero\"\n실행. push는 브릿지가 처리한다.\n실패하면 commit하지 말고 수정 후 재검증.\n최종 출력은 실제 변경/테스트/commit SHA만 한국어로 간결하게."
 }
