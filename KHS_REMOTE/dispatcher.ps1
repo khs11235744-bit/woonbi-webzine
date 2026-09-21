@@ -306,6 +306,66 @@ try {
         $result.retryable = $true
       }
     }
+    "indieplus_codex_continue" {
+      if (-not (Test-Path $Indie)) { throw "indieplus-pohang project missing: $Indie" }
+      $lockPath = Join-Path $Indie ".harness.lock"
+      if (Test-Path $lockPath) {
+        $result.blocked = "HARNESS_LOCK"
+        $result.lock_content = ReadTextBounded $lockPath 50000
+        $result.git = GitInfo $Indie
+        $result.status = "BLOCKED"
+        $result.retryable = $false
+        break
+      }
+
+      $beforeGit = GitInfo $Indie
+      $result.before_git = $beforeGit
+      $prompt = [string]$cmd.prompt
+      if ([string]::IsNullOrWhiteSpace($prompt)) { throw "prompt is empty" }
+      if ($prompt.Length -gt 60000) { throw "prompt too long" }
+
+      # CONTINUE mode deliberately preserves an existing dirty overlay.
+      # Do not pull/reset/clean/checkout here.
+      $codexRun = RunCodexBounded $Indie $prompt 1800
+      $result.codex_cmd = $codexRun.codex_cmd
+      $result.codex_exit = $codexRun.exit
+      $result.codex_timeout = $codexRun.timed_out
+      $result.codex_output = $codexRun.output
+      $afterGit = GitInfo $Indie
+      $result.after_git = $afterGit
+
+      if ($result.codex_exit -ne 0) {
+        $result.status = "FAIL"
+        $result.retryable = $true
+        break
+      }
+
+      if ([bool]$cmd.push_after -and -not $afterGit.dirty -and $afterGit.head -ne $beforeGit.head) {
+        Push-Location $Indie
+        try {
+          $pushOutput = (& git push origin HEAD:main 2>&1 | Out-String).Trim()
+          $pushExit = $LASTEXITCODE
+          $result.push_output = $pushOutput
+          $result.push_exit = $pushExit
+          if ($pushExit -ne 0) { throw "git push failed: $pushOutput" }
+        } finally { Pop-Location }
+      }
+
+      $result.final_git = GitInfo $Indie
+      Push-Location $Indie
+      try {
+        $verifyText = (& git diff --check 2>&1 | Out-String).Trim()
+        $verifyExit = $LASTEXITCODE
+      } finally { Pop-Location }
+      $result.verifier = @{ name="git diff --check"; exit=$verifyExit; output=$verifyText }
+      if ($verifyExit -ne 0) {
+        $result.status = "FAIL"
+        $result.retryable = $true
+      } else {
+        $result.status = "NEEDS_VERIFICATION"
+        $result.retryable = $true
+      }
+    }
     "minijev_codex" {
       if (-not (Test-Path $Mini)) { throw "KHS_MINI_JEV project missing: $Mini" }
       if (Test-Path (Join-Path $Mini ".harness\STOP")) { $result.status="STOPPED"; $result.retryable=$false; break }
