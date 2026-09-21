@@ -1,7 +1,7 @@
 {
-  "requested_at": "2026-09-21T05:22:14.887Z",
-  "reason": "free khs-indie slot for dedicated direct verifier",
+  "requested_at": "2026-09-21T05:22:37.242Z",
+  "reason": "replace generic pending INDIE verify with dedicated khs-indie runner",
   "run_ids": [
-    35564145099
+    35564264323
   ]
 }
