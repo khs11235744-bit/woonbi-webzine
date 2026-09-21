@@ -1,8 +1,8 @@
 {
-  "requested_at": "2026-09-21T14:27:00+09:00",
-  "reason": "cancel hung AutoDirector status probes before replacing dispatcher git status with bounded logic",
+  "requested_at": "2026-09-21T14:42:00+09:00",
+  "reason": "free self-hosted runners from read-only AutoDirector probes while the local continuous harness owns the source worktree",
   "run_ids": [
-    35559718392,
-    35559543532
+    35559963434,
+    35559989227
   ]
 }
