@@ -3,136 +3,337 @@ $ErrorActionPreference = "Stop"
 $Repo = "khs11235744-bit/-"
 $Bridge = Join-Path $env:USERPROFILE "KHS_REMOTE_BRIDGE"
 $Project = Join-Path $env:USERPROFILE "Documents\indieplus-pohang"
-$LastFile = Join-Path $Bridge ".last_request"
-$ResultDir = Join-Path $Bridge "KHS_REMOTE\results"
+$StateDir = Join-Path $env:USERPROFILE "KHS_REMOTE_STATE"
+$ResultRelDir = "KHS_REMOTE/results"
 
-function Say($m){ Write-Host ("[KHS-BRIDGE] " + $m) }
+function Say($m){ Write-Host ("[KHS-BRIDGE v2] " + $m) }
+function SafeId([string]$s){ return ($s -replace '[^A-Za-z0-9_.-]','_') }
+
+function GitInfo([string]$root){
+  Push-Location $root
+  try {
+    return @{
+      head=((& git rev-parse HEAD 2>$null | Out-String).Trim())
+      branch=((& git branch --show-current 2>$null | Out-String).Trim())
+      status=@(& git status --porcelain 2>$null)
+      stash=@(& git stash list 2>$null)
+    }
+  } finally { Pop-Location }
+}
+
+function ProjectPath([string]$rel){
+  if([string]::IsNullOrWhiteSpace($rel)){ throw "empty relative path" }
+  if([IO.Path]::IsPathRooted($rel)){ throw "absolute path rejected: $rel" }
+  $root=[IO.Path]::GetFullPath($Project).TrimEnd('\') + '\'
+  $full=[IO.Path]::GetFullPath((Join-Path $Project $rel))
+  if(-not $full.StartsWith($root,[StringComparison]::OrdinalIgnoreCase)){ throw "path escapes project: $rel" }
+  return $full
+}
+
+function WriteUtf8NoBom([string]$path,[string]$text){
+  $parent=Split-Path $path -Parent
+  if($parent){ New-Item -ItemType Directory -Path $parent -Force | Out-Null }
+  [IO.File]::WriteAllText($path,$text,(New-Object Text.UTF8Encoding($false)))
+}
+
+function PublishResult($obj){
+  $rid=SafeId([string]$obj.request_id)
+  if(-not $rid){ return }
+  $json=($obj | ConvertTo-Json -Depth 30)
+  for($attempt=1;$attempt -le 4;$attempt++){
+    try{
+      Push-Location $Bridge
+      try{
+        git fetch origin main --quiet
+        git reset --hard origin/main --quiet
+        $dir=Join-Path $Bridge $ResultRelDir
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+        $per=Join-Path $dir ($rid + ".json")
+        $latest=Join-Path $dir "latest-indieplus.json"
+        WriteUtf8NoBom $per $json
+        WriteUtf8NoBom $latest $json
+        git config user.name "KHS Local Bridge"
+        git config user.email "khs-local-bridge@users.noreply.github.com"
+        git add $per $latest
+        if(git diff --cached --quiet){ return }
+        git commit -m ("KHS_RESULT: " + $rid + " [" + [string]$obj.status + "]") | Out-Null
+        git pull --rebase origin main
+        if($LASTEXITCODE -ne 0){ throw "result rebase failed" }
+        git push origin HEAD:main
+        if($LASTEXITCODE -eq 0){ return }
+      } finally { Pop-Location }
+    } catch {
+      try{
+        Push-Location $Bridge
+        git rebase --abort 2>$null
+        Pop-Location
+      }catch{}
+      Start-Sleep -Seconds (2*$attempt)
+    }
+  }
+  Say ("WARN result publish failed for " + $rid)
+}
+
+function ReadCommandFile([string]$path){
+  try{
+    $c=Get-Content $path -Raw -Encoding UTF8 | ConvertFrom-Json
+    if(-not $c.request_id -or -not $c.action){ return $null }
+    if(([string]$c.action) -notlike "indieplus_*"){ return $null }
+    return $c
+  }catch{ return $null }
+}
+
+function NextCommand(){
+  $all=@()
+  $cmdPath=Join-Path $Bridge "KHS_REMOTE\command.json"
+  if(Test-Path $cmdPath){
+    $c=ReadCommandFile $cmdPath
+    if($c){ $all += [pscustomobject]@{ cmd=$c; source=$cmdPath; order="000-command" } }
+  }
+  $jobs=Join-Path $Bridge "KHS_REMOTE\jobs"
+  if(Test-Path $jobs){
+    foreach($j in Get-ChildItem $jobs -Filter "*.json" -File -ErrorAction SilentlyContinue){
+      $c=ReadCommandFile $j.FullName
+      if($c){ $all += [pscustomobject]@{ cmd=$c; source=$j.FullName; order=$j.Name } }
+    }
+  }
+  foreach($x in ($all | Sort-Object order)){
+    $rid=SafeId([string]$x.cmd.request_id)
+    if(-not (Test-Path (Join-Path $StateDir ($rid + ".done"))) -and
+       -not (Test-Path (Join-Path $StateDir ($rid + ".running")))){
+      return $x.cmd
+    }
+  }
+  return $null
+}
+
+function RequireCleanProject($cmd){
+  $lock=Join-Path $Project ".harness.lock"
+  if(Test-Path $lock){ throw "HARNESS_LOCK" }
+  Push-Location $Project
+  try{
+    $dirty=@(git status --porcelain)
+    if($dirty.Count -gt 0){
+      if([bool]$cmd.allow_known_stash){
+        $known=@("sw.js","editorial-v19.css","features-v19.js") | Sort-Object
+        $paths=@($dirty | ForEach-Object {
+          $line=[string]$_
+          if($line.Length -ge 4){$line.Substring(3).Trim()}else{$line.Trim()}
+        } | Sort-Object)
+        $ok=($paths.Count -eq $known.Count -and (Compare-Object $known $paths).Count -eq 0)
+        if($ok){
+          git stash push -u -m "assistant-v19-incomplete-before-bridge-v2" | Out-Null
+          if($LASTEXITCODE -ne 0){ throw "known stash failed" }
+          $dirty=@(git status --porcelain)
+        }
+      }
+    }
+    if($dirty.Count -gt 0){ throw ("DIRTY_WORKTREE: " + ($dirty -join " | ")) }
+    git pull --ff-only
+    if($LASTEXITCODE -ne 0){ throw "git pull --ff-only failed" }
+  } finally { Pop-Location }
+}
+
+function RunNodeCheck([string]$rel){
+  $full=ProjectPath $rel
+  if(-not (Test-Path $full)){ throw "missing JS: $rel" }
+  Push-Location $Project
+  try{
+    & node --check $rel
+    if($LASTEXITCODE -ne 0){ throw "node --check failed: $rel" }
+  } finally { Pop-Location }
+}
+
+function RunProbe(){
+  $server=$null;$browser=$null
+  try{
+    $python=(Get-Command python.exe -ErrorAction SilentlyContinue).Source
+    if(-not $python){ $python=(Get-Command python -ErrorAction SilentlyContinue).Source }
+    if(-not $python){ throw "python not found for probe server" }
+
+    $pf86=[Environment]::GetEnvironmentVariable("ProgramFiles(x86)")
+    $chromeCandidates=@(
+      (Join-Path $env:ProgramFiles "Google\Chrome\Application\chrome.exe"),
+      $(if($pf86){Join-Path $pf86 "Google\Chrome\Application\chrome.exe"}else{$null}),
+      (Join-Path $env:ProgramFiles "Microsoft\Edge\Application\msedge.exe"),
+      $(if($pf86){Join-Path $pf86 "Microsoft\Edge\Application\msedge.exe"}else{$null})
+    )
+    $chrome=$chromeCandidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+    if(-not $chrome){ throw "Chrome/Edge not found" }
+
+    $server=Start-Process -FilePath $python -ArgumentList "-m","http.server","8910","--bind","127.0.0.1" -WorkingDirectory $Project -WindowStyle Hidden -PassThru
+    Start-Sleep -Seconds 2
+
+    $profile=Join-Path $env:TEMP ("khs-chrome-" + [guid]::NewGuid().ToString("N"))
+    $browser=Start-Process -FilePath $chrome -ArgumentList "--headless=new","--remote-debugging-port=9233","--user-data-dir=$profile","http://127.0.0.1:8910/" -WindowStyle Hidden -PassThru
+    Start-Sleep -Seconds 4
+
+    Push-Location $Project
+    try{
+      $probeOut=(& node scripts/probe_v18.mjs 2>&1 | Out-String).Trim()
+      if($LASTEXITCODE -ne 0){ throw ("probe_v18 failed: " + $probeOut) }
+    } finally { Pop-Location }
+    return $probeOut
+  } finally {
+    if($browser -and -not $browser.HasExited){ Stop-Process -Id $browser.Id -Force -ErrorAction SilentlyContinue }
+    if($server -and -not $server.HasExited){ Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue }
+  }
+}
 
 if (-not (Get-Command gh.exe -ErrorAction SilentlyContinue)) { throw "gh.exe not found" }
 gh auth status *> $null
 if ($LASTEXITCODE -ne 0) { throw "gh auth is not ready" }
-
-$codex = (Get-Command codex.cmd -ErrorAction SilentlyContinue).Source
-if (-not $codex) {
-  $c = Join-Path $env:APPDATA "npm\codex.cmd"
-  if (Test-Path $c) { $codex = $c }
-}
-if (-not $codex) { throw "codex.cmd not found" }
 if (-not (Test-Path $Project)) { throw "project missing: $Project" }
 
-if (-not (Test-Path (Join-Path $Bridge ".git"))) {
-  if (Test-Path $Bridge) { Remove-Item $Bridge -Recurse -Force }
-  gh repo clone $Repo $Bridge
-  if ($LASTEXITCODE -ne 0) { throw "bridge clone failed" }
+$codex=(Get-Command codex.cmd -ErrorAction SilentlyContinue).Source
+if(-not $codex){
+  $candidate=Join-Path $env:APPDATA "npm\codex.cmd"
+  if(Test-Path $candidate){$codex=$candidate}
 }
-New-Item -ItemType Directory -Path $ResultDir -Force | Out-Null
 
-Say "READY"
+New-Item -ItemType Directory -Path $StateDir -Force | Out-Null
+Say "READY v2"
 Say "project=$Project"
-Say "codex=$codex"
-Say "polling GitHub every 8 seconds; keep this window open"
+Say ("codex=" + $(if($codex){$codex}else{"NOT_FOUND"}))
+Say "polling command.json + KHS_REMOTE/jobs every 6 seconds"
 
-while ($true) {
-  try {
+while($true){
+  try{
     Push-Location $Bridge
-    try {
+    try{
       git fetch origin main --quiet
       git reset --hard origin/main --quiet
     } finally { Pop-Location }
 
-    $cmdPath = Join-Path $Bridge "KHS_REMOTE\command.json"
-    if (-not (Test-Path $cmdPath)) { Start-Sleep 8; continue }
-    $cmd = Get-Content $cmdPath -Raw -Encoding UTF8 | ConvertFrom-Json
-    $rid = [string]$cmd.request_id
-    if ([string]::IsNullOrWhiteSpace($rid)) { Start-Sleep 8; continue }
+    $cmd=NextCommand
+    if(-not $cmd){ Start-Sleep 6; continue }
 
-    $last = if (Test-Path $LastFile) { (Get-Content $LastFile -Raw).Trim() } else { "" }
-    if ($rid -eq $last) { Start-Sleep 8; continue }
+    $rid=SafeId([string]$cmd.request_id)
+    $running=Join-Path $StateDir ($rid+".running")
+    $done=Join-Path $StateDir ($rid+".done")
+    Set-Content $running "1" -Encoding ASCII
 
-    $result = [ordered]@{
-      request_id=$rid; action=[string]$cmd.action; started_at=(Get-Date).ToString("o"); status="FAIL"
+    $result=[ordered]@{
+      request_id=[string]$cmd.request_id
+      action=[string]$cmd.action
+      started_at=(Get-Date).ToString("o")
+      status="RUNNING"
+      project=$Project
     }
+    PublishResult $result
+    Say ("running " + $rid + " action=" + [string]$cmd.action)
 
-    if ([string]$cmd.action -eq "indieplus_status") {
-      $lock=Join-Path $Project ".harness.lock"
-      Push-Location $Project
-      try {
-        $result.lock_present=Test-Path $lock
-        $result.lock_content=if(Test-Path $lock){Get-Content $lock -Raw}else{$null}
-        $result.head=(git rev-parse HEAD | Out-String).Trim()
-        $result.branch=(git branch --show-current | Out-String).Trim()
-        $result.status_porcelain=@(git status --porcelain)
-        $result.status="PASS"
-      } finally { Pop-Location }
-    }
-    elseif ([string]$cmd.action -eq "indieplus_codex") {
-      $lock=Join-Path $Project ".harness.lock"
-      if(Test-Path $lock){ $result.status="BLOCKED"; $result.reason="HARNESS_LOCK" }
-      else {
-        Push-Location $Project
-        try {
-          $dirty=@(git status --porcelain)
-          if($dirty.Count -gt 0){
-            $knownPaths=@("sw.js","editorial-v19.css","features-v19.js") | Sort-Object
-            $dirtyPaths=@($dirty | ForEach-Object {
-              $line=[string]$_
-              if($line.Length -ge 4){ $line.Substring(3).Trim() } else { $line.Trim() }
-            } | Sort-Object)
-            $onlyKnown=($dirtyPaths.Count -eq $knownPaths.Count -and (Compare-Object $knownPaths $dirtyPaths).Count -eq 0)
-            if($onlyKnown -and [bool]$cmd.allow_known_stash){
-              $stashOut=(& git stash push -u -m "assistant-v19-incomplete-before-codex" 2>&1 | Out-String).Trim()
-              if($LASTEXITCODE -ne 0){ throw "known assistant stash failed: $stashOut" }
-              $result.stashed_known_assistant_changes=$true
-              $result.stash_output=$stashOut
-              $dirty=@(git status --porcelain)
+    try{
+      switch([string]$cmd.action){
+        "indieplus_status" {
+          $result.git=GitInfo $Project
+          $lock=Join-Path $Project ".harness.lock"
+          $result.lock_present=Test-Path $lock
+          $result.lock_content=if(Test-Path $lock){Get-Content $lock -Raw}else{$null}
+          $result.status="PASS"
+        }
+        "indieplus_patch" {
+          RequireCleanProject $cmd
+          $changes=@()
+          foreach($p in @($cmd.patches)){
+            $rel=[string]$p.path
+            $full=ProjectPath $rel
+            $mode=[string]$p.mode
+            if(-not $mode){$mode="replace"}
+            $text=if(Test-Path $full){[IO.File]::ReadAllText($full)}else{""}
+            if($mode -eq "append"){
+              $marker=[string]$p.marker
+              if($marker -and $text.Contains($marker)){
+                $changes += @{path=$rel;status="already-present"}
+              }else{
+                $add=[string]$p.content
+                WriteUtf8NoBom $full ($text + $add)
+                $changes += @{path=$rel;status="appended"}
+              }
+            } elseif($mode -eq "write"){
+              WriteUtf8NoBom $full ([string]$p.content)
+              $changes += @{path=$rel;status="written"}
+            } else {
+              if(-not (Test-Path $full)){throw "replace target missing: $rel"}
+              $search=[string]$p.search
+              $replace=[string]$p.replace
+              if([string]::IsNullOrEmpty($search)){throw "empty search: $rel"}
+              $count=([regex]::Matches($text,[regex]::Escape($search))).Count
+              $expected=if($null -ne $p.expected_count){[int]$p.expected_count}else{1}
+              if($count -ne $expected){throw "replace count mismatch $rel expected=$expected actual=$count"}
+              WriteUtf8NoBom $full ($text.Replace($search,$replace))
+              $changes += @{path=$rel;status="replaced";count=$count}
             }
           }
-          if($dirty.Count -gt 0){ $result.status="BLOCKED"; $result.reason="DIRTY_WORKTREE"; $result.dirty=$dirty }
-          else {
-            git pull --ff-only
-            if($LASTEXITCODE -ne 0){ throw "git pull failed" }
-            $p=[string]$cmd.prompt
-            if([string]::IsNullOrWhiteSpace($p)){ throw "empty prompt" }
-            $out=($p | & $codex exec --sandbox workspace-write - 2>&1 | Out-String)
-            $exit=$LASTEXITCODE
-            if($out.Length -gt 120000){$out=$out.Substring($out.Length-120000)}
-            $result.codex_exit=$exit
-            $result.codex_output=$out
-            $result.head_after=(git rev-parse HEAD | Out-String).Trim()
-            $result.status_after=@(git status --porcelain)
-            $result.status=if($exit -eq 0){"PASS"}else{"FAIL"}
-            if($exit -eq 0 -and [bool]$cmd.push_after){
+          $result.changes=$changes
+          $result.git_after=GitInfo $Project
+          $result.status="PASS"
+        }
+        "indieplus_verify_commit" {
+          $lock=Join-Path $Project ".harness.lock"
+          if(Test-Path $lock){throw "HARNESS_LOCK"}
+          Push-Location $Project
+          try{
+            foreach($j in Get-ChildItem (Join-Path $Project "data") -Filter "*.json" -File){
+              try{ Get-Content $j.FullName -Raw -Encoding UTF8 | ConvertFrom-Json | Out-Null }
+              catch{ throw "JSON parse failed: $($j.Name)" }
+            }
+            $js=@("app.js","features-v04.js","features-v05.js","features-v06.js","features-v07.js","features-v08.js","features-v17.js","sw.js")
+            if($cmd.extra_js){$js += @($cmd.extra_js)}
+            foreach($x in ($js | Select-Object -Unique)){ RunNodeCheck ([string]$x) }
+            git diff --check
+            if($LASTEXITCODE -ne 0){throw "git diff --check failed"}
+            if([bool]$cmd.run_probe){$result.probe=RunProbe}
+            $result.before_commit=GitInfo $Project
+            if($cmd.files){
+              git add -- @($cmd.files)
+            }else{
+              git add -u
+            }
+            if(git diff --cached --quiet){throw "no staged changes"}
+            git commit -m ([string]$cmd.commit_message)
+            if($LASTEXITCODE -ne 0){throw "git commit failed"}
+            $result.commit_sha=((& git rev-parse HEAD | Out-String).Trim())
+            if([bool]$cmd.push){
               git push origin HEAD:main
-              $result.push_exit=$LASTEXITCODE
+              if($LASTEXITCODE -ne 0){throw "git push failed"}
+              $result.pushed=$true
             }
-          }
-        } finally { Pop-Location }
+            $result.after_commit=GitInfo $Project
+            $result.status="PASS"
+          } finally { Pop-Location }
+        }
+        "indieplus_codex" {
+          RequireCleanProject $cmd
+          if(-not $codex){throw "codex.cmd not found"}
+          $p=[string]$cmd.prompt
+          if([string]::IsNullOrWhiteSpace($p)){throw "empty prompt"}
+          Push-Location $Project
+          try{
+            $out=($p | & $codex exec --sandbox workspace-write - 2>&1 | Out-String).Trim()
+            $result.codex_exit=$LASTEXITCODE
+            if($out.Length -gt 120000){$out=$out.Substring($out.Length-120000)}
+            $result.codex_output=$out
+            $result.git_after=GitInfo $Project
+            if($result.codex_exit -ne 0){throw "codex exit=$($result.codex_exit)"}
+            $result.status="PASS"
+          } finally { Pop-Location }
+        }
+        default { throw "unsupported action" }
       }
-    }
-    else {
-      $result.status="BLOCKED"; $result.reason="UNSUPPORTED_ACTION"
+    } catch {
+      $result.status="FAIL"
+      $result.error=$_.Exception.Message
+      try{$result.git_after=GitInfo $Project}catch{}
     }
 
     $result.finished_at=(Get-Date).ToString("o")
-    $resultFile=Join-Path $ResultDir "latest.json"
-    [IO.File]::WriteAllText($resultFile,($result|ConvertTo-Json -Depth 20),(New-Object Text.UTF8Encoding($false)))
-    Set-Content -Path $LastFile -Value $rid -Encoding ASCII
-
-    Push-Location $Bridge
-    try {
-      git add KHS_REMOTE/results/latest.json
-      if(-not (git diff --cached --quiet)){
-        git config user.name "KHS Local Bridge"
-        git config user.email "khs-local-bridge@users.noreply.github.com"
-        git commit -m "KHS_RESULT: $rid" | Out-Null
-        git pull --rebase origin main
-        git push origin HEAD:main
-      }
-    } finally { Pop-Location }
+    PublishResult $result
+    Remove-Item $running -Force -ErrorAction SilentlyContinue
+    Set-Content $done "1" -Encoding ASCII
     Say ("finished " + $rid + " => " + $result.status)
-  }
-  catch {
+  } catch {
     Say ("ERROR: " + $_.Exception.Message)
   }
-  Start-Sleep 8
+  Start-Sleep 6
 }
