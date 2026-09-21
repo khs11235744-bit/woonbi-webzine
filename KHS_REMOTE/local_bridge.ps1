@@ -73,12 +73,12 @@ while ($true) {
         try {
           $dirty=@(git status --porcelain)
           if($dirty.Count -gt 0){
-            $known=@(" M sw.js","?? editorial-v19.css","?? features-v19.js")
-            $normalized=@($dirty | ForEach-Object { [string]$_ })
-            $onlyKnown=($normalized.Count -eq $known.Count)
-            if($onlyKnown){
-              foreach($k in $known){ if($normalized -notcontains $k){ $onlyKnown=$false; break } }
-            }
+            $knownPaths=@("sw.js","editorial-v19.css","features-v19.js") | Sort-Object
+            $dirtyPaths=@($dirty | ForEach-Object {
+              $line=[string]$_
+              if($line.Length -ge 4){ $line.Substring(3).Trim() } else { $line.Trim() }
+            } | Sort-Object)
+            $onlyKnown=($dirtyPaths.Count -eq $knownPaths.Count -and (Compare-Object $knownPaths $dirtyPaths).Count -eq 0)
             if($onlyKnown -and [bool]$cmd.allow_known_stash){
               $stashOut=(& git stash push -u -m "assistant-v19-incomplete-before-codex" 2>&1 | Out-String).Trim()
               if($LASTEXITCODE -ne 0){ throw "known assistant stash failed: $stashOut" }
