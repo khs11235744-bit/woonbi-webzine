@@ -1,6 +1,6 @@
 {
-  "requested_at": "2026-09-21T05:21:48.886Z",
-  "reason": "keep only newest dedicated INDIE direct verify run",
+  "requested_at": "2026-09-21T05:22:14.887Z",
+  "reason": "free khs-indie slot for dedicated direct verifier",
   "run_ids": [
     35564145099
   ]
