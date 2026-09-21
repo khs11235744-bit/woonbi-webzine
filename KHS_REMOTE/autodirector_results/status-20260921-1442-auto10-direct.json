@@ -1,0 +1,16 @@
+{
+    "request_id":  "status-20260921-1442-auto10-direct",
+    "captured_at":  "2026-09-21T14:41:14.5330757+09:00",
+    "version":  "0.1.27",
+    "stop_present":  false,
+    "running":  {
+                    "pid":  36328,
+                    "startedAt":  "2026-09-21T04:53:55.519Z",
+                    "root":  "C:\\Users\\권형석\\Documents\\ChatGPT\\동영상편집기 만들기",
+                    "mode":  "continuous"
+                },
+    "running_pid_alive":  true,
+    "status_json":  "{\n  \"running\": true,\n  \"cycle\": 1,\n  \"id\": \"001-2026-09-21T04-53-58-191Z\",\n  \"startedAt\": \"2026-09-21T04:53:58.191Z\",\n  \"phase\": \"codex\",\n  \"head\": \"d90dd9c\",\n  \"tests\": {},\n  \"commit\": null,\n  \"lastError\": null\n}\n",
+    "webchat_todo":  null,
+    "last_agent_message":  ""
+}
