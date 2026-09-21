@@ -244,28 +244,25 @@ try {
 
       $beforeGit = GitInfo $Indie
       $result.before_git = $beforeGit
-      $resumeDirty = $false
       if ($beforeGit.dirty) {
-        if ([bool]$cmd.allow_dirty_resume -and $cmd.expected_dirty_files) {
-          $actualDirtyPaths = @()
-          foreach($line in @($beforeGit.dirty_files)) {
-            $text = [string]$line
-            if ($text -match '^[ MADRCU?!]{1,2}\s+(.+)
+        $result.blocked = "DIRTY_WORKTREE"
+        $result.status = "BLOCKED"
+        $result.retryable = $false
+        break
+      }
+
+      $prompt = [string]$cmd.prompt
       if ([string]::IsNullOrWhiteSpace($prompt)) { throw "prompt is empty" }
       if ($prompt.Length -gt 60000) { throw "prompt too long" }
 
-      if (-not $resumeDirty) {
-        Push-Location $Indie
-        try {
-          $pullOutput = (& git pull --ff-only 2>&1 | Out-String).Trim()
-          if ($LASTEXITCODE -ne 0) { throw "git pull --ff-only failed: $pullOutput" }
-          $result.pull_output = $pullOutput
-        } finally { Pop-Location }
-      } else {
-        $result.pull_output = "SKIPPED: dirty-resume preserves current local overlay"
-      }
+      Push-Location $Indie
+      try {
+        $pullOutput = (& git pull --ff-only 2>&1 | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0) { throw "git pull --ff-only failed: $pullOutput" }
+        $result.pull_output = $pullOutput
+      } finally { Pop-Location }
 
-      $codexRun = RunCodexBounded $Indie $prompt 900
+      $codexRun = RunCodexBounded $Indie $prompt 1800
       $result.codex_cmd = $codexRun.codex_cmd
       $result.codex_exit = $codexRun.exit
       $result.codex_timeout = $codexRun.timed_out
