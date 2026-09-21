@@ -65,9 +65,14 @@ function ReadTextBounded([string]$p, [int]$max = 200000) {
 function RunNativeBounded([string]$exe,[string[]]$nativeArgs,[string]$workingDir,[int]$timeoutMs=10000) {
   $psi = New-Object Diagnostics.ProcessStartInfo
   $psi.FileName = $exe
+  $quotedArgs = @()
   foreach($a in $nativeArgs) {
-    if($null -ne $a) { [void]$psi.ArgumentList.Add([string]$a) }
+    if($null -ne $a) {
+      $s = [string]$a
+      $quotedArgs += ('"' + ($s -replace '"', '\\"') + '"')
+    }
   }
+  $psi.Arguments = ($quotedArgs -join " ")
   $psi.WorkingDirectory = $workingDir
   $psi.UseShellExecute = $false
   $psi.RedirectStandardOutput = $true
