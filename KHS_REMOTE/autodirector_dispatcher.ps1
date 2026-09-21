@@ -154,9 +154,14 @@ try {
       if(-not $codex){$candidate=Join-Path $env:APPDATA "npm\codex.cmd";if(Test-Path $candidate){$codex=$candidate}}
       if(-not $codex){ throw "codex.cmd not found" }
       $before=GitInfo
-      $r=RunBounded @($codex,"exec","--sandbox","workspace-write","-") 3000
-      $result.worker="codex"; $result.codex_exit=$r.exit; $result.codex_output=($r.stdout+$r.stderr); $result.before_git=$before; $result.after_git=GitInfo
-      $result.status=if($r.exit -eq 0){"PASS"}else{"FAIL"}; $result.retryable=$true
+      Push-Location $Auto
+      try {
+        $out=($prompt | & $codex exec --sandbox workspace-write - 2>&1 | Out-String)
+        $exit=$LASTEXITCODE
+      } finally { Pop-Location }
+      if($out.Length -gt 160000){$out=$out.Substring($out.Length-160000)}
+      $result.worker="codex"; $result.codex_exit=$exit; $result.codex_output=$out; $result.before_git=$before; $result.after_git=GitInfo
+      $result.status=if($exit -eq 0){"PASS"}else{"FAIL"}; $result.retryable=$true
     }
     default { throw "Unsupported AutoDirector action: $($cmd.action)" }
   }
