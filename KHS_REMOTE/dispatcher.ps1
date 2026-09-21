@@ -31,7 +31,13 @@ if ($env:GITHUB_EVENT_PATH -and (Test-Path $env:GITHUB_EVENT_PATH)) {
   } catch {}
 }
 
-$ResultDir = Join-Path $env:GITHUB_WORKSPACE "KHS_REMOTE\results"
+$ResultRel = "KHS_REMOTE\results\legacy"
+if ($JobRelPath -like "KHS_REMOTE/minijev_jobs/*.json") {
+  $ResultRel = "KHS_REMOTE\results\minijev"
+} elseif ($JobRelPath -like "KHS_REMOTE/indie_jobs/*.json") {
+  $ResultRel = "KHS_REMOTE\results\indie"
+}
+$ResultDir = Join-Path $env:GITHUB_WORKSPACE $ResultRel
 New-Item -ItemType Directory -Path $ResultDir -Force | Out-Null
 
 function ReadJsonSafe([string]$p) {
