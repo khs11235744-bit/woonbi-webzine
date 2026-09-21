@@ -232,6 +232,44 @@ while($true){
           $result.lock_content=if(Test-Path $lock){Get-Content $lock -Raw}else{$null}
           $result.status="PASS"
         }
+        "indieplus_read" {
+          $lock=Join-Path $Project ".harness.lock"
+          if(Test-Path $lock){throw "HARNESS_LOCK"}
+          $items=@()
+          foreach($req in @($cmd.files)){
+            $rel=[string]$req.path
+            $full=ProjectPath $rel
+            if(-not (Test-Path $full)){ $items += @{path=$rel;missing=$true}; continue }
+            $lines=Get-Content $full -Encoding UTF8
+            $start=if($null -ne $req.start_line){[Math]::Max(1,[int]$req.start_line)}else{1}
+            $end=if($null -ne $req.end_line){[Math]::Min($lines.Count,[int]$req.end_line)}else{[Math]::Min($lines.Count,$start+399)}
+            $slice=if($lines.Count -gt 0 -and $start -le $end){$lines[($start-1)..($end-1)] -join [Environment]::NewLine}else{""}
+            if($slice.Length -gt 120000){$slice=$slice.Substring(0,120000)}
+            $items += @{path=$rel;start_line=$start;end_line=$end;content=$slice}
+          }
+          $result.items=$items
+          $result.status="PASS"
+        }
+        "indieplus_find" {
+          $lock=Join-Path $Project ".harness.lock"
+          if(Test-Path $lock){throw "HARNESS_LOCK"}
+          $rel=[string]$cmd.path
+          $needle=[string]$cmd.needle
+          if([string]::IsNullOrWhiteSpace($needle)){throw "empty needle"}
+          $full=ProjectPath $rel
+          if(-not (Test-Path $full)){throw "missing file: $rel"}
+          $lines=Get-Content $full -Encoding UTF8
+          $hits=@()
+          for($i=0;$i -lt $lines.Count;$i++){
+            if($lines[$i].IndexOf($needle,[StringComparison]::OrdinalIgnoreCase) -ge 0){
+              $lo=[Math]::Max(0,$i-2);$hi=[Math]::Min($lines.Count-1,$i+2)
+              $hits += @{line=$i+1;context=($lines[$lo..$hi] -join [Environment]::NewLine)}
+              if($hits.Count -ge 50){break}
+            }
+          }
+          $result.hits=$hits
+          $result.status="PASS"
+        }
         "indieplus_patch" {
           RequireCleanProject $cmd
           $changes=@()
@@ -315,7 +353,14 @@ while($true){
             if($out.Length -gt 120000){$out=$out.Substring($out.Length-120000)}
             $result.codex_output=$out
             $result.git_after=GitInfo $Project
-            if($result.codex_exit -ne 0){throw "codex exit=$($result.codex_exit)"}
+            if($result.codex_exit -ne 0){
+              $lower=$out.ToLowerInvariant()
+              if($lower -match "quota|usage limit|rate limit|token|credits|model unavailable|too many requests"){
+                $result.fallback_recommended="WEBCHAT_DIRECT"
+                throw "CODEX_LIMIT_OR_QUOTA"
+              }
+              throw "codex exit=$($result.codex_exit)"
+            }
             $result.status="PASS"
           } finally { Pop-Location }
         }
