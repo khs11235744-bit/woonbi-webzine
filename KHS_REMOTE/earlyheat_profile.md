@@ -28,3 +28,13 @@
   "project": "EARLY_HEAT_RADAR",
   "prompt": "Read the latest handoff and harness state, then perform exactly one bounded next-priority task. Keep Paper/Shadow only."
 }
+
+
+## Dedicated coding lane
+- Read-only status: approved shared Windows self-hosted runner.
+- Coding: `KHS_EARLYHEAT_REMOTE` local dedicated agent only.
+- Persistent agent source: `KHS_REMOTE/earlyheat_agent.ps1`.
+- Bootstrap: `.github/workflows/earlyheat-agent-bootstrap.yml`.
+- Bootstrap status: `KHS_REMOTE/earlyheat_agent_status.json`.
+- Shorthand contract: `KHS_REMOTE/earlyheat_command_contract.md`.
+- "Early Heat 계속" means one and only one `agent_mode=true` bounded Codex cycle.
