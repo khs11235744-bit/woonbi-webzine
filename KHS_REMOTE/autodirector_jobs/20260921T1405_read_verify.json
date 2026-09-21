@@ -1,0 +1,15 @@
+{
+  "request_id": "20260921T1405_read_verify",
+  "action": "autodirector_read",
+  "paths": [
+    "WEBCHAT_TODO.md",
+    "reports/harness/status.json",
+    "NEXT_TASK.md",
+    "CURRENT_STATE.md",
+    "scripts/verify-firstcut.mjs",
+    "scripts/verify-studios-ui.mjs",
+    "packages/ui/src/components/PianoRoll.tsx",
+    "packages/ui/src/components/MusicStudioModal.tsx",
+    "package.json"
+  ]
+}
