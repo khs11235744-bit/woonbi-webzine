@@ -16,29 +16,10 @@ function ReadTextBounded([string]$p, [int]$max = 200000) {
   if ($f.Length -gt $max) { return "[OMITTED: too large]" }
   return Get-Content $p -Raw -Encoding UTF8
 }
-function GitInfo {
-  Push-Location $Auto
-  try {
-    return @{
-      head = ((& git rev-parse HEAD 2>$null | Out-String).Trim())
-      branch = ((& git branch --show-current 2>$null | Out-String).Trim())
-      status = @(& git status --short 2>$null)
-      origin = @(& git remote -v 2>$null)
-    }
-  } finally { Pop-Location }
-}
-function ResolveSafe([string]$rel) {
-  if ([string]::IsNullOrWhiteSpace($rel)) { throw "empty relative path" }
-  $full = [IO.Path]::GetFullPath((Join-Path $Auto $rel))
-  $root = [IO.Path]::GetFullPath($Auto) + [IO.Path]::DirectorySeparatorChar
-  if (-not $full.StartsWith($root,[StringComparison]::OrdinalIgnoreCase)) { throw "path escapes AutoDirector root" }
-  return $full
-}
-function StopPresent { return Test-Path (Join-Path $Auto ".harness\STOP") }
 function RunBounded([string[]]$argv,[int]$timeoutSec=1800) {
   $psi = New-Object Diagnostics.ProcessStartInfo
   $psi.FileName = $argv[0]
-  foreach($a in $argv[1..($argv.Length-1)]) { [void]$psi.ArgumentList.Add($a) }
+  if($argv.Length -gt 1){ foreach($a in $argv[1..($argv.Length-1)]) { [void]$psi.ArgumentList.Add($a) } }
   $psi.WorkingDirectory = $Auto
   $psi.UseShellExecute = $false
   $psi.RedirectStandardOutput = $true
@@ -48,12 +29,36 @@ function RunBounded([string[]]$argv,[int]$timeoutSec=1800) {
   [void]$p.Start()
   $stdoutTask = $p.StandardOutput.ReadToEndAsync()
   $stderrTask = $p.StandardError.ReadToEndAsync()
-  if (-not $p.WaitForExit($timeoutSec*1000)) { try{$p.Kill($true)}catch{}; throw "timeout after ${timeoutSec}s" }
+  if (-not $p.WaitForExit($timeoutSec*1000)) { try{$p.Kill($true)}catch{}; throw "timeout after ${timeoutSec}s: $($argv -join ' ')" }
   $stdout = $stdoutTask.Result; $stderr = $stderrTask.Result
   if($stdout.Length -gt 120000){$stdout=$stdout.Substring($stdout.Length-120000)}
   if($stderr.Length -gt 60000){$stderr=$stderr.Substring($stderr.Length-60000)}
   return @{ exit=$p.ExitCode; stdout=$stdout; stderr=$stderr }
 }
+function GitInfo {
+  $head = RunBounded @("git.exe","rev-parse","HEAD") 30
+  $branch = RunBounded @("git.exe","branch","--show-current") 30
+  $tracked = RunBounded @("git.exe","status","--short","--untracked-files=no") 45
+  $untracked = RunBounded @("git.exe","ls-files","--others","--exclude-standard") 45
+  $origin = RunBounded @("git.exe","remote","-v") 30
+  $untrackedLines = @($untracked.stdout -split "`r?`n" | Where-Object { $_ })
+  return @{
+    head=$head.stdout.Trim(); branch=$branch.stdout.Trim()
+    tracked_status=@($tracked.stdout -split "`r?`n" | Where-Object { $_ })
+    untracked_count=$untrackedLines.Count
+    untracked_sample=@($untrackedLines | Select-Object -First 200)
+    origin=@($origin.stdout -split "`r?`n" | Where-Object { $_ })
+    git_exit=@{head=$head.exit;branch=$branch.exit;tracked=$tracked.exit;untracked=$untracked.exit;origin=$origin.exit}
+  }
+}
+function ResolveSafe([string]$rel) {
+  if ([string]::IsNullOrWhiteSpace($rel)) { throw "empty relative path" }
+  $full = [IO.Path]::GetFullPath((Join-Path $Auto $rel))
+  $root = [IO.Path]::GetFullPath($Auto) + [IO.Path]::DirectorySeparatorChar
+  if (-not $full.StartsWith($root,[StringComparison]::OrdinalIgnoreCase)) { throw "path escapes AutoDirector root" }
+  return $full
+}
+function StopPresent { return Test-Path (Join-Path $Auto ".harness\STOP") }
 
 if (-not (Test-Path $Auto)) { throw "AutoDirector project missing: $Auto" }
 if (-not $CmdPath) { throw "CmdPath required" }
@@ -62,6 +67,20 @@ $result = [ordered]@{ request_id=$cmd.request_id; action=$cmd.action; project=$A
 
 try {
   switch ([string]$cmd.action) {
+    "autodirector_probe" {
+      $run = ReadJsonSafe (Join-Path $Auto ".harness\RUNNING.json")
+      $pidAlive = $false
+      if($run -and $run.pid){ $pidAlive = $null -ne (Get-Process -Id ([int]$run.pid) -ErrorAction SilentlyContinue) }
+      $pkg = ReadJsonSafe (Join-Path $Auto "package.json")
+      $result.version = if($pkg){$pkg.version}else{$null}
+      $result.stop_present = StopPresent
+      $result.running = $run
+      $result.running_pid_alive = $pidAlive
+      $result.harness_status = ReadJsonSafe (Join-Path $Auto "reports\harness\status.json")
+      $result.webchat_fallback = ReadJsonSafe (Join-Path $Auto ".harness\WEBCHAT_FALLBACK.json")
+      $result.codex_available = $null -ne (Get-Command codex.cmd -ErrorAction SilentlyContinue)
+      $result.status = "PASS"; $result.retryable = $false
+    }
     "autodirector_status" {
       $run = ReadJsonSafe (Join-Path $Auto ".harness\RUNNING.json")
       $pidAlive = $false
@@ -135,14 +154,9 @@ try {
       if(-not $codex){$candidate=Join-Path $env:APPDATA "npm\codex.cmd";if(Test-Path $candidate){$codex=$candidate}}
       if(-not $codex){ throw "codex.cmd not found" }
       $before=GitInfo
-      Push-Location $Auto
-      try {
-        $out=($prompt | & $codex exec --sandbox workspace-write - 2>&1 | Out-String)
-        $exit=$LASTEXITCODE
-      } finally { Pop-Location }
-      if($out.Length -gt 160000){$out=$out.Substring($out.Length-160000)}
-      $result.worker="codex"; $result.codex_exit=$exit; $result.codex_output=$out; $result.before_git=$before; $result.after_git=GitInfo
-      $result.status=if($exit -eq 0){"PASS"}else{"FAIL"}; $result.retryable=$true
+      $r=RunBounded @($codex,"exec","--sandbox","workspace-write","-") 3000
+      $result.worker="codex"; $result.codex_exit=$r.exit; $result.codex_output=($r.stdout+$r.stderr); $result.before_git=$before; $result.after_git=GitInfo
+      $result.status=if($r.exit -eq 0){"PASS"}else{"FAIL"}; $result.retryable=$true
     }
     default { throw "Unsupported AutoDirector action: $($cmd.action)" }
   }
