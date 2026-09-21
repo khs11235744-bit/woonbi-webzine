@@ -1,0 +1,19 @@
+{
+  "request_id": "indie-read-harness-partial-20260921-1437",
+  "project": "INDIE",
+  "action": "indieplus_read",
+  "files": [
+    {
+      "path": "scripts/harness_common.py",
+      "start_line": 1,
+      "end_line": 500
+    },
+    {
+      "path": "scripts/run_harness.py",
+      "start_line": 1,
+      "end_line": 700
+    }
+  ],
+  "requested_at": "2026-09-21T05:34:23.456Z",
+  "requested_by": "webchat"
+}
