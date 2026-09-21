@@ -1,0 +1,9 @@
+{
+  "requested_at": "2026-09-21T13:02:00+09:00",
+  "reason": "clear stuck pre-timeout self-hosted jobs after 3-runner recovery",
+  "run_ids": [
+    35558791474,
+    35558148415,
+    35559123993
+  ]
+}
