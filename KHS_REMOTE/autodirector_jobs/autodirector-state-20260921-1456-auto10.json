@@ -1,0 +1,15 @@
+{
+  "request_id": "autodirector-state-20260921-1456-auto10",
+  "action": "autodirector_read_fast",
+  "paths": [
+    ".harness/WEBCHAT_FALLBACK.json",
+    "WEBCHAT_TODO.md",
+    "reports/harness/status.json",
+    "NEXT_TASK.md",
+    "CURRENT_STATE.md",
+    "HARNESS_AGENT.md",
+    "TECHNICAL_DEBT_LEDGER.md",
+    "reports/harness/last-agent-message.md",
+    "reports/latest-firstcut-run.json"
+  ]
+}
