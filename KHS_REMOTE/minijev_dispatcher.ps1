@@ -35,7 +35,7 @@ function RunNativeBounded([string]$exe,[string[]]$nativeArgs,[string]$workingDir
   try {
     $p=Start-Process -FilePath $exe -ArgumentList $argLine -WorkingDirectory $workingDir -PassThru -WindowStyle Hidden -RedirectStandardOutput $outFile -RedirectStandardError $errFile
     if(-not $p.WaitForExit($timeoutMs)){
-      try{Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue}catch{}
+      try{& taskkill.exe /PID $p.Id /T /F *> $null}catch{}
       $o=if(Test-Path $outFile){Get-Content $outFile -Raw -ErrorAction SilentlyContinue}else{""}
       $e=if(Test-Path $errFile){Get-Content $errFile -Raw -ErrorAction SilentlyContinue}else{""}
       return @{exit=124;timed_out=$true;output=(($o+"`n"+$e).Trim())}
@@ -167,19 +167,35 @@ function RunCodexBounded([string]$prompt,[int]$timeoutSec=1800) {
 }
 
 function ProbeSidecars {
-  $names=@("antigravity.exe","antigravity.cmd","antigravity","gemini.cmd","gemini.exe","gemini","code.cmd","code.exe")
+  $names=@("agy.exe","agy.cmd","agy","antigravity.exe","antigravity.cmd","antigravity","gemini.cmd","gemini.exe","gemini","code.cmd","code.exe")
   $found=@()
   foreach($n in $names){
     $g=Get-Command $n -ErrorAction SilentlyContinue
     if($g){$found+=@{name=$n;source=$g.Source;command_type=[string]$g.CommandType}}
   }
   $known=@(
+    (Join-Path $env:LOCALAPPDATA "agy\bin\agy.exe"),
+    (Join-Path $env:LOCALAPPDATA "agy\bin\agy.cmd"),
     (Join-Path $env:LOCALAPPDATA "Programs\Antigravity\Antigravity.exe"),
     (Join-Path $env:LOCALAPPDATA "Programs\Google\Antigravity\Antigravity.exe"),
     (Join-Path $env:LOCALAPPDATA "Programs\Microsoft VS Code\Code.exe")
   )
   foreach($p in $known){if(Test-Path $p){$found+=@{name=[IO.Path]::GetFileName($p);source=$p;command_type="KnownPath"}}}
   return $found
+}
+
+function FindAgy {
+  $cmd=Get-Command agy.exe -ErrorAction SilentlyContinue
+  if(-not $cmd){$cmd=Get-Command agy.cmd -ErrorAction SilentlyContinue}
+  if(-not $cmd){$cmd=Get-Command agy -ErrorAction SilentlyContinue}
+  if($cmd){return $cmd.Source}
+  foreach($p in @(
+    (Join-Path $env:LOCALAPPDATA "agy\bin\agy.exe"),
+    (Join-Path $env:LOCALAPPDATA "agy\bin\agy.cmd")
+  )){
+    if(Test-Path $p){return $p}
+  }
+  return $null
 }
 
 function WriteSidecarTodo([string]$worker,[string]$prompt,[string]$requestId) {
@@ -198,37 +214,36 @@ function ConsumeSidecar([string]$requestId) {
   if(-not(Test-Path $todoPath)){return @{status="IDLE";retryable=$false;reason="NO_TODO"}}
   $todo=Get-Content $todoPath -Raw -Encoding UTF8|ConvertFrom-Json
   if($todo.status -ne "READY"){return @{status="IDLE";retryable=$false;reason=("TODO_"+$todo.status)}}
-  $configPath=Join-Path $Mini ".harness\SIDECAR_EXECUTOR.json"
-  if(-not(Test-Path $configPath)){
-    $todo.status="BLOCKED_NO_EXECUTOR"
-    $todo.blocked_at=(Get-Date).ToString("o")
-    [IO.File]::WriteAllText($todoPath,($todo|ConvertTo-Json -Depth 12),(New-Object Text.UTF8Encoding($false)))
-    $r=@{request_id=$todo.request_id;worker=$todo.worker;status="BLOCKED_NO_EXECUTOR";retryable=$true;probed=(ProbeSidecars);finished_at=(Get-Date).ToString("o")}
-    [IO.File]::WriteAllText($resultPath,($r|ConvertTo-Json -Depth 12),(New-Object Text.UTF8Encoding($false)))
-    return $r
-  }
-  $cfg=Get-Content $configPath -Raw -Encoding UTF8|ConvertFrom-Json
-  $exe=[string]$cfg.exe
-  if([string]::IsNullOrWhiteSpace($exe) -or -not(Test-Path $exe)){throw "configured sidecar executable missing"}
-  $leaf=[IO.Path]::GetFileName($exe).ToLowerInvariant()
-  if($leaf -notin @("antigravity.exe","antigravity.cmd","gemini.exe","gemini.cmd")){throw "sidecar executable not allowed: $leaf"}
-  $promptFile=Join-Path $env:TEMP ("khs-sidecar-"+[guid]::NewGuid().ToString("N")+".txt")
-  [IO.File]::WriteAllText($promptFile,[string]$todo.prompt,(New-Object Text.UTF8Encoding($false)))
-  try{
-    $args=@()
-    foreach($a in @($cfg.args)){
-      $s=[string]$a
-      $args+=($s.Replace("{promptFile}",$promptFile).Replace("{projectRoot}",$Mini))
+  if(([string]$todo.worker).ToLowerInvariant() -eq "antigravity"){
+    $agy=FindAgy
+    if(-not $agy){
+      $todo.status="BLOCKED_NO_EXECUTOR"
+      $todo.blocked_at=(Get-Date).ToString("o")
+      [IO.File]::WriteAllText($todoPath,($todo|ConvertTo-Json -Depth 12),(New-Object Text.UTF8Encoding($false)))
+      $r=@{request_id=$todo.request_id;worker=$todo.worker;status="BLOCKED_NO_EXECUTOR";retryable=$true;probed=(ProbeSidecars);finished_at=(Get-Date).ToString("o")}
+      [IO.File]::WriteAllText($resultPath,($r|ConvertTo-Json -Depth 12),(New-Object Text.UTF8Encoding($false)))
+      return $r
     }
-    $run=RunNativeBounded $exe $args $Mini 1200000
+
+    $prompt=[string]$todo.prompt
+    if($prompt.Length -gt 8000){$prompt=$prompt.Substring(0,8000)}
+    $run=RunNativeBounded $agy @("-p",$prompt,"--output-format","json","--mode=accept-edits","--print-timeout","20m") $Mini 1200000
     $finalStatus=if($run.exit -eq 0){"NEEDS_VERIFICATION"}else{"FAIL"}
     $todo.status=$finalStatus
     $todo.consumed_at=(Get-Date).ToString("o")
     [IO.File]::WriteAllText($todoPath,($todo|ConvertTo-Json -Depth 12),(New-Object Text.UTF8Encoding($false)))
-    $r=@{request_id=$todo.request_id;worker=$todo.worker;status=$finalStatus;retryable=$true;exit=$run.exit;timed_out=$run.timed_out;output=$run.output;finished_at=(Get-Date).ToString("o")}
+    $r=@{request_id=$todo.request_id;worker=$todo.worker;executor=$agy;status=$finalStatus;retryable=$true;exit=$run.exit;timed_out=$run.timed_out;output=$run.output;finished_at=(Get-Date).ToString("o")}
     [IO.File]::WriteAllText($resultPath,($r|ConvertTo-Json -Depth 12),(New-Object Text.UTF8Encoding($false)))
     return $r
-  } finally {Remove-Item $promptFile -Force -ErrorAction SilentlyContinue}
+  }
+
+  # WebChat has no local CLI executor in this harness. Keep it explicit and retryable.
+  $todo.status="BLOCKED_NO_EXECUTOR"
+  $todo.blocked_at=(Get-Date).ToString("o")
+  [IO.File]::WriteAllText($todoPath,($todo|ConvertTo-Json -Depth 12),(New-Object Text.UTF8Encoding($false)))
+  $r=@{request_id=$todo.request_id;worker=$todo.worker;status="BLOCKED_NO_EXECUTOR";retryable=$true;reason="WEBCHAT_LOCAL_EXECUTOR_NOT_CONFIGURED";finished_at=(Get-Date).ToString("o")}
+  [IO.File]::WriteAllText($resultPath,($r|ConvertTo-Json -Depth 12),(New-Object Text.UTF8Encoding($false)))
+  return $r
 }
 
 if(-not(Test-Path $Mini)){throw "KHS_MINI_JEV project missing: $Mini"}
@@ -270,6 +285,28 @@ try{
       $v=RunNativeBounded "git.exe" @("diff","--check") $Mini 12000
       $result.verifier=@{name="git diff --check";exit=$v.exit;timed_out=$v.timed_out;output=$v.output}
       if($r.exit -ne 0 -or $v.exit -ne 0){$result.status="FAIL";$result.retryable=$true}else{$result.status="NEEDS_VERIFICATION";$result.retryable=$true}
+    }
+    "sidecar_install_antigravity_cli" {
+      $agy=FindAgy
+      if(-not $agy){
+        $install='irm https://antigravity.google/cli/install.ps1 | iex'
+        $ir=RunNativeBounded "powershell.exe" @("-NoProfile","-ExecutionPolicy","Bypass","-Command",$install) $Mini 180000
+        $result.install_exit=$ir.exit
+        $result.install_timeout=$ir.timed_out
+        $result.install_output=$ir.output
+        $agy=FindAgy
+      }
+      $result.agy=$agy
+      if($agy){
+        $version=RunNativeBounded $agy @("--version") $Mini 15000
+        $result.version_probe=$version
+        $result.status=if($version.exit -eq 0){"PASS"}else{"NEEDS_AUTH_OR_SETUP"}
+        $result.retryable=$true
+      } else {
+        $result.status="FAIL"
+        $result.retryable=$true
+        $result.error="Antigravity CLI agy was not found after installation attempt"
+      }
     }
     "sidecar_probe" {
       $result.executors=ProbeSidecars
