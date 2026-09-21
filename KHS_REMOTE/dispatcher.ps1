@@ -259,22 +259,14 @@ try {
       try {
         $pullOutput = (& git pull --ff-only 2>&1 | Out-String).Trim()
         if ($LASTEXITCODE -ne 0) { throw "git pull --ff-only failed: $pullOutput" }
-
-        $codexCmd = (Get-Command codex.cmd -ErrorAction SilentlyContinue).Source
-        if (-not $codexCmd) {
-          $candidate = Join-Path $env:APPDATA "npm\codex.cmd"
-          if (Test-Path $candidate) { $codexCmd = $candidate }
-        }
-        if (-not $codexCmd) { throw "codex.cmd not found" }
-
         $result.pull_output = $pullOutput
-        $result.codex_cmd = $codexCmd
-        $codexOutput = ($prompt | & $codexCmd exec --sandbox workspace-write - 2>&1 | Out-String).Trim()
-        $codexExit = $LASTEXITCODE
-        if ($codexOutput.Length -gt 120000) { $codexOutput = $codexOutput.Substring($codexOutput.Length-120000) }
-        $result.codex_exit = $codexExit
-        $result.codex_output = $codexOutput
       } finally { Pop-Location }
+
+      $codexRun = RunCodexBounded $Indie $prompt 1800
+      $result.codex_cmd = $codexRun.codex_cmd
+      $result.codex_exit = $codexRun.exit
+      $result.codex_timeout = $codexRun.timed_out
+      $result.codex_output = $codexRun.output
 
       $afterGit = GitInfo $Indie
       $result.after_git = $afterGit
