@@ -3,6 +3,7 @@ $ErrorActionPreference = "Stop"
 $Base = Join-Path $env:USERPROFILE "Documents\ChatGPT"
 $Mini = Join-Path $Base "KHS_MINI_JEV"
 $Flow = Join-Path $Base "KHS_FLOW_OS_v0.3"
+$Indie = Join-Path $env:USERPROFILE "Documents\indieplus-pohang"
 $CmdPath = Join-Path $env:GITHUB_WORKSPACE "KHS_REMOTE\command.json"
 $ResultDir = Join-Path $env:GITHUB_WORKSPACE "KHS_REMOTE\results"
 New-Item -ItemType Directory -Path $ResultDir -Force | Out-Null
@@ -27,7 +28,7 @@ function GitInfo([string]$root) {
     $head = (& git rev-parse HEAD 2>$null | Out-String).Trim()
     $branch = (& git branch --show-current 2>$null | Out-String).Trim()
     $dirty = @(& git status --porcelain 2>$null)
-    return @{ git=$true; head=$head; branch=$branch; dirty=($dirty.Count -gt 0); dirty_count=$dirty.Count }
+    return @{ git=$true; head=$head; branch=$branch; dirty=($dirty.Count -gt 0); dirty_count=$dirty.Count; dirty_files=@($dirty) }
   } finally { Pop-Location }
 }
 
@@ -83,6 +84,92 @@ $result = [ordered]@{
 
 try {
   switch ([string]$cmd.action) {
+    "indieplus_status" {
+      if (-not (Test-Path $Indie)) { throw "indieplus-pohang project missing: $Indie" }
+      $lockPath = Join-Path $Indie ".harness.lock"
+      $result.project = $Indie
+      $result.lock_present = Test-Path $lockPath
+      $result.lock_content = if (Test-Path $lockPath) { ReadTextBounded $lockPath 50000 } else { $null }
+      $result.git = GitInfo $Indie
+      $result.required_docs = @(
+        "HARNESS.md","ROADMAP_100.md","COMMUNITY_ROADMAP_100.md",
+        "MAGAZINE_EDITOR_WORKSHOP_100.md","DESIGN_PANEL_100_V18.md"
+      ) | ForEach-Object {
+        @{ name=$_; exists=(Test-Path (Join-Path $Indie $_)) }
+      }
+      $result.status = "PASS"
+      $result.retryable = $false
+    }
+    "indieplus_codex" {
+      if (-not (Test-Path $Indie)) { throw "indieplus-pohang project missing: $Indie" }
+      $lockPath = Join-Path $Indie ".harness.lock"
+      if (Test-Path $lockPath) {
+        $result.blocked = "HARNESS_LOCK"
+        $result.lock_content = ReadTextBounded $lockPath 50000
+        $result.git = GitInfo $Indie
+        $result.status = "BLOCKED"
+        $result.retryable = $false
+        break
+      }
+
+      $beforeGit = GitInfo $Indie
+      $result.before_git = $beforeGit
+      if ($beforeGit.dirty) {
+        $result.blocked = "DIRTY_WORKTREE"
+        $result.status = "BLOCKED"
+        $result.retryable = $false
+        break
+      }
+
+      $prompt = [string]$cmd.prompt
+      if ([string]::IsNullOrWhiteSpace($prompt)) { throw "prompt is empty" }
+      if ($prompt.Length -gt 60000) { throw "prompt too long" }
+
+      Push-Location $Indie
+      try {
+        $pullOutput = (& git pull --ff-only 2>&1 | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0) { throw "git pull --ff-only failed: $pullOutput" }
+
+        $codexCmd = (Get-Command codex.cmd -ErrorAction SilentlyContinue).Source
+        if (-not $codexCmd) {
+          $candidate = Join-Path $env:APPDATA "npm\codex.cmd"
+          if (Test-Path $candidate) { $codexCmd = $candidate }
+        }
+        if (-not $codexCmd) { throw "codex.cmd not found" }
+
+        $result.pull_output = $pullOutput
+        $result.codex_cmd = $codexCmd
+        $codexOutput = ($prompt | & $codexCmd exec --sandbox workspace-write - 2>&1 | Out-String).Trim()
+        $codexExit = $LASTEXITCODE
+        if ($codexOutput.Length -gt 120000) { $codexOutput = $codexOutput.Substring($codexOutput.Length-120000) }
+        $result.codex_exit = $codexExit
+        $result.codex_output = $codexOutput
+      } finally { Pop-Location }
+
+      $afterGit = GitInfo $Indie
+      $result.after_git = $afterGit
+
+      if ($result.codex_exit -ne 0) {
+        $result.status = "FAIL"
+        $result.retryable = $true
+        break
+      }
+
+      if ([bool]$cmd.push_after -and -not $afterGit.dirty -and $afterGit.head -ne $beforeGit.head) {
+        Push-Location $Indie
+        try {
+          $pushOutput = (& git push origin HEAD:main 2>&1 | Out-String).Trim()
+          $pushExit = $LASTEXITCODE
+          $result.push_output = $pushOutput
+          $result.push_exit = $pushExit
+          if ($pushExit -ne 0) { throw "git push failed: $pushOutput" }
+        } finally { Pop-Location }
+      }
+
+      $result.final_git = GitInfo $Indie
+      $result.status = "PASS"
+      $result.retryable = $false
+    }
     "snapshot_guard" {
       $before = HarnessSnapshot
       $restarted = $false
