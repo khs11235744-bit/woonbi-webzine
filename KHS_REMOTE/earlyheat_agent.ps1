@@ -190,7 +190,8 @@ try {
       $oldWorkspace = $env:GITHUB_WORKSPACE
       try {
         $env:GITHUB_WORKSPACE = $Control
-        $output = (& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $dispatcher -CmdPath $candidate.file.FullName 2>&1 | Out-String).Trim()
+        $candidatePath = [string]$candidate.file.FullName
+        $output = (& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $dispatcher -CmdPath $candidatePath 2>&1 | Out-String).Trim()
         $exitCode = $LASTEXITCODE
       } finally {
         $env:GITHUB_WORKSPACE = $oldWorkspace
