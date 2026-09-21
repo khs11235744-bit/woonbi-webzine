@@ -46,3 +46,50 @@ If no backend push path exists yet, implement the Android permission/channel/set
 - provider-degraded suppression
 - build/typecheck/lint/tests relevant to touched files
 - no live-order capability introduced
+
+
+## Q2 — Three distinct alert patterns
+
+Create three user-visible Android notification channels so sound/vibration behavior is independently configurable at OS level:
+
+1. EARLY_DISCOVERY
+   - purpose: initial early-heat detection / watch candidate
+   - default importance: DEFAULT
+   - short, single vibration pulse
+   - calmer default sound
+
+2. ENTRY_WATCH
+   - purpose: meaningful confirmation such as score jump, stage advance, VWAP reclaim, HOD approach
+   - default importance: HIGH
+   - two-pulse vibration pattern
+   - more noticeable sound
+
+3. RISK_FOMO
+   - purpose: FOMO/risk escalation, invalidation, rapid reversal or provider integrity warning that materially changes interpretation
+   - default importance: HIGH
+   - distinct urgent multi-pulse vibration
+   - distinct alert sound
+   - never imply an order recommendation; informational warning only
+
+Important Android channel rule: after a notification channel is created, sound/importance behavior is primarily controlled by the user/system settings. Use stable channel IDs and expose a button that opens each channel's system settings rather than trying to silently overwrite user choices.
+
+## Q3 — Notification action buttons
+
+Every actionable ticker notification should support, where appropriate:
+
+- 관심종목 추가
+  - add the symbol to the local/server watchlist idempotently
+  - update notification state after success
+- 30분 음소거
+  - create a per-symbol mute-until timestamp
+  - suppress subsequent duplicates and lower-severity alerts during the window
+  - critical provider-integrity/safety alerts may remain visible if the product policy explicitly marks them non-mutable
+- 차트 열기
+  - deep-link directly to the ticker/detail/chart screen
+  - preserve session context and alert reason in the route payload
+
+Also:
+- tapping the notification body opens the ticker detail view
+- action PendingIntents must use unique request codes / immutable flags where required
+- actions must be safe to repeat
+- no action may place, stage, preview or submit an order
