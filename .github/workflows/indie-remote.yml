@@ -26,10 +26,26 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
+      - name: Resolve INDIE job file
+        id: job
+        shell: powershell
+        env:
+          INPUT_JOB_PATH: ${{ github.event.inputs.job_path || '' }}
+        run: |
+          if (-not [string]::IsNullOrWhiteSpace($env:INPUT_JOB_PATH)) {
+            $job = $env:INPUT_JOB_PATH
+          } else {
+            $changed = @(& git diff-tree --no-commit-id --name-only -r $env:GITHUB_SHA)
+            $job = $changed | Where-Object { $_ -like "KHS_REMOTE/indie_jobs/*.json" } | Select-Object -First 1
+          }
+          if (-not $job) { throw "INDIE job file not found" }
+          if ($job -notlike "KHS_REMOTE/indie_jobs/*.json") { throw "Invalid INDIE job path: $job" }
+          "job=$job" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
       - name: Execute bounded INDIE command
         shell: powershell
         env:
-          KHS_JOB_PATH: ${{ github.event.inputs.job_path || '' }}
+          KHS_JOB_PATH: ${{ steps.job.outputs.job }}
         run: |
           Set-ExecutionPolicy -Scope Process Bypass -Force
           .\KHS_REMOTE\dispatcher.ps1
@@ -39,9 +55,18 @@ jobs:
         run: |
           git config user.name "KHS INDIE Runner"
           git config user.email "khs-indie-runner@users.noreply.github.com"
-          git add KHS_REMOTE/results/indie
-          if (-not (git diff --cached --quiet)) {
-            git commit -m "KHS_INDIE_RESULT: $env:GITHUB_RUN_ID"
-            git pull --rebase origin main
-            git push origin HEAD:main
+          if (Test-Path "KHS_REMOTE/results/indie") {
+            git add KHS_REMOTE/results/indie
+            git diff --cached --quiet
+            $diffExit = $LASTEXITCODE
+            if ($diffExit -eq 1) {
+              git commit -m "KHS_INDIE_RESULT: $env:GITHUB_RUN_ID"
+              if ($LASTEXITCODE -ne 0) { throw "git commit failed" }
+              git pull --rebase origin main
+              if ($LASTEXITCODE -ne 0) { throw "git pull --rebase failed" }
+              git push origin HEAD:main
+              if ($LASTEXITCODE -ne 0) { throw "git push failed" }
+            } elseif ($diffExit -ne 0) {
+              throw "git diff --cached --quiet failed: $diffExit"
+            }
           }
