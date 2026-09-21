@@ -255,8 +255,19 @@ try {
       }
 
       $result.final_git = GitInfo $Indie
-      $result.status = "PASS"
-      $result.retryable = $false
+      Push-Location $Indie
+      try {
+        $verifyText = (& git diff --check 2>&1 | Out-String).Trim()
+        $verifyExit = $LASTEXITCODE
+      } finally { Pop-Location }
+      $result.verifier = @{ name="git diff --check"; exit=$verifyExit; output=$verifyText }
+      if ($verifyExit -ne 0) {
+        $result.status = "FAIL"
+        $result.retryable = $true
+      } else {
+        $result.status = "NEEDS_VERIFICATION"
+        $result.retryable = $true
+      }
     }
     "minijev_codex" {
       if (-not (Test-Path $Mini)) { throw "KHS_MINI_JEV project missing: $Mini" }
