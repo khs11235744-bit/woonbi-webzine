@@ -15,12 +15,12 @@ permissions:
   contents: write
 
 concurrency:
-  group: autodirector-remote-control-v2
+  group: autodirector-remote-control-v4
   cancel-in-progress: true
 
 jobs:
   autodirector:
-    runs-on: [self-hosted, Windows, X64, khs-indie]
+    runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
