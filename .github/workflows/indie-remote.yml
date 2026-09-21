@@ -1,0 +1,39 @@
+name: KHS INDIE Remote
+on:
+  push:
+    branches: [main]
+    paths:
+      - "KHS_REMOTE/indie_jobs/**/*.json"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: khs-indie-remote
+  cancel-in-progress: false
+
+jobs:
+  indie:
+    runs-on: [self-hosted, Windows, X64, khs-indie]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Execute bounded INDIE command
+        shell: powershell
+        run: |
+          Set-ExecutionPolicy -Scope Process Bypass -Force
+          .\KHS_REMOTE\dispatcher.ps1
+      - name: Commit real result
+        if: always()
+        shell: powershell
+        run: |
+          git config user.name "KHS INDIE Runner"
+          git config user.email "khs-indie-runner@users.noreply.github.com"
+          git add KHS_REMOTE/results/indie
+          if (-not (git diff --cached --quiet)) {
+            git commit -m "KHS_INDIE_RESULT: $env:GITHUB_RUN_ID"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          }
