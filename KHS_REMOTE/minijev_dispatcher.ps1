@@ -21,8 +21,9 @@ function ReadTextBounded([string]$p,[int]$max=200000) {
 }
 
 function RunNativeBounded([string]$exe,[string[]]$nativeArgs,[string]$workingDir,[int]$timeoutMs=10000) {
-  $psi=New-Object Diagnostics.ProcessStartInfo
-  $psi.FileName=$exe
+  $id=[guid]::NewGuid().ToString("N")
+  $outFile=Join-Path $env:TEMP ("khs-native-out-"+$id+".txt")
+  $errFile=Join-Path $env:TEMP ("khs-native-err-"+$id+".txt")
   $quoted=@()
   foreach($a in $nativeArgs){
     if($null -ne $a){
@@ -30,25 +31,22 @@ function RunNativeBounded([string]$exe,[string[]]$nativeArgs,[string]$workingDir
       $quoted += ('"' + ($s -replace '"', '\\"') + '"')
     }
   }
-  $psi.Arguments=($quoted -join " ")
-  $psi.WorkingDirectory=$workingDir
-  $psi.UseShellExecute=$false
-  $psi.RedirectStandardOutput=$true
-  $psi.RedirectStandardError=$true
-  $p=New-Object Diagnostics.Process
-  $p.StartInfo=$psi
-  [void]$p.Start()
-  $stdoutTask=$p.StandardOutput.ReadToEndAsync()
-  $stderrTask=$p.StandardError.ReadToEndAsync()
-  if(-not $p.WaitForExit($timeoutMs)){
-    try{$p.Kill()}catch{}
-    return @{exit=124;timed_out=$true;output=("timeout after "+$timeoutMs+"ms")}
+  $argLine=($quoted -join " ")
+  try {
+    $p=Start-Process -FilePath $exe -ArgumentList $argLine -WorkingDirectory $workingDir -PassThru -WindowStyle Hidden -RedirectStandardOutput $outFile -RedirectStandardError $errFile
+    if(-not $p.WaitForExit($timeoutMs)){
+      try{Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue}catch{}
+      $o=if(Test-Path $outFile){Get-Content $outFile -Raw -ErrorAction SilentlyContinue}else{""}
+      $e=if(Test-Path $errFile){Get-Content $errFile -Raw -ErrorAction SilentlyContinue}else{""}
+      return @{exit=124;timed_out=$true;output=(($o+"`n"+$e).Trim())}
+    }
+    $o=if(Test-Path $outFile){Get-Content $outFile -Raw -ErrorAction SilentlyContinue}else{""}
+    $e=if(Test-Path $errFile){Get-Content $errFile -Raw -ErrorAction SilentlyContinue}else{""}
+    return @{exit=$p.ExitCode;timed_out=$false;output=(($o+"`n"+$e).Trim())}
+  } finally {
+    Remove-Item $outFile,$errFile -Force -ErrorAction SilentlyContinue
   }
-  $stdout=$stdoutTask.Result
-  $stderr=$stderrTask.Result
-  return @{exit=$p.ExitCode;timed_out=$false;output=(($stdout+"`n"+$stderr).Trim())}
 }
-
 function GitInfo([string]$root) {
   $gitPath=Join-Path $root ".git"
   if(-not(Test-Path $gitPath)){ return @{git=$false} }
