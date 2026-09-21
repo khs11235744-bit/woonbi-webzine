@@ -4,7 +4,29 @@ $Base = Join-Path $env:USERPROFILE "Documents\ChatGPT"
 $Mini = Join-Path $Base "KHS_MINI_JEV"
 $Flow = Join-Path $Base "KHS_FLOW_OS_v0.3"
 $Indie = Join-Path $env:USERPROFILE "Documents\indieplus-pohang"
-$CmdPath = Join-Path $env:GITHUB_WORKSPACE "KHS_REMOTE\command.json"
+$DefaultCmdPath = Join-Path $env:GITHUB_WORKSPACE "KHS_REMOTE\command.json"
+$CmdPath = $DefaultCmdPath
+$JobRelPath = $null
+
+# Unique job mailbox: determine the job file that triggered this push.
+# This prevents one project's command from overwriting another project's queued job.
+if ($env:GITHUB_EVENT_PATH -and (Test-Path $env:GITHUB_EVENT_PATH)) {
+  try {
+    $evt = Get-Content $env:GITHUB_EVENT_PATH -Raw -Encoding UTF8 | ConvertFrom-Json
+    $changed = @()
+    if ($evt.head_commit) {
+      $changed += @($evt.head_commit.added)
+      $changed += @($evt.head_commit.modified)
+    }
+    $JobRelPath = $changed |
+      Where-Object { $_ -like "KHS_REMOTE/jobs/*.json" } |
+      Select-Object -First 1
+    if ($JobRelPath) {
+      $CmdPath = Join-Path $env:GITHUB_WORKSPACE ($JobRelPath -replace '/', '\')
+    }
+  } catch {}
+}
+
 $ResultDir = Join-Path $env:GITHUB_WORKSPACE "KHS_REMOTE\results"
 New-Item -ItemType Directory -Path $ResultDir -Force | Out-Null
 
@@ -77,6 +99,8 @@ $cmd = Get-Content $CmdPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $result = [ordered]@{
   request_id = $cmd.request_id
   action = $cmd.action
+  project = $cmd.project
+  queue_job = $JobRelPath
   started_at = (Get-Date).ToString("o")
   status = "FAIL"
   retryable = $true
@@ -206,6 +230,13 @@ try {
 }
 
 $result.finished_at = (Get-Date).ToString("o")
+$jsonOut = ($result | ConvertTo-Json -Depth 30)
 $out = Join-Path $ResultDir ("latest.json")
-[IO.File]::WriteAllText($out, ($result | ConvertTo-Json -Depth 30), (New-Object Text.UTF8Encoding($false)))
+[IO.File]::WriteAllText($out, $jsonOut, (New-Object Text.UTF8Encoding($false)))
+
+$safeRequest = ([string]$cmd.request_id) -replace '[^A-Za-z0-9_.-]','_'
+if ($safeRequest) {
+  $perTask = Join-Path $ResultDir ($safeRequest + ".json")
+  [IO.File]::WriteAllText($perTask, $jsonOut, (New-Object Text.UTF8Encoding($false)))
+}
 Write-Host ($result | ConvertTo-Json -Depth 8)
