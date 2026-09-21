@@ -1,0 +1,39 @@
+name: KHS Remote Control
+on:
+  push:
+    branches: [main]
+    paths:
+      - "KHS_REMOTE/command.json"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: khs-remote-control
+  cancel-in-progress: false
+
+jobs:
+  khs:
+    runs-on: [self-hosted, Windows, X64, khs-remote]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Execute bounded KHS command
+        shell: powershell
+        run: |
+          Set-ExecutionPolicy -Scope Process Bypass -Force
+          .\KHS_REMOTE\dispatcher.ps1
+      - name: Commit real result
+        if: always()
+        shell: powershell
+        run: |
+          git config user.name "KHS Remote Runner"
+          git config user.email "khs-remote-runner@users.noreply.github.com"
+          git add KHS_REMOTE/results
+          if (-not (git diff --cached --quiet)) {
+            git commit -m "KHS_RESULT: $env:GITHUB_RUN_ID"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          }
