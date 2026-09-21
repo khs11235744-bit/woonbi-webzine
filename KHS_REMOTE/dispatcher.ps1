@@ -62,12 +62,12 @@ function ReadTextBounded([string]$p, [int]$max = 200000) {
   return Get-Content $p -Raw -Encoding UTF8
 }
 
-function RunNativeBounded([string]$exe,[string[]]$args,[string]$workingDir,[int]$timeoutMs=10000) {
+function RunNativeBounded([string]$exe,[string[]]$nativeArgs,[string]$workingDir,[int]$timeoutMs=10000) {
   $id=[guid]::NewGuid().ToString("N")
   $outFile=Join-Path $env:TEMP ("khs-native-out-"+$id+".txt")
   $errFile=Join-Path $env:TEMP ("khs-native-err-"+$id+".txt")
   try {
-    $p=Start-Process -FilePath $exe -PassThru -WindowStyle Hidden -ArgumentList $args -WorkingDirectory $workingDir -RedirectStandardOutput $outFile -RedirectStandardError $errFile
+    $p=Start-Process -FilePath $exe -PassThru -WindowStyle Hidden -ArgumentList $nativeArgs -WorkingDirectory $workingDir -RedirectStandardOutput $outFile -RedirectStandardError $errFile
     if(-not $p.WaitForExit($timeoutMs)){
       try{$p.Kill($true)}catch{}
       return @{exit=124;timed_out=$true;output=("timeout after "+$timeoutMs+"ms")}
