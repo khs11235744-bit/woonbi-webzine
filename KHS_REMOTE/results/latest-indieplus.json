@@ -2,6 +2,22 @@
     "request_id":  "indie-community-mobile-v24-patch-20260922-1710",
     "action":  "indieplus_patch",
     "started_at":  "2026-09-22T18:23:05.9017323+09:00",
-    "status":  "RUNNING",
-    "project":  "C:\\Users\\권형석\\Documents\\indieplus-pohang"
+    "status":  "FAIL",
+    "project":  "C:\\Users\\권형석\\Documents\\indieplus-pohang",
+    "error":  "DIRTY_WORKTREE:  M data/live.json |  M data/movies.json |  M data/news-weekly.json |  M data/programs.json |  M index.html",
+    "git_after":  {
+                      "branch":  "main",
+                      "status":  [
+                                     " M data/live.json",
+                                     " M data/movies.json",
+                                     " M data/news-weekly.json",
+                                     " M data/programs.json",
+                                     " M index.html"
+                                 ],
+                      "stash":  [
+                                    "stash@{0}: On main: assistant-v19-incomplete-before-codex"
+                                ],
+                      "head":  "95f35b05ac748f6420e993e7690043ab43ad14bf"
+                  },
+    "finished_at":  "2026-09-22T18:23:11.4744031+09:00"
 }
