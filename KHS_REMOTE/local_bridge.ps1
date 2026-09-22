@@ -205,7 +205,7 @@ function Invoke-IndieTest {
     foreach($j in Get-ChildItem (Join-Path $Project "data") -Filter "*.json" -File){
       Get-Content $j.FullName -Raw -Encoding UTF8 | ConvertFrom-Json | Out-Null
     }
-    $js=@("app.js","features-v04.js","features-v05.js","features-v06.js","features-v07.js","features-v08.js","features-v17.js","features-v19.js","features-v20.js","features-v21.js","features-v22.js","sw.js","functions/index.js")
+    $js=@("app.js","features-v04.js","features-v05.js","features-v06.js","features-v07.js","features-v08.js","features-v17.js","features-v19.js","features-v20.js","features-v21.js","features-v22.js","sw.js")
     foreach($x in $js){
       if(Test-Path (Join-Path $Project $x)){ RunNodeCheck $x }
     }
@@ -414,75 +414,6 @@ while($true){
           } finally { Pop-Location }
         }
 
-        "indieplus_apply_bundle" {
-          RequireCleanProject $cmd
-          $bundle=[string]$cmd.bundle
-          if($bundle -notmatch '^[A-Za-z0-9_.-]+
-          $lock=Join-Path $Project ".harness.lock"
-          if(Test-Path $lock){throw "HARNESS_LOCK"}
-          $result.sync=Invoke-IndieSync
-          $result.git_after=GitInfo $Project
-          $result.status="PASS"
-        }
-        "indieplus_test" {
-          $lock=Join-Path $Project ".harness.lock"
-          if(Test-Path $lock){throw "HARNESS_LOCK"}
-          $result.test=Invoke-IndieTest
-          $result.status="PASS"
-        }
-        "indieplus_deploy" {
-          if(-not [bool]$cmd.confirm_deploy){throw "confirm_deploy=true required"}
-          $result.deploy=Invoke-IndieDeploy ([bool]$cmd.include_functions)
-          $result.status="PASS"
-        }
-        "indieplus_sync_deploy" {
-          if(-not [bool]$cmd.confirm_deploy){throw "confirm_deploy=true required"}
-          $lock=Join-Path $Project ".harness.lock"
-          if(Test-Path $lock){throw "HARNESS_LOCK"}
-          $result.sync=Invoke-IndieSync
-          $result.test=Invoke-IndieTest
-          $result.deploy=Invoke-IndieDeploy ([bool]$cmd.include_functions)
-          $result.git_after=GitInfo $Project
-          $result.status="PASS"
-        }
-        default { throw "unsupported action" }
-      }
-    } catch {
-      $result.status="FAIL"
-      $result.error=$_.Exception.Message
-      try{$result.git_after=GitInfo $Project}catch{}
-    }
-
-    $result.finished_at=(Get-Date).ToString("o")
-    PublishResult $result
-    Remove-Item $running -Force -ErrorAction SilentlyContinue
-    Set-Content $done "1" -Encoding ASCII
-    Say ("finished " + $rid + " => " + $result.status)
-  } catch {
-    Say ("ERROR: " + $_.Exception.Message)
-  }
-  Start-Sleep 6
-}
-){throw "invalid bundle name"}
-          $bundleRoot=Join-Path $Bridge ("KHS_REMOTE\\prepared\\"+$bundle)
-          $manifestPath=Join-Path $bundleRoot "manifest.json"
-          if(-not (Test-Path $manifestPath)){throw "bundle manifest missing: $bundle"}
-          $manifest=Get-Content $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
-          $changes=@()
-          foreach($f in @($manifest.files)){
-            $src=Join-Path $bundleRoot ([string]$f.source -replace '/','\\')
-            if(-not (Test-Path $src)){throw "bundle source missing: $($f.source)"}
-            $targetRel=[string]$f.target
-            $target=ProjectPath $targetRel
-            $txt=Get-Content $src -Raw -Encoding UTF8
-            WriteUtf8NoBom $target $txt
-            $changes += @{source=[string]$f.source;target=$targetRel;bytes=$txt.Length}
-          }
-          $result.bundle=$bundle
-          $result.changes=$changes
-          $result.git_after=GitInfo $Project
-          $result.status="PASS"
-        }
         "indieplus_sync" {
           $lock=Join-Path $Project ".harness.lock"
           if(Test-Path $lock){throw "HARNESS_LOCK"}
