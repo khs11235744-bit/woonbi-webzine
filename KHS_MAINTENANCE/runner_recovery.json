@@ -1,5 +1,5 @@
 {
+  "request_id": "recover-indie-runner-functions-20260922",
   "target": "indie",
-  "requested_at": "2026-09-22T15:36:00+09:00",
-  "reason": "prepare Firebase Python Functions venv and deploy schedules"
+  "reason": "recover runner for Firebase Functions deploy after card-news"
 }
