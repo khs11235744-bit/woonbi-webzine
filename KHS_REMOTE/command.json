@@ -1,8 +1,6 @@
 {
-  "request_id": "indie-functions-after-cardnews-20260922-1652",
+  "request_id": "indie-ui-priority-status-20260922-1713",
   "project": "INDIE",
-  "action": "indieplus_deploy",
-  "confirm_deploy": true,
-  "include_functions": true,
-  "requested_by": "chatgpt-after-cardnews-confirmed"
+  "action": "indieplus_status",
+  "requested_by": "chatgpt-ui-priority"
 }
