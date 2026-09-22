@@ -1,0 +1,11 @@
+{
+  "request_id": "indie-functions-final-debug-20260922-1549",
+  "action": "indieplus_read",
+  "files": [
+    {
+      "path": "firebase-debug.log",
+      "start_line": 90,
+      "end_line": 260
+    }
+  ]
+}
