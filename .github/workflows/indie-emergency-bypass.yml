@@ -1,0 +1,130 @@
+name: INDIE Emergency Bypass
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "KHS_MAINTENANCE/indie_emergency_bypass.json"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: indie-emergency-bypass
+  cancel-in-progress: true
+
+jobs:
+  bypass:
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Stop stale INDIE bridge and sync
+        shell: powershell
+        run: |
+          $ErrorActionPreference="Stop"
+          $project=Join-Path $env:USERPROFILE "Documents\indieplus-pohang"
+          if(-not (Test-Path $project)){throw "INDIE project missing: $project"}
+
+          Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+            Where-Object {
+              ([string]$_.CommandLine -like "*KHS_REMOTE*local_bridge.ps1*") -or
+              (([string]$_.CommandLine -like "*indieplus-pohang*") -and
+               (([string]$_.CommandLine -like "*scripts*sync_news.py*") -or
+                ([string]$_.CommandLine -like "*scripts*sync_dtryx.py*") -or
+                ([string]$_.CommandLine -like "*scripts*build_news_weekly.py*")))
+            } |
+            ForEach-Object {
+              Write-Host "Stopping stale PID=$($_.ProcessId) $($_.Name)"
+              Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+            }
+
+          $state=Join-Path $env:USERPROFILE "KHS_REMOTE_STATE"
+          if(Test-Path $state){
+            Get-ChildItem $state -Filter "*.running" -File -ErrorAction SilentlyContinue |
+              Remove-Item -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: Preserve local dirty work and update app repo
+        shell: powershell
+        run: |
+          $ErrorActionPreference="Stop"
+          $project=Join-Path $env:USERPROFILE "Documents\indieplus-pohang"
+          Push-Location $project
+          try {
+            $dirty=@(git status --porcelain)
+            if($dirty.Count -gt 0){
+              $stamp=Get-Date -Format "yyyyMMdd-HHmmss"
+              git stash push -u -m "emergency-bypass-preserve-$stamp"
+              if($LASTEXITCODE -ne 0){throw "git stash failed"}
+            }
+            git pull --ff-only
+            if($LASTEXITCODE -ne 0){throw "git pull --ff-only failed"}
+          } finally { Pop-Location }
+
+      - name: Apply v23 and v24 UI jobs directly
+        shell: powershell
+        run: |
+          $ErrorActionPreference="Stop"
+          $jobs=@(
+            "KHS_REMOTE/jobs/20260922-1701-indie-ui-v23-patch.json",
+            "KHS_REMOTE/jobs/20260922-1702-indie-ui-v23-verify.json",
+            "KHS_REMOTE/jobs/20260922-1703-indie-community-mobile-v24-patch.json",
+            "KHS_REMOTE/jobs/20260922-1704-indie-community-mobile-v24-verify.json",
+            "KHS_REMOTE/jobs/20260922-1705-indie-community-mobile-v24-deploy.json"
+          )
+          foreach($job in $jobs){
+            Write-Host "RUN $job"
+            $env:KHS_JOB_PATH=$job
+            .\KHS_REMOTE\dispatcher.ps1
+            $cfg=Get-Content $job -Raw -Encoding UTF8 | ConvertFrom-Json
+            $safe=([string]$cfg.request_id) -replace '[^A-Za-z0-9_.-]','_'
+            $result="KHS_REMOTE/results/legacy/$safe.json"
+            if(-not (Test-Path $result)){throw "result missing: $result"}
+            $r=Get-Content $result -Raw -Encoding UTF8 | ConvertFrom-Json
+            Write-Host ("RESULT "+$r.request_id+" => "+$r.status)
+            if($r.status -ne "PASS"){throw ("job failed: "+$r.request_id+" :: "+$r.error)}
+          }
+
+      - name: Restart phone bridge cleanly
+        if: always()
+        shell: powershell
+        run: |
+          $bridge=Join-Path $env:USERPROFILE "KHS_REMOTE_BRIDGE"
+          if(Test-Path (Join-Path $bridge ".git")){
+            Push-Location $bridge
+            try {
+              git fetch origin main
+              git reset --hard origin/main
+            } finally { Pop-Location }
+            $script=Join-Path $bridge "KHS_REMOTE\local_bridge.ps1"
+            if(Test-Path $script){
+              Start-Process powershell.exe -WindowStyle Hidden -ArgumentList @("-NoProfile","-ExecutionPolicy","Bypass","-File",$script) -WorkingDirectory $bridge | Out-Null
+            }
+          }
+
+      - name: Publish bypass results
+        if: always()
+        shell: powershell
+        run: |
+          git config user.name "KHS Emergency Bypass"
+          git config user.email "khs-emergency-bypass@users.noreply.github.com"
+          if(Test-Path "KHS_REMOTE/results/legacy"){
+            git add KHS_REMOTE/results/legacy
+            git diff --cached --quiet
+            if($LASTEXITCODE -eq 1){
+              git commit -m "KHS_RESULT: emergency INDIE UI bypass"
+              for($i=1;$i -le 4;$i++){
+                git pull --rebase origin main
+                if($LASTEXITCODE -eq 0){
+                  git push origin HEAD:main
+                  if($LASTEXITCODE -eq 0){exit 0}
+                }
+                git rebase --abort 2>$null
+                Start-Sleep -Seconds (2*$i)
+              }
+            }
+          }
