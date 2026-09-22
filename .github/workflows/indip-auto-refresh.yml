@@ -1,8 +1,6 @@
 name: INDI+P auto refresh command
 
 on:
-  schedule:
-    - cron: '7,37 * * * *'
   workflow_dispatch:
 
 permissions:
