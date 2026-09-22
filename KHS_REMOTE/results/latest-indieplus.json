@@ -2,6 +2,29 @@
     "request_id":  "indie-noninteractive-functions-commit-20260922-1620",
     "action":  "indieplus_verify_commit",
     "started_at":  "2026-09-22T18:15:24.0579209+09:00",
-    "status":  "RUNNING",
-    "project":  "C:\\Users\\권형석\\Documents\\indieplus-pohang"
+    "status":  "PASS",
+    "project":  "C:\\Users\\권형석\\Documents\\indieplus-pohang",
+    "before_commit":  {
+                          "branch":  "main",
+                          "status":  [
+                                         " M scripts/sync_news.py"
+                                     ],
+                          "stash":  [
+                                        "stash@{0}: On main: assistant-v19-incomplete-before-codex"
+                                    ],
+                          "head":  "3ec19f5acb4135d1489b9a3b9ce1a1aacfbfcc14"
+                      },
+    "commit_sha":  "95f35b05ac748f6420e993e7690043ab43ad14bf",
+    "pushed":  true,
+    "after_commit":  {
+                         "branch":  "main",
+                         "status":  [
+
+                                    ],
+                         "stash":  [
+                                       "stash@{0}: On main: assistant-v19-incomplete-before-codex"
+                                   ],
+                         "head":  "95f35b05ac748f6420e993e7690043ab43ad14bf"
+                     },
+    "finished_at":  "2026-09-22T18:15:32.7456557+09:00"
 }
