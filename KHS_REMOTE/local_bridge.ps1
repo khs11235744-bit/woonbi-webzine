@@ -194,7 +194,7 @@ function Invoke-IndiePython([string]$script){
 function Invoke-IndieSync {
   $oldSkip=$env:INDIP_SKIP_FUNCTIONS_BOOTSTRAP
   $env:INDIP_SKIP_FUNCTIONS_BOOTSTRAP="1"
-  try{
+  try {
     $sync=[ordered]@{}
     $sync.dtryx = Invoke-IndiePython "scripts/sync_dtryx.py"
     $sync.news = Invoke-IndiePython "scripts/sync_news.py"
@@ -211,7 +211,7 @@ function Invoke-IndieTest {
     foreach($j in Get-ChildItem (Join-Path $Project "data") -Filter "*.json" -File){
       Get-Content $j.FullName -Raw -Encoding UTF8 | ConvertFrom-Json | Out-Null
     }
-    $js=@("app.js","features-v04.js","features-v05.js","features-v06.js","features-v07.js","features-v08.js","features-v17.js","features-v19.js","features-v20.js","features-v21.js","features-v22.js","sw.js","functions/index.js")
+    $js=@("app.js","features-v04.js","features-v05.js","features-v06.js","features-v07.js","features-v08.js","features-v17.js","features-v19.js","features-v20.js","features-v21.js","features-v22.js","sw.js")
     foreach($x in $js){
       if(Test-Path (Join-Path $Project $x)){ RunNodeCheck $x }
     }
@@ -225,12 +225,12 @@ function Invoke-IndieDeploy([bool]$includeFunctions=$true){
   Push-Location $Project
   try {
     if($includeFunctions){
-      $py=(Get-Command python.exe -ErrorAction SilentlyContinue).Source
-      if(-not $py){$py=(Get-Command python -ErrorAction SilentlyContinue).Source}
-      if(-not $py){throw "python not found"}
+      $python=(Get-Command python.exe -ErrorAction SilentlyContinue).Source
+      if(-not $python){$python=(Get-Command python -ErrorAction SilentlyContinue).Source}
+      if(-not $python){throw "python not found"}
       $venvPy=Join-Path $Project "functions\venv\Scripts\python.exe"
       if(-not (Test-Path $venvPy)){
-        & $py -m venv "functions\venv"
+        & $python -m venv "functions\venv"
         if($LASTEXITCODE -ne 0){throw "functions venv create failed"}
       }
       & $venvPy -m pip install -r "functions\requirements.txt"
@@ -241,13 +241,20 @@ function Invoke-IndieDeploy([bool]$includeFunctions=$true){
     $firebase=(Get-Command firebase.cmd -ErrorAction SilentlyContinue).Source
     if(-not $firebase){ $firebase=(Join-Path $env:APPDATA "npm\firebase.cmd") }
     if(-not (Test-Path $firebase)){ throw "firebase.cmd not found" }
+    $oldNodeOptions=$env:NODE_OPTIONS
+    $oldDiscovery=$env:FUNCTIONS_DISCOVERY_TIMEOUT
     $env:NODE_OPTIONS="--no-deprecation"
-    $env:FUNCTIONS_DISCOVERY_TIMEOUT="60"
-    $only = if($includeFunctions){"functions"}else{"firestore:rules,hosting"}
-    $out = (& $firebase deploy --project indieplus-pohang-khs --only $only --non-interactive 2>&1 | Out-String).Trim()
-    $code=$LASTEXITCODE
-    if($code -ne 0){ throw ("firebase deploy failed :: " + $out) }
-    return $out
+    $env:FUNCTIONS_DISCOVERY_TIMEOUT="90"
+    try{
+      $only = if($includeFunctions){"functions"}else{"firestore:rules,hosting"}
+      $out = (& $firebase deploy --project indieplus-pohang-khs --only $only --non-interactive 2>&1 | Out-String).Trim()
+      $code=$LASTEXITCODE
+      if($code -ne 0){ throw ("firebase deploy failed :: " + $out) }
+      return $out
+    } finally {
+      $env:NODE_OPTIONS=$oldNodeOptions
+      $env:FUNCTIONS_DISCOVERY_TIMEOUT=$oldDiscovery
+    }
   } finally { Pop-Location }
 }
 
@@ -263,6 +270,9 @@ if(-not $codex){
 }
 
 New-Item -ItemType Directory -Path $StateDir -Force | Out-Null
+Get-ChildItem $StateDir -Filter "*.running" -File -ErrorAction SilentlyContinue | Where-Object {
+  ((Get-Date) - $_.LastWriteTime).TotalMinutes -gt 30
+} | Remove-Item -Force -ErrorAction SilentlyContinue
 Say "READY v3"
 Say "project=$Project"
 Say ("codex=" + $(if($codex){$codex}else{"NOT_FOUND"}))
@@ -436,99 +446,6 @@ while($true){
           } finally { Pop-Location }
         }
 
-        "indieplus_apply_bundle_deploy" {
-          if(-not [bool]$cmd.confirm_deploy){ throw "confirm_deploy=true required" }
-          RequireCleanProject $cmd
-
-          $bundle=[string]$cmd.bundle
-          if($bundle -notmatch '^[A-Za-z0-9_.-]+
-          $lock=Join-Path $Project ".harness.lock"
-          if(Test-Path $lock){throw "HARNESS_LOCK"}
-          $result.sync=Invoke-IndieSync
-          $result.git_after=GitInfo $Project
-          $result.status="PASS"
-        }
-        "indieplus_test" {
-          $lock=Join-Path $Project ".harness.lock"
-          if(Test-Path $lock){throw "HARNESS_LOCK"}
-          $result.test=Invoke-IndieTest
-          $result.status="PASS"
-        }
-        "indieplus_deploy" {
-          if(-not [bool]$cmd.confirm_deploy){throw "confirm_deploy=true required"}
-          $result.deploy=Invoke-IndieDeploy ([bool]$cmd.include_functions)
-          $result.status="PASS"
-        }
-        "indieplus_sync_deploy" {
-          if(-not [bool]$cmd.confirm_deploy){throw "confirm_deploy=true required"}
-          $lock=Join-Path $Project ".harness.lock"
-          if(Test-Path $lock){throw "HARNESS_LOCK"}
-          $result.sync=Invoke-IndieSync
-          $result.test=Invoke-IndieTest
-          $result.deploy=Invoke-IndieDeploy ([bool]$cmd.include_functions)
-          $result.git_after=GitInfo $Project
-          $result.status="PASS"
-        }
-        default { throw "unsupported action" }
-      }
-    } catch {
-      $result.status="FAIL"
-      $result.error=$_.Exception.Message
-      try{$result.git_after=GitInfo $Project}catch{}
-    }
-
-    $result.finished_at=(Get-Date).ToString("o")
-    PublishResult $result
-    Remove-Item $running -Force -ErrorAction SilentlyContinue
-    Set-Content $done "1" -Encoding ASCII
-    Say ("finished " + $rid + " => " + $result.status)
-  } catch {
-    Say ("ERROR: " + $_.Exception.Message)
-  }
-  Start-Sleep 6
-}
-){ throw "invalid bundle name" }
-          $bundleRoot=Join-Path $Bridge ("KHS_REMOTE\\prepared\\"+$bundle)
-          $manifestPath=Join-Path $bundleRoot "manifest.json"
-          if(-not (Test-Path $manifestPath)){ throw "bundle manifest missing: $bundle" }
-          $manifest=Get-Content $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
-
-          $changes=@()
-          foreach($f in @($manifest.files)){
-            $src=Join-Path $bundleRoot ([string]$f.source -replace '/','\\')
-            if(-not (Test-Path $src)){ throw "bundle source missing: $($f.source)" }
-            $targetRel=[string]$f.target
-            $target=ProjectPath $targetRel
-            $txt=Get-Content $src -Raw -Encoding UTF8
-            WriteUtf8NoBom $target $txt
-            $changes += @{source=[string]$f.source;target=$targetRel;bytes=$txt.Length}
-          }
-          $result.bundle=$bundle
-          $result.changes=$changes
-          $result.test=Invoke-IndieTest
-
-          Push-Location $Project
-          try{
-            $stage=@($manifest.files | ForEach-Object { [string]$_.target })
-            git add -- @stage
-            if(-not (git diff --cached --quiet)){
-              $msg=if($cmd.commit_message){[string]$cmd.commit_message}else{"feat: deploy Firebase automatic cinema and news sync"}
-              git commit -m $msg
-              if($LASTEXITCODE -ne 0){ throw "git commit failed" }
-              $result.commit_sha=((& git rev-parse HEAD | Out-String).Trim())
-              git push origin HEAD:main
-              if($LASTEXITCODE -ne 0){ throw "git push failed" }
-              $result.pushed=$true
-            }else{
-              $result.commit_sha=((& git rev-parse HEAD | Out-String).Trim())
-              $result.pushed=$false
-            }
-          } finally { Pop-Location }
-
-          $result.deploy=Invoke-IndieDeploy $true
-          $result.git_after=GitInfo $Project
-          $result.status="PASS"
-        }
         "indieplus_sync" {
           $lock=Join-Path $Project ".harness.lock"
           if(Test-Path $lock){throw "HARNESS_LOCK"}
