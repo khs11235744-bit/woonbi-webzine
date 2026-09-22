@@ -1,0 +1,10 @@
+{
+  "request_id": "indie-one-time-functions-deployer-commit-20260922-1552",
+  "action": "indieplus_verify_commit",
+  "files": [
+    "scripts/sync_news.py"
+  ],
+  "commit_message": "fix: add one-time direct Functions deploy fallback",
+  "push": true,
+  "run_probe": false
+}
