@@ -1,0 +1,5 @@
+{
+  "request_id": "autodirector-bridge-upgrade-20260923-0851",
+  "purpose": "Preserve legacy INDIE worker before refactoring local_bridge into a multi-project supervisor",
+  "requested_at": "2026-09-23T08:51:00+09:00"
+}
