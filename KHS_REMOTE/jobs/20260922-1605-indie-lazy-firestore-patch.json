@@ -1,0 +1,13 @@
+{
+  "request_id": "indie-lazy-firestore-patch-20260922-1605",
+  "action": "indieplus_patch",
+  "patches": [
+    {
+      "path": "functions/main.py",
+      "mode": "replace",
+      "expected_count": 1,
+      "search": "initialize_app()\nDB = firestore.client()\nKST = timezone(timedelta(hours=9))",
+      "replace": "initialize_app()\n_DB_CLIENT = None\n\ndef get_db():\n    global _DB_CLIENT\n    if _DB_CLIENT is None:\n        _DB_CLIENT = firestore.client()\n    return _DB_CLIENT\n\nclass _LazyFirestore:\n    def __getattr__(self, name):\n        return getattr(get_db(), name)\n\nDB = _LazyFirestore()\nKST = timezone(timedelta(hours=9))"
+    }
+  ]
+}
