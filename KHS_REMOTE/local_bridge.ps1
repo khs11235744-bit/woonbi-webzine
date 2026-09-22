@@ -224,11 +224,27 @@ function Invoke-IndieTest {
 function Invoke-IndieDeploy([bool]$includeFunctions=$true){
   Push-Location $Project
   try {
+    if($includeFunctions){
+      $py=(Get-Command python.exe -ErrorAction SilentlyContinue).Source
+      if(-not $py){$py=(Get-Command python -ErrorAction SilentlyContinue).Source}
+      if(-not $py){throw "python not found"}
+      $venvPy=Join-Path $Project "functions\venv\Scripts\python.exe"
+      if(-not (Test-Path $venvPy)){
+        & $py -m venv "functions\venv"
+        if($LASTEXITCODE -ne 0){throw "functions venv create failed"}
+      }
+      & $venvPy -m pip install -r "functions\requirements.txt"
+      if($LASTEXITCODE -ne 0){throw "functions requirements install failed"}
+      & $venvPy -c "import firebase_functions, firebase_admin; print('PYTHON_FUNCTIONS_READY')"
+      if($LASTEXITCODE -ne 0){throw "functions import check failed"}
+    }
     $firebase=(Get-Command firebase.cmd -ErrorAction SilentlyContinue).Source
     if(-not $firebase){ $firebase=(Join-Path $env:APPDATA "npm\firebase.cmd") }
     if(-not (Test-Path $firebase)){ throw "firebase.cmd not found" }
-    $only = if($includeFunctions){"firestore:rules,functions,hosting"}else{"firestore:rules,hosting"}
-    $out = (& $firebase deploy --project indieplus-pohang-khs --only $only 2>&1 | Out-String).Trim()
+    $env:NODE_OPTIONS="--no-deprecation"
+    $env:FUNCTIONS_DISCOVERY_TIMEOUT="60"
+    $only = if($includeFunctions){"functions"}else{"firestore:rules,hosting"}
+    $out = (& $firebase deploy --project indieplus-pohang-khs --only $only --non-interactive 2>&1 | Out-String).Trim()
     $code=$LASTEXITCODE
     if($code -ne 0){ throw ("firebase deploy failed :: " + $out) }
     return $out
