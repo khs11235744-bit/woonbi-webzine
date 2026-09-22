@@ -1,0 +1,6 @@
+{
+  "request_id": "indie-functions-after-billingfix-20260922-1632",
+  "action": "indieplus_deploy",
+  "confirm_deploy": true,
+  "include_functions": true
+}
