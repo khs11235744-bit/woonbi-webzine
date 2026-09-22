@@ -138,6 +138,57 @@ function SystemSnapshot {
   }
 }
 
+
+function InvokeIndiePython([string]$script) {
+  Push-Location $Indie
+  try {
+    $out = (& python $script 2>&1 | Out-String).Trim()
+    $code = $LASTEXITCODE
+    if ($code -ne 0) { throw ("python failed " + $script + " :: " + $out) }
+    return $out
+  } finally { Pop-Location }
+}
+
+function InvokeIndieSync {
+  return @{
+    dtryx = InvokeIndiePython "scripts/sync_dtryx.py"
+    news = InvokeIndiePython "scripts/sync_news.py"
+    news_weekly = InvokeIndiePython "scripts/build_news_weekly.py"
+  }
+}
+
+function InvokeIndieTest {
+  Push-Location $Indie
+  try {
+    foreach($j in Get-ChildItem (Join-Path $Indie "data") -Filter "*.json" -File){
+      Get-Content $j.FullName -Raw -Encoding UTF8 | ConvertFrom-Json | Out-Null
+    }
+    $js=@("app.js","features-v04.js","features-v05.js","features-v06.js","features-v07.js","features-v08.js","features-v17.js","features-v19.js","features-v20.js","features-v21.js","features-v22.js","sw.js")
+    foreach($x in $js){
+      if(Test-Path (Join-Path $Indie $x)){ 
+        & node --check $x
+        if($LASTEXITCODE -ne 0){throw "node --check failed: $x"}
+      }
+    }
+    git diff --check
+    if($LASTEXITCODE -ne 0){throw "git diff --check failed"}
+    return @{ok=$true;git=(GitInfo $Indie)}
+  } finally { Pop-Location }
+}
+
+function InvokeIndieDeploy([bool]$includeFunctions=$true) {
+  Push-Location $Indie
+  try {
+    $firebase=(Get-Command firebase.cmd -ErrorAction SilentlyContinue).Source
+    if(-not $firebase){$firebase=Join-Path $env:APPDATA "npm\firebase.cmd"}
+    if(-not (Test-Path $firebase)){throw "firebase.cmd not found"}
+    $only=if($includeFunctions){"firestore:rules,functions,hosting"}else{"firestore:rules,hosting"}
+    $out=(& $firebase deploy --project indieplus-pohang-khs --only $only 2>&1 | Out-String).Trim()
+    if($LASTEXITCODE -ne 0){throw ("firebase deploy failed :: " + $out)}
+    return $out
+  } finally { Pop-Location }
+}
+
 function HarnessSnapshot {
   $hbPath = Join-Path $Mini ".harness\heartbeat.json"
   $hbAge = $null
@@ -655,6 +706,39 @@ try {
       $result.watchdog_output = $watchdogOutput
       $result.status = "PASS"
       $result.retryable = $false
+    }
+
+    "indieplus_sync" {
+      $lock=Join-Path $Indie ".harness.lock"
+      if(Test-Path $lock){throw "HARNESS_LOCK"}
+      $result.sync=InvokeIndieSync
+      $result.after_git=GitInfo $Indie
+      $result.status="PASS"
+      $result.retryable=$false
+    }
+    "indieplus_test" {
+      $lock=Join-Path $Indie ".harness.lock"
+      if(Test-Path $lock){throw "HARNESS_LOCK"}
+      $result.test=InvokeIndieTest
+      $result.status="PASS"
+      $result.retryable=$false
+    }
+    "indieplus_deploy" {
+      if(-not [bool]$cmd.confirm_deploy){throw "confirm_deploy=true required"}
+      $result.deploy=InvokeIndieDeploy ([bool]$cmd.include_functions)
+      $result.status="PASS"
+      $result.retryable=$false
+    }
+    "indieplus_sync_deploy" {
+      if(-not [bool]$cmd.confirm_deploy){throw "confirm_deploy=true required"}
+      $lock=Join-Path $Indie ".harness.lock"
+      if(Test-Path $lock){throw "HARNESS_LOCK"}
+      $result.sync=InvokeIndieSync
+      $result.test=InvokeIndieTest
+      $result.deploy=InvokeIndieDeploy ([bool]$cmd.include_functions)
+      $result.after_git=GitInfo $Indie
+      $result.status="PASS"
+      $result.retryable=$false
     }
     default {
       throw "Unsupported bounded action: $($cmd.action)"
