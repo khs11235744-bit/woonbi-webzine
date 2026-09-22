@@ -1,0 +1,43 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs22"
+  },
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      ".firebaserc",
+      "firestore.rules",
+      "firebase-debug.log",
+      "**/.*",
+      "**/node_modules/**",
+      "**/*.md",
+      "scripts/**",
+      "reports/**",
+      ".chrome-*/**",
+      ".env*",
+      "data/news-raw.json",
+      "functions/**"
+    ],
+    "cleanUrls": true,
+    "trailingSlash": false,
+    "headers": [
+      {
+        "source": "/sw.js",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache" }
+        ]
+      },
+      {
+        "source": "/data/**",
+        "headers": [
+          { "key": "Cache-Control", "value": "public,max-age=300" }
+        ]
+      }
+    ]
+  }
+}
