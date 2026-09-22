@@ -708,77 +708,47 @@ try {
       $result.retryable = $false
     }
 
+    "indieplus_prepare_python_functions" {
+      if (-not (Test-Path $Indie)) { throw "indieplus-pohang project missing: $Indie" }
+      $lock=Join-Path $Indie ".harness.lock"
+      if(Test-Path $lock){throw "HARNESS_LOCK"}
+      $python=(Get-Command python.exe -ErrorAction SilentlyContinue).Source
+      if(-not $python){$python=(Get-Command python -ErrorAction SilentlyContinue).Source}
+      if(-not $python){throw "python not found"}
+      $venv=Join-Path $Indie "functions\venv"
+      if(-not (Test-Path (Join-Path $venv "Scripts\python.exe"))){
+        $mk=RunNativeBounded $python @("-m","venv","functions\venv") $Indie 180000
+        $result.venv_create=$mk
+        if($mk.exit -ne 0 -or $mk.timed_out){throw ("venv create failed: "+$mk.output)}
+      }
+      $vp=Join-Path $venv "Scripts\python.exe"
+      $pip=RunNativeBounded $vp @("-m","pip","install","--upgrade","pip") $Indie 300000
+      $result.pip_upgrade=$pip
+      if($pip.exit -ne 0 -or $pip.timed_out){throw ("pip upgrade failed: "+$pip.output)}
+      $req=RunNativeBounded $vp @("-m","pip","install","-r","functions\requirements.txt") $Indie 600000
+      $result.requirements=$req
+      if($req.exit -ne 0 -or $req.timed_out){throw ("requirements install failed: "+$req.output)}
+      $chk=RunNativeBounded $vp @("-c","import firebase_functions, firebase_admin; print('PYTHON_FUNCTIONS_READY')") $Indie 120000
+      $result.import_check=$chk
+      if($chk.exit -ne 0 -or $chk.timed_out){throw ("functions import check failed: "+$chk.output)}
+      $result.status="PASS"
+      $result.retryable=$false
+    }
     "indieplus_apply_bundle" {
       $bundle=[string]$cmd.bundle
-      if($bundle -notmatch '^[A-Za-z0-9_.-]+
-      $lock=Join-Path $Indie ".harness.lock"
-      if(Test-Path $lock){throw "HARNESS_LOCK"}
-      $result.sync=InvokeIndieSync
-      $result.after_git=GitInfo $Indie
-      $result.status="PASS"
-      $result.retryable=$false
-    }
-    "indieplus_test" {
-      $lock=Join-Path $Indie ".harness.lock"
-      if(Test-Path $lock){throw "HARNESS_LOCK"}
-      $result.test=InvokeIndieTest
-      $result.status="PASS"
-      $result.retryable=$false
-    }
-    "indieplus_deploy" {
-      if(-not [bool]$cmd.confirm_deploy){throw "confirm_deploy=true required"}
-      $result.deploy=InvokeIndieDeploy ([bool]$cmd.include_functions)
-      $result.status="PASS"
-      $result.retryable=$false
-    }
-    "indieplus_sync_deploy" {
-      if(-not [bool]$cmd.confirm_deploy){throw "confirm_deploy=true required"}
-      $lock=Join-Path $Indie ".harness.lock"
-      if(Test-Path $lock){throw "HARNESS_LOCK"}
-      $result.sync=InvokeIndieSync
-      $result.test=InvokeIndieTest
-      $result.deploy=InvokeIndieDeploy ([bool]$cmd.include_functions)
-      $result.after_git=GitInfo $Indie
-      $result.status="PASS"
-      $result.retryable=$false
-    }
-    default {
-      throw "Unsupported bounded action: $($cmd.action)"
-    }
-  }
-} catch {
-  $result.error = $_.Exception.Message
-  $result.error_type = $_.Exception.GetType().FullName
-  $result.error_script_stack = $_.ScriptStackTrace
-  $result.error_position = $_.InvocationInfo.PositionMessage
-  $result.status = "FAIL"
-  $result.retryable = $true
-}
-
-$result.finished_at = (Get-Date).ToString("o")
-$jsonOut = ($result | ConvertTo-Json -Depth 30)
-$out = Join-Path $ResultDir ("latest.json")
-[IO.File]::WriteAllText($out, $jsonOut, (New-Object Text.UTF8Encoding($false)))
-
-$safeRequest = ([string]$cmd.request_id) -replace '[^A-Za-z0-9_.-]','_'
-if ($safeRequest) {
-  $perTask = Join-Path $ResultDir ($safeRequest + ".json")
-  [IO.File]::WriteAllText($perTask, $jsonOut, (New-Object Text.UTF8Encoding($false)))
-}
-Write-Host ($result | ConvertTo-Json -Depth 8)
-){throw "invalid bundle name"}
+      if($bundle -notmatch '^[A-Za-z0-9_.-]+$'){throw "invalid bundle name"}
       $dirty=(GitInfo $Indie)
       if($dirty.dirty){throw "DIRTY_WORKTREE"}
-      $bundleRoot=Join-Path $env:GITHUB_WORKSPACE ("KHS_REMOTE\\prepared\\"+$bundle)
+      $bundleRoot=Join-Path $env:GITHUB_WORKSPACE ("KHS_REMOTE\prepared\"+$bundle)
       $manifestPath=Join-Path $bundleRoot "manifest.json"
       if(-not (Test-Path $manifestPath)){throw "bundle manifest missing: $bundle"}
       $manifest=Get-Content $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
       $changes=@()
       foreach($f in @($manifest.files)){
-        $src=Join-Path $bundleRoot ([string]$f.source -replace '/','\\')
+        $src=Join-Path $bundleRoot ([string]$f.source -replace '/','\')
         if(-not (Test-Path $src)){throw "bundle source missing: $($f.source)"}
         $targetRel=[string]$f.target
-        $root=[IO.Path]::GetFullPath($Indie).TrimEnd('\\')+'\\'
+        $root=[IO.Path]::GetFullPath($Indie).TrimEnd('\')+'\'
         $target=[IO.Path]::GetFullPath((Join-Path $Indie $targetRel))
         if(-not $target.StartsWith($root,[StringComparison]::OrdinalIgnoreCase)){throw "target escapes project: $targetRel"}
         $parent=Split-Path $target -Parent
