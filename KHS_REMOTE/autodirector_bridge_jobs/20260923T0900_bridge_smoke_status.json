@@ -1,0 +1,7 @@
+{
+  "request_id": "bridge-recovery-smoke-20260923T0900",
+  "project": "AUTODIRECTOR",
+  "action": "autodirector_status",
+  "requested_at": "2026-09-23T09:00:00+09:00",
+  "purpose": "Verify the new KHS Remote AutoDirector local bridge can read the real PC project without touching dirty worktree state."
+}
