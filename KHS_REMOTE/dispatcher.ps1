@@ -163,7 +163,7 @@ function InvokeIndieTest {
     foreach($j in Get-ChildItem (Join-Path $Indie "data") -Filter "*.json" -File){
       Get-Content $j.FullName -Raw -Encoding UTF8 | ConvertFrom-Json | Out-Null
     }
-    $js=@("app.js","features-v04.js","features-v05.js","features-v06.js","features-v07.js","features-v08.js","features-v17.js","features-v19.js","features-v20.js","features-v21.js","features-v22.js","sw.js")
+    $js=@("app.js","features-v04.js","features-v05.js","features-v06.js","features-v07.js","features-v08.js","features-v17.js","features-v19.js","features-v20.js","features-v21.js","features-v22.js","sw.js","functions/index.js")
     foreach($x in $js){
       if(Test-Path (Join-Path $Indie $x)){ 
         & node --check $x
@@ -708,6 +708,91 @@ try {
       $result.retryable = $false
     }
 
+    "indieplus_apply_bundle" {
+      $bundle=[string]$cmd.bundle
+      if($bundle -notmatch '^[A-Za-z0-9_.-]+
+      $lock=Join-Path $Indie ".harness.lock"
+      if(Test-Path $lock){throw "HARNESS_LOCK"}
+      $result.sync=InvokeIndieSync
+      $result.after_git=GitInfo $Indie
+      $result.status="PASS"
+      $result.retryable=$false
+    }
+    "indieplus_test" {
+      $lock=Join-Path $Indie ".harness.lock"
+      if(Test-Path $lock){throw "HARNESS_LOCK"}
+      $result.test=InvokeIndieTest
+      $result.status="PASS"
+      $result.retryable=$false
+    }
+    "indieplus_deploy" {
+      if(-not [bool]$cmd.confirm_deploy){throw "confirm_deploy=true required"}
+      $result.deploy=InvokeIndieDeploy ([bool]$cmd.include_functions)
+      $result.status="PASS"
+      $result.retryable=$false
+    }
+    "indieplus_sync_deploy" {
+      if(-not [bool]$cmd.confirm_deploy){throw "confirm_deploy=true required"}
+      $lock=Join-Path $Indie ".harness.lock"
+      if(Test-Path $lock){throw "HARNESS_LOCK"}
+      $result.sync=InvokeIndieSync
+      $result.test=InvokeIndieTest
+      $result.deploy=InvokeIndieDeploy ([bool]$cmd.include_functions)
+      $result.after_git=GitInfo $Indie
+      $result.status="PASS"
+      $result.retryable=$false
+    }
+    default {
+      throw "Unsupported bounded action: $($cmd.action)"
+    }
+  }
+} catch {
+  $result.error = $_.Exception.Message
+  $result.error_type = $_.Exception.GetType().FullName
+  $result.error_script_stack = $_.ScriptStackTrace
+  $result.error_position = $_.InvocationInfo.PositionMessage
+  $result.status = "FAIL"
+  $result.retryable = $true
+}
+
+$result.finished_at = (Get-Date).ToString("o")
+$jsonOut = ($result | ConvertTo-Json -Depth 30)
+$out = Join-Path $ResultDir ("latest.json")
+[IO.File]::WriteAllText($out, $jsonOut, (New-Object Text.UTF8Encoding($false)))
+
+$safeRequest = ([string]$cmd.request_id) -replace '[^A-Za-z0-9_.-]','_'
+if ($safeRequest) {
+  $perTask = Join-Path $ResultDir ($safeRequest + ".json")
+  [IO.File]::WriteAllText($perTask, $jsonOut, (New-Object Text.UTF8Encoding($false)))
+}
+Write-Host ($result | ConvertTo-Json -Depth 8)
+){throw "invalid bundle name"}
+      $dirty=(GitInfo $Indie)
+      if($dirty.dirty){throw "DIRTY_WORKTREE"}
+      $bundleRoot=Join-Path $env:GITHUB_WORKSPACE ("KHS_REMOTE\\prepared\\"+$bundle)
+      $manifestPath=Join-Path $bundleRoot "manifest.json"
+      if(-not (Test-Path $manifestPath)){throw "bundle manifest missing: $bundle"}
+      $manifest=Get-Content $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+      $changes=@()
+      foreach($f in @($manifest.files)){
+        $src=Join-Path $bundleRoot ([string]$f.source -replace '/','\\')
+        if(-not (Test-Path $src)){throw "bundle source missing: $($f.source)"}
+        $targetRel=[string]$f.target
+        $root=[IO.Path]::GetFullPath($Indie).TrimEnd('\\')+'\\'
+        $target=[IO.Path]::GetFullPath((Join-Path $Indie $targetRel))
+        if(-not $target.StartsWith($root,[StringComparison]::OrdinalIgnoreCase)){throw "target escapes project: $targetRel"}
+        $parent=Split-Path $target -Parent
+        if($parent){New-Item -ItemType Directory -Path $parent -Force | Out-Null}
+        $txt=Get-Content $src -Raw -Encoding UTF8
+        [IO.File]::WriteAllText($target,$txt,(New-Object Text.UTF8Encoding($false)))
+        $changes += @{source=[string]$f.source;target=$targetRel;bytes=$txt.Length}
+      }
+      $result.bundle=$bundle
+      $result.changes=$changes
+      $result.after_git=GitInfo $Indie
+      $result.status="PASS"
+      $result.retryable=$false
+    }
     "indieplus_sync" {
       $lock=Join-Path $Indie ".harness.lock"
       if(Test-Path $lock){throw "HARNESS_LOCK"}
