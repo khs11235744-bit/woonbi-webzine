@@ -1,0 +1,31 @@
+{
+  "request_id": "indie-firebase-inspect-20260922-1505",
+  "action": "indieplus_read",
+  "files": [
+    {
+      "path": "functions/index.js",
+      "start_line": 1,
+      "end_line": 500
+    },
+    {
+      "path": "functions/package.json",
+      "start_line": 1,
+      "end_line": 200
+    },
+    {
+      "path": "firebase.json",
+      "start_line": 1,
+      "end_line": 300
+    },
+    {
+      "path": "features-v06.js",
+      "start_line": 1,
+      "end_line": 260
+    },
+    {
+      "path": "app.js",
+      "start_line": 220,
+      "end_line": 360
+    }
+  ]
+}
