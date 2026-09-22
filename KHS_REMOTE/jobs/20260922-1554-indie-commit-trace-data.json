@@ -1,0 +1,12 @@
+{
+  "request_id": "indie-commit-trace-data-20260922-1554",
+  "action": "indieplus_verify_commit",
+  "files": [
+    "data/live.json",
+    "data/movies.json",
+    "data/programs.json"
+  ],
+  "commit_message": "data: refresh screening before Functions diagnostics",
+  "push": true,
+  "run_probe": false
+}
