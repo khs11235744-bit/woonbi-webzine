@@ -3,6 +3,7 @@ $ErrorActionPreference = "Stop"
 
 $Project = Join-Path $env:USERPROFILE "Documents\time drafe\early-heat-radar"
 $ResultDir = Join-Path $env:GITHUB_WORKSPACE "KHS_REMOTE\results\earlyheat"
+$FallbackModePath = Join-Path $env:GITHUB_WORKSPACE "KHS_REMOTE\earlyheat_fallback_mode.json"
 New-Item -ItemType Directory -Path $ResultDir -Force | Out-Null
 
 function ReadTextBounded([string]$Path,[int]$Max=120000) {
@@ -188,6 +189,20 @@ try {
       }
     }
     "earlyheat_codex" {
+      if(Test-Path $FallbackModePath){
+        try{
+          $fallbackMode=Get-Content $FallbackModePath -Raw -Encoding UTF8 | ConvertFrom-Json
+          if([string]$fallbackMode.mode -eq "standby" -and -not [bool]$cmd.manual_fallback){
+            $result.status="BLOCKED_STANDBY"
+            $result.retryable=$false
+            $result.blocked="GITHUB_FALLBACK_STANDBY"
+            $result.note="Primary transport is Local Computer Control. Set manual_fallback=true only for an explicit emergency GitHub fallback request."
+            break
+          }
+        }catch{
+          throw "failed to read Early Heat fallback mode"
+        }
+      }
       $before=Snapshot
       $result.before=$before
 
