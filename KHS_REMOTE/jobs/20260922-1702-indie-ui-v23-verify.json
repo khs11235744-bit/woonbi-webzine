@@ -1,0 +1,27 @@
+{
+  "request_id": "indie-ui-v23-verify-20260922-1702",
+  "action": "indieplus_verify_commit",
+  "project": "INDIE",
+  "expected_dirty_files": [
+    "DESIGN_PANEL_100_V23.md",
+    "editorial-v23.css",
+    "features-v23.js",
+    "index.html",
+    "scripts/probe_v23.mjs",
+    "sw.js"
+  ],
+  "files": [
+    "DESIGN_PANEL_100_V23.md",
+    "editorial-v23.css",
+    "features-v23.js",
+    "index.html",
+    "scripts/probe_v23.mjs",
+    "sw.js"
+  ],
+  "extra_js": [
+    "features-v23.js",
+    "scripts/probe_v23.mjs"
+  ],
+  "commit_message": "fix: make posters safe and simplify editorial home",
+  "push": true
+}
