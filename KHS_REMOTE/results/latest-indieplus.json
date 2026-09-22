@@ -2,6 +2,22 @@
     "request_id":  "indie-functions-after-billingfix-20260922-1632",
     "action":  "indieplus_deploy",
     "started_at":  "2026-09-22T18:18:26.7961686+09:00",
-    "status":  "RUNNING",
-    "project":  "C:\\Users\\권형석\\Documents\\indieplus-pohang"
+    "status":  "FAIL",
+    "project":  "C:\\Users\\권형석\\Documents\\indieplus-pohang",
+    "error":  "(node:38976) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.",
+    "git_after":  {
+                      "branch":  "main",
+                      "status":  [
+                                     " M data/live.json",
+                                     " M data/movies.json",
+                                     " M data/news-weekly.json",
+                                     " M data/programs.json",
+                                     " M index.html"
+                                 ],
+                      "stash":  [
+                                    "stash@{0}: On main: assistant-v19-incomplete-before-codex"
+                                ],
+                      "head":  "95f35b05ac748f6420e993e7690043ab43ad14bf"
+                  },
+    "finished_at":  "2026-09-22T18:21:05.1601840+09:00"
 }
