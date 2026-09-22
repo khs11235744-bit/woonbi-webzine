@@ -1,0 +1,23 @@
+{
+  "request_id": "indie-community-mobile-v24-verify-20260922-1711",
+  "action": "indieplus_verify_commit",
+  "project": "INDIE",
+  "expected_dirty_files": [
+    "features-v24.js",
+    "index.html",
+    "mobile-v24.css",
+    "sw.js"
+  ],
+  "files": [
+    "features-v24.js",
+    "index.html",
+    "mobile-v24.css",
+    "sw.js"
+  ],
+  "extra_js": [
+    "features-v24.js"
+  ],
+  "commit_message": "fix: enable community login and align mobile UI",
+  "push": true,
+  "run_probe": false
+}
