@@ -1,0 +1,11 @@
+{
+  "request_id": "indie-functions-bootstrap-commit-20260922-1546",
+  "action": "indieplus_verify_commit",
+  "files": [
+    "functions/main.py",
+    "scripts/sync_news.py"
+  ],
+  "commit_message": "fix: bootstrap Firebase Python Functions and align news document",
+  "push": true,
+  "run_probe": false
+}
