@@ -62,7 +62,7 @@ function AssertNoLiveHarness {
 function RunBounded([string]$file,[string[]]$args,[int]$timeoutSec=3600){
   $psi=New-Object Diagnostics.ProcessStartInfo
   $psi.FileName=$file
-  foreach($a in $args){ [void]$psi.ArgumentList.Add([string]$a) }
+  $psi.Arguments=($args -join " ")
   $psi.WorkingDirectory=$Project
   $psi.UseShellExecute=$false
   $psi.RedirectStandardOutput=$true
