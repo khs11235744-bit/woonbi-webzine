@@ -1,6 +1,5 @@
 {
-  "request_id": "recover-minijev-2026-09-21T04:54:58.464Z",
-  "target": "minijev",
-  "requested_at": "2026-09-21T04:54:58.464Z",
-  "reason": "Mini-Jev runner stuck on obsolete pre-isolated job; keep INDIE untouched"
+  "target": "indie",
+  "requested_at": "2026-09-22T15:36:00+09:00",
+  "reason": "prepare Firebase Python Functions venv and deploy schedules"
 }
