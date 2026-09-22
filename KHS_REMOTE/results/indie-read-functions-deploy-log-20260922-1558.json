@@ -2,6 +2,15 @@
     "request_id":  "indie-read-functions-deploy-log-20260922-1558",
     "action":  "indieplus_read",
     "started_at":  "2026-09-22T15:56:20.9056613+09:00",
-    "status":  "RUNNING",
-    "project":  "C:\\Users\\권형석\\Documents\\indieplus-pohang"
+    "status":  "PASS",
+    "project":  "C:\\Users\\권형석\\Documents\\indieplus-pohang",
+    "items":  [
+                  {
+                      "path":  "functions/deploy-last.log",
+                      "end_line":  24,
+                      "content":  "returncode=1\r\n--- STDOUT ---\r\n\r\n\u001b[1m\u001b[37m===\u001b[39m Deploying to \u0027indieplus-pohang-khs\u0027...\u001b[22m\r\n\r\n\u001b[36m\u001b[1mi \u001b[22m\u001b[39m deploying \u001b[1mfunctions\u001b[22m\r\n\u001b[36m\u001b[1mi  functions:\u001b[22m\u001b[39m preparing codebase \u001b[1mdefault\u001b[22m for deployment\r\n\u001b[36m\u001b[1mi  functions:\u001b[22m\u001b[39m ensuring required API \u001b[1mcloudfunctions.googleapis.com\u001b[22m is enabled...\r\n\u001b[36m\u001b[1mi  functions:\u001b[22m\u001b[39m ensuring required API \u001b[1mcloudbuild.googleapis.com\u001b[22m is enabled...\r\n\u001b[36m\u001b[1mi  artifactregistry:\u001b[22m\u001b[39m ensuring required API \u001b[1martifactregistry.googleapis.com\u001b[22m is enabled...\r\n\u001b[36m\u001b[1mi  functions:\u001b[22m\u001b[39m Loading and analyzing source code for codebase default to determine what to deploy\r\n * Serving Flask app \u0027serving\u0027\r\n * Debug mode: off\r\n\r\nWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.\r\n * Running on http://127.0.0.1:8081\r\nPress CTRL+C to quit\r\n\r\n127.0.0.1 - - [22/Sep/2026 15:55:44] \"GET /__/quitquitquit HTTP/1.1\" 200 -\r\n\r\n\r\n\u001b[1m\u001b[31mError:\u001b[39m\u001b[22m User code failed to load. Cannot determine backend specification. Timeout after 10000. See https://firebase.google.com/docs/functions/tips#avoid_deployment_timeouts_during_initialization\u0027\r\n\r\n--- STDERR ---",
+                      "start_line":  1
+                  }
+              ],
+    "finished_at":  "2026-09-22T15:56:26.0631181+09:00"
 }
