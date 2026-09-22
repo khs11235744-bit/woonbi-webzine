@@ -1,0 +1,10 @@
+{
+  "request_id": "indie-noninteractive-functions-commit-20260922-1620",
+  "action": "indieplus_verify_commit",
+  "files": [
+    "scripts/sync_news.py"
+  ],
+  "commit_message": "fix: make Firebase Functions recovery noninteractive and bounded",
+  "push": true,
+  "run_probe": false
+}
