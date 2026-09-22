@@ -2,6 +2,13 @@
     "request_id":  "indie-functions-final-debug-20260922-1549",
     "action":  "indieplus_read",
     "started_at":  "2026-09-22T15:48:37.6624597+09:00",
-    "status":  "RUNNING",
-    "project":  "C:\\Users\\권형석\\Documents\\indieplus-pohang"
+    "status":  "PASS",
+    "project":  "C:\\Users\\권형석\\Documents\\indieplus-pohang",
+    "items":  [
+                  {
+                      "missing":  true,
+                      "path":  "firebase-debug.log"
+                  }
+              ],
+    "finished_at":  "2026-09-22T15:48:42.6882548+09:00"
 }
