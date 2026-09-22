@@ -2,6 +2,26 @@
     "request_id":  "indie-community-mobile-v24-verify-20260922-1711",
     "action":  "indieplus_verify_commit",
     "started_at":  "2026-09-22T18:23:24.3665917+09:00",
-    "status":  "RUNNING",
-    "project":  "C:\\Users\\권형석\\Documents\\indieplus-pohang"
+    "status":  "FAIL",
+    "project":  "C:\\Users\\권형석\\Documents\\indieplus-pohang",
+    "error":  "git diff --check failed",
+    "git_after":  {
+                      "branch":  "main",
+                      "status":  [
+                                     " M data/live.json",
+                                     " M data/movies.json",
+                                     " M data/news-weekly.json",
+                                     " M data/programs.json",
+                                     " M features-v21.js",
+                                     " M index.html",
+                                     " M sw.js",
+                                     "?? features-v24.js",
+                                     "?? mobile-v24.css"
+                                 ],
+                      "stash":  [
+                                    "stash@{0}: On main: assistant-v19-incomplete-before-codex"
+                                ],
+                      "head":  "95f35b05ac748f6420e993e7690043ab43ad14bf"
+                  },
+    "finished_at":  "2026-09-22T18:23:30.4674081+09:00"
 }
