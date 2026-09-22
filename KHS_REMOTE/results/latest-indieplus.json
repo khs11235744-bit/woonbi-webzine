@@ -2,6 +2,25 @@
     "request_id":  "indie-noninteractive-functions-trigger-20260922-1621",
     "action":  "indieplus_sync",
     "started_at":  "2026-09-22T18:15:45.5183766+09:00",
-    "status":  "RUNNING",
-    "project":  "C:\\Users\\권형석\\Documents\\indieplus-pohang"
+    "status":  "PASS",
+    "project":  "C:\\Users\\권형석\\Documents\\indieplus-pohang",
+    "sync":  {
+                 "dtryx":  "synced 4 days / 12 sessions / 9 movies",
+                 "news":  "\u001b[1m\u001b[37m===\u001b[39m Deploying to \u0027indieplus-pohang-khs\u0027...\u001b[22m\r\n\r\n\u001b[36m\u001b[1mi \u001b[22m\u001b[39m deploying \u001b[1mfunctions\u001b[22m\r\n\u001b[36m\u001b[1mi  functions:\u001b[22m\u001b[39m preparing codebase \u001b[1mdefault\u001b[22m for deployment\r\n\u001b[36m\u001b[1mi  functions:\u001b[22m\u001b[39m ensuring required API \u001b[1mcloudfunctions.googleapis.com\u001b[22m is enabled...\r\n\u001b[36m\u001b[1mi  functions:\u001b[22m\u001b[39m ensuring required API \u001b[1mcloudbuild.googleapis.com\u001b[22m is enabled...\r\n\u001b[36m\u001b[1mi  artifactregistry:\u001b[22m\u001b[39m ensuring required API \u001b[1martifactregistry.googleapis.com\u001b[22m is enabled...\r\n\u001b[36m\u001b[1mi  functions:\u001b[22m\u001b[39m Loading and analyzing source code for codebase default to determine what to deploy\r\n * Serving Flask app \u0027serving\u0027\r\n * Debug mode: off\r\n\r\nWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.\r\n * Running on http://127.0.0.1:8081\r\nPress CTRL+C to quit\r\n\r\n127.0.0.1 - - [22/Sep/2026 18:17:28] \"GET /__/functions.yaml HTTP/1.1\" 200 -\r\n\r\n127.0.0.1 - - [22/Sep/2026 18:17:28] \"GET /__/quitquitquit HTTP/1.1\" 200 -\r\n\r\n\u001b[36m\u001b[1mi  functions:\u001b[22m\u001b[39m preparing \u001b[1mfunctions\u001b[22m directory for uploading...\r\n\u001b[36m\u001b[1mi \u001b[22m\u001b[39m \u001b[36m\u001b[1mfunctions:\u001b[22m\u001b[39m packaged \u001b[1mC:\\Users\\권형석\\Documents\\indieplus-pohang\\functions\u001b[22m (31.44 MB) for uploading\r\n\u001b[36m\u001b[1mi  functions:\u001b[22m\u001b[39m ensuring required API \u001b[1mcloudscheduler.googleapis.com\u001b[22m is enabled...\r\n\u001b[36m\u001b[1mi  functions:\u001b[22m\u001b[39m ensuring required API \u001b[1mrun.googleapis.com\u001b[22m is enabled...\r\n\u001b[36m\u001b[1mi  functions:\u001b[22m\u001b[39m ensuring required API \u001b[1meventarc.googleapis.com\u001b[22m is enabled...\r\n\u001b[36m\u001b[1mi  functions:\u001b[22m\u001b[39m ensuring required API \u001b[1mpubsub.googleapis.com\u001b[22m is enabled...\r\n\u001b[36m\u001b[1mi  functions:\u001b[22m\u001b[39m ensuring required API \u001b[1mstorage.googleapis.com\u001b[22m is enabled...\r\n\u001b[36m\u001b[1mi  functions:\u001b[22m\u001b[39m generating the service identity for \u001b[1mpubsub.googleapis.com\u001b[22m...\r\n\u001b[36m\u001b[1mi  functions:\u001b[22m\u001b[39m generating the service identity for \u001b[1meventarc.googleapis.com\u001b[22m...\r\n\u001b[36m\u001b[1mi  functions:\u001b[22m\u001b[39m Skipping the deploy of unchanged functions.\r\n\u001b[32m\u001b[1m+ \u001b[22m\u001b[39m \u001b[1m\u001b[35mfunctions[sync_cinema(us-central1)]\u001b[39m\u001b[22m Skipped (No changes detected)\r\n\u001b[32m\u001b[1m+ \u001b[22m\u001b[39m \u001b[1m\u001b[35mfunctions[sync_news(us-central1)]\u001b[39m\u001b[22m Skipped (No changes detected)\r\n\u001b[33m\u001b[1m!  functions:\u001b[22m\u001b[39m No cleanup policy detected for repositories in us-central1. This may result in a small monthly bill as container images accumulate over time.\r\n\u001b[36m\u001b[1mi  functions:\u001b[22m\u001b[39m Configuring cleanup policy for repository in us-central1. Images older than 1 days will be automatically deleted.\r\n\u001b[36m\u001b[1mi  functions:\u001b[22m\u001b[39m Configured cleanup policy for repository in us-central1.\r\n\r\n\u001b[32m\u001b[1m+ \u001b[22m\u001b[39m \u001b[1m\u001b[4mDeploy complete!\u001b[24m\u001b[22m\r\n\r\n\u001b[1mProject Console:\u001b[22m https://console.firebase.google.com/project/indieplus-pohang-khs/overview\r\n\r\nnews raw synced: 24 items",
+                 "news_weekly":  "weekly news prepared: 14 items / translated cache 5"
+             },
+    "git_after":  {
+                      "branch":  "main",
+                      "status":  [
+                                     " M data/live.json",
+                                     " M data/movies.json",
+                                     " M data/news-weekly.json",
+                                     " M data/programs.json"
+                                 ],
+                      "stash":  [
+                                    "stash@{0}: On main: assistant-v19-incomplete-before-codex"
+                                ],
+                      "head":  "95f35b05ac748f6420e993e7690043ab43ad14bf"
+                  },
+    "finished_at":  "2026-09-22T18:18:13.1713263+09:00"
 }
