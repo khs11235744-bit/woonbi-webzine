@@ -45,13 +45,21 @@ powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "%US
 "@
 [IO.File]::WriteAllText($Launcher,$launcherText,(New-Object Text.ASCIIEncoding))
 
-schtasks.exe /Delete /TN $TaskName /F *> $null
-$taskCmd = '"' + $Launcher + '"'
-schtasks.exe /Create /TN $TaskName /SC ONLOGON /RL HIGHEST /TR $taskCmd /F | Out-Null
-if ($LASTEXITCODE -ne 0) {
-  schtasks.exe /Create /TN $TaskName /SC ONLOGON /TR $taskCmd /F | Out-Null
-  if ($LASTEXITCODE -ne 0) { throw "scheduled task creation failed" }
+# Use the per-user Startup folder instead of Task Scheduler.
+# This needs no admin rights and does not fail when a scheduled task is absent.
+$StartupDir = [Environment]::GetFolderPath("Startup")
+if (-not (Test-Path $StartupDir)) {
+  $StartupDir = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Startup"
 }
+New-Item -ItemType Directory -Path $StartupDir -Force | Out-Null
+
+$StartupLauncher = Join-Path $StartupDir "KHS_PHONE_REMOTE.cmd"
+$startupText = @"
+@echo off
+start "" /min "%USERPROFILE%\KHS_REMOTE_BRIDGE\KHS_REMOTE\START_PHONE_REMOTE.cmd"
+"@
+[IO.File]::WriteAllText($StartupLauncher,$startupText,(New-Object Text.ASCIIEncoding))
+Log ("Startup launcher installed: " + $StartupLauncher)
 
 # Prevent duplicate bridge processes before starting a fresh one.
 Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |
@@ -79,10 +87,13 @@ cd /d "%USERPROFILE%\chatgpt-local-control-mcp"
 call npm.cmd start
 "@
   [IO.File]::WriteAllText($McpLauncher,$mcpText,(New-Object Text.ASCIIEncoding))
-  schtasks.exe /Delete /TN $McpTask /F *> $null
-  $mcpTaskCmd = '"' + $McpLauncher + '"'
-  schtasks.exe /Create /TN $McpTask /SC ONLOGON /TR $mcpTaskCmd /F | Out-Null
-  Log "Local Computer Control MCP logon task configured."
+  $McpStartup = Join-Path $StartupDir "KHS_LOCAL_COMPUTER_CONTROL.cmd"
+  $mcpStartupText = @"
+@echo off
+start "" /min "%USERPROFILE%\chatgpt-local-control-mcp\START_PHONE_MCP.cmd"
+"@
+  [IO.File]::WriteAllText($McpStartup,$mcpStartupText,(New-Object Text.ASCIIEncoding))
+  Log ("Local Computer Control MCP startup launcher installed: " + $McpStartup)
 }
 
 Log "PHONE REMOTE READY"
