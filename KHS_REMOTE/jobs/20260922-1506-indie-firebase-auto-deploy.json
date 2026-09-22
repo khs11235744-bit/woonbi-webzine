@@ -1,0 +1,11 @@
+{
+  "request_id": "indie-firebase-auto-deploy-20260922-1506",
+  "project": "INDIE",
+  "action": "indieplus_apply_bundle_deploy",
+  "bundle": "indie-firebase-auto-v1",
+  "confirm_deploy": true,
+  "allow_known_stash": true,
+  "commit_message": "feat: add Firebase automatic cinema and news sync",
+  "requested_by": "chatgpt-phone-remote",
+  "requested_at": "2026-09-22T15:06:00+09:00"
+}
