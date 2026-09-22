@@ -192,11 +192,17 @@ function Invoke-IndiePython([string]$script){
 }
 
 function Invoke-IndieSync {
-  $sync=[ordered]@{}
-  $sync.dtryx = Invoke-IndiePython "scripts/sync_dtryx.py"
-  $sync.news = Invoke-IndiePython "scripts/sync_news.py"
-  $sync.news_weekly = Invoke-IndiePython "scripts/build_news_weekly.py"
-  return $sync
+  $oldSkip=$env:INDIP_SKIP_FUNCTIONS_BOOTSTRAP
+  $env:INDIP_SKIP_FUNCTIONS_BOOTSTRAP="1"
+  try{
+    $sync=[ordered]@{}
+    $sync.dtryx = Invoke-IndiePython "scripts/sync_dtryx.py"
+    $sync.news = Invoke-IndiePython "scripts/sync_news.py"
+    $sync.news_weekly = Invoke-IndiePython "scripts/build_news_weekly.py"
+    return $sync
+  } finally {
+    $env:INDIP_SKIP_FUNCTIONS_BOOTSTRAP=$oldSkip
+  }
 }
 
 function Invoke-IndieTest {
