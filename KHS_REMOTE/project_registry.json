@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "projects": {
+    "INDIEPLUS": {
+      "id": "INDIEPLUS",
+      "enabled": true,
+      "home_relative": "Documents\\indieplus-pohang",
+      "action_prefix": "indieplus_",
+      "worker": "KHS_REMOTE\\local_bridge_indie_legacy.ps1",
+      "jobs_dir": "KHS_REMOTE\\jobs",
+      "results_dir": "KHS_REMOTE\\results"
+    },
+    "AUTODIRECTOR": {
+      "id": "AUTODIRECTOR",
+      "enabled": true,
+      "home_relative": "Documents\\ChatGPT\\동영상편집기 만들기",
+      "action_prefix": "autodirector_",
+      "worker": "KHS_REMOTE\\autodirector_local_bridge.ps1",
+      "jobs_dir": "KHS_REMOTE\\autodirector_bridge_jobs",
+      "results_dir": "KHS_REMOTE\\autodirector_results"
+    }
+  }
+}
