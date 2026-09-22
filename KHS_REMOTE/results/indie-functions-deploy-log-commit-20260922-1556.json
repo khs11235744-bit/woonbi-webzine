@@ -2,6 +2,30 @@
     "request_id":  "indie-functions-deploy-log-commit-20260922-1556",
     "action":  "indieplus_verify_commit",
     "started_at":  "2026-09-22T15:54:41.8237508+09:00",
-    "status":  "RUNNING",
-    "project":  "C:\\Users\\권형석\\Documents\\indieplus-pohang"
+    "status":  "PASS",
+    "project":  "C:\\Users\\권형석\\Documents\\indieplus-pohang",
+    "before_commit":  {
+                          "branch":  "main",
+                          "status":  [
+                                         " M .gitignore",
+                                         " M scripts/sync_news.py"
+                                     ],
+                          "stash":  [
+                                        "stash@{0}: On main: assistant-v19-incomplete-before-codex"
+                                    ],
+                          "head":  "31734d57f2f1b76a1b4d99340d5f914f1a96c6e4"
+                      },
+    "commit_sha":  "a2f8c4e40f026b249b3eed360c67b82985fa8a2c",
+    "pushed":  true,
+    "after_commit":  {
+                         "branch":  "main",
+                         "status":  [
+
+                                    ],
+                         "stash":  [
+                                       "stash@{0}: On main: assistant-v19-incomplete-before-codex"
+                                   ],
+                         "head":  "a2f8c4e40f026b249b3eed360c67b82985fa8a2c"
+                     },
+    "finished_at":  "2026-09-22T15:54:51.0005608+09:00"
 }
