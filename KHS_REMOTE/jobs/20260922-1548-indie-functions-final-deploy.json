@@ -1,0 +1,6 @@
+{
+  "request_id": "indie-functions-final-deploy-20260922-1548",
+  "action": "indieplus_deploy",
+  "confirm_deploy": true,
+  "include_functions": true
+}
