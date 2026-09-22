@@ -150,10 +150,16 @@ function InvokeIndiePython([string]$script) {
 }
 
 function InvokeIndieSync {
-  return @{
-    dtryx = InvokeIndiePython "scripts/sync_dtryx.py"
-    news = InvokeIndiePython "scripts/sync_news.py"
-    news_weekly = InvokeIndiePython "scripts/build_news_weekly.py"
+  $oldSkip=$env:INDIP_SKIP_FUNCTIONS_BOOTSTRAP
+  $env:INDIP_SKIP_FUNCTIONS_BOOTSTRAP="1"
+  try {
+    return @{
+      dtryx = InvokeIndiePython "scripts/sync_dtryx.py"
+      news = InvokeIndiePython "scripts/sync_news.py"
+      news_weekly = InvokeIndiePython "scripts/build_news_weekly.py"
+    }
+  } finally {
+    $env:INDIP_SKIP_FUNCTIONS_BOOTSTRAP=$oldSkip
   }
 }
 
