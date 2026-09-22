@@ -180,6 +180,55 @@ function RunProbe(){
   }
 }
 
+
+function Invoke-IndiePython([string]$script){
+  Push-Location $Project
+  try {
+    $out = (& python $script 2>&1 | Out-String).Trim()
+    $code = $LASTEXITCODE
+    if($code -ne 0){ throw ("python failed " + $script + " :: " + $out) }
+    return $out
+  } finally { Pop-Location }
+}
+
+function Invoke-IndieSync {
+  $sync=[ordered]@{}
+  $sync.dtryx = Invoke-IndiePython "scripts/sync_dtryx.py"
+  $sync.news = Invoke-IndiePython "scripts/sync_news.py"
+  $sync.news_weekly = Invoke-IndiePython "scripts/build_news_weekly.py"
+  return $sync
+}
+
+function Invoke-IndieTest {
+  Push-Location $Project
+  try {
+    foreach($j in Get-ChildItem (Join-Path $Project "data") -Filter "*.json" -File){
+      Get-Content $j.FullName -Raw -Encoding UTF8 | ConvertFrom-Json | Out-Null
+    }
+    $js=@("app.js","features-v04.js","features-v05.js","features-v06.js","features-v07.js","features-v08.js","features-v17.js","features-v19.js","features-v20.js","features-v21.js","features-v22.js","sw.js")
+    foreach($x in $js){
+      if(Test-Path (Join-Path $Project $x)){ RunNodeCheck $x }
+    }
+    git diff --check
+    if($LASTEXITCODE -ne 0){ throw "git diff --check failed" }
+    return @{ ok=$true; git=(GitInfo $Project) }
+  } finally { Pop-Location }
+}
+
+function Invoke-IndieDeploy([bool]$includeFunctions=$true){
+  Push-Location $Project
+  try {
+    $firebase=(Get-Command firebase.cmd -ErrorAction SilentlyContinue).Source
+    if(-not $firebase){ $firebase=(Join-Path $env:APPDATA "npm\firebase.cmd") }
+    if(-not (Test-Path $firebase)){ throw "firebase.cmd not found" }
+    $only = if($includeFunctions){"firestore:rules,functions,hosting"}else{"firestore:rules,hosting"}
+    $out = (& $firebase deploy --project indieplus-pohang-khs --only $only 2>&1 | Out-String).Trim()
+    $code=$LASTEXITCODE
+    if($code -ne 0){ throw ("firebase deploy failed :: " + $out) }
+    return $out
+  } finally { Pop-Location }
+}
+
 if (-not (Get-Command gh.exe -ErrorAction SilentlyContinue)) { throw "gh.exe not found" }
 gh auth status *> $null
 if ($LASTEXITCODE -ne 0) { throw "gh auth is not ready" }
@@ -363,6 +412,35 @@ while($true){
             }
             $result.status="PASS"
           } finally { Pop-Location }
+        }
+
+        "indieplus_sync" {
+          $lock=Join-Path $Project ".harness.lock"
+          if(Test-Path $lock){throw "HARNESS_LOCK"}
+          $result.sync=Invoke-IndieSync
+          $result.git_after=GitInfo $Project
+          $result.status="PASS"
+        }
+        "indieplus_test" {
+          $lock=Join-Path $Project ".harness.lock"
+          if(Test-Path $lock){throw "HARNESS_LOCK"}
+          $result.test=Invoke-IndieTest
+          $result.status="PASS"
+        }
+        "indieplus_deploy" {
+          if(-not [bool]$cmd.confirm_deploy){throw "confirm_deploy=true required"}
+          $result.deploy=Invoke-IndieDeploy ([bool]$cmd.include_functions)
+          $result.status="PASS"
+        }
+        "indieplus_sync_deploy" {
+          if(-not [bool]$cmd.confirm_deploy){throw "confirm_deploy=true required"}
+          $lock=Join-Path $Project ".harness.lock"
+          if(Test-Path $lock){throw "HARNESS_LOCK"}
+          $result.sync=Invoke-IndieSync
+          $result.test=Invoke-IndieTest
+          $result.deploy=Invoke-IndieDeploy ([bool]$cmd.include_functions)
+          $result.git_after=GitInfo $Project
+          $result.status="PASS"
         }
         default { throw "unsupported action" }
       }
