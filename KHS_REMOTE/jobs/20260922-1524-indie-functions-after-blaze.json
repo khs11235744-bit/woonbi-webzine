@@ -1,0 +1,6 @@
+{
+  "request_id": "indie-functions-after-blaze-20260922-1524",
+  "action": "indieplus_deploy",
+  "confirm_deploy": true,
+  "include_functions": true
+}
