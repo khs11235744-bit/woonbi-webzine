@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  preserve-legacy:
+  validate-bridge:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -23,17 +23,49 @@ jobs:
           if [ ! -f KHS_REMOTE/local_bridge_indie_legacy.ps1 ]; then
             cp KHS_REMOTE/local_bridge.ps1 KHS_REMOTE/local_bridge_indie_legacy.ps1
           fi
-      - name: Commit preserved worker
+      - name: Keep AutoDirector worker compatible with Windows PowerShell 5.1
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('KHS_REMOTE/autodirector_local_bridge.ps1')
+          s = p.read_text(encoding='utf-8')
+          old = '  foreach($a in $args){ [void]$psi.ArgumentList.Add([string]$a) }'
+          new = '  $psi.Arguments=($args -join " ")'
+          if old in s:
+              s = s.replace(old, new, 1)
+              p.write_text(s, encoding='utf-8', newline='\n')
+          elif new not in s:
+              raise SystemExit('RunBounded compatibility marker not found')
+      - name: Validate registry and PowerShell syntax
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          Get-Content KHS_REMOTE/project_registry.json -Raw -Encoding UTF8 | ConvertFrom-Json | Out-Null
+          $files=@(
+            'KHS_REMOTE/local_bridge.ps1',
+            'KHS_REMOTE/local_bridge_indie_legacy.ps1',
+            'KHS_REMOTE/autodirector_local_bridge.ps1'
+          )
+          foreach($f in $files){
+            $tokens=$null; $errors=$null
+            [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $f),[ref]$tokens,[ref]$errors)
+            if($errors.Count -gt 0){
+              $errors | ForEach-Object { Write-Error ("$f :: " + $_.Message) }
+              throw "PowerShell parse failed: $f"
+            }
+            Write-Host "PARSE_PASS $f"
+          }
+      - name: Commit compatibility fix if needed
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "KHS Bridge Upgrade"
           git config user.email "khs-bridge-upgrade@users.noreply.github.com"
-          git add KHS_REMOTE/local_bridge_indie_legacy.ps1
+          git add KHS_REMOTE/local_bridge_indie_legacy.ps1 KHS_REMOTE/autodirector_local_bridge.ps1
           if git diff --cached --quiet; then
-            echo "No preservation change needed"
+            echo "No bridge helper change needed"
             exit 0
           fi
-          git commit -m "KHS_BRIDGE: preserve legacy INDIE worker"
+          git commit -m "KHS_BRIDGE: validate and harden AutoDirector worker"
           git pull --rebase origin main
           git push origin HEAD:main
