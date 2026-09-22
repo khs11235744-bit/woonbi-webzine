@@ -1,0 +1,37 @@
+name: INDIE Emergency Multi Runner
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "KHS_MAINTENANCE/indie_emergency_multi_trigger.json"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: indie-emergency-multi
+  cancel-in-progress: true
+
+jobs:
+  minijev:
+    runs-on: [self-hosted, Windows, X64, khs-minijev]
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - shell: powershell
+        run: .\KHS_MAINTENANCE\indie_emergency_execute.ps1
+  autodirector:
+    runs-on: [self-hosted, Windows, X64, khs-autodirector]
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - shell: powershell
+        run: .\KHS_MAINTENANCE\indie_emergency_execute.ps1
+  indie:
+    runs-on: [self-hosted, Windows, X64, khs-indie]
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - shell: powershell
+        run: .\KHS_MAINTENANCE\indie_emergency_execute.ps1
