@@ -1,0 +1,20 @@
+{
+  "request_id": "indie-one-time-functions-deployer-patch-20260922-1551",
+  "action": "indieplus_patch",
+  "patches": [
+    {
+      "path": "scripts/sync_news.py",
+      "mode": "replace",
+      "expected_count": 1,
+      "search": "import subprocess, sys\nfrom pathlib import Path",
+      "replace": "import subprocess, sys, os, shutil\nfrom pathlib import Path"
+    },
+    {
+      "path": "scripts/sync_news.py",
+      "mode": "replace",
+      "expected_count": 1,
+      "search": "if not VENV_PY.exists():\n    subprocess.run([sys.executable,\"-m\",\"venv\",str(ROOT/\"functions\"/\"venv\")],check=True)\n    subprocess.run([str(VENV_PY),\"-m\",\"pip\",\"install\",\"-r\",str(ROOT/\"functions\"/\"requirements.txt\")],check=True)\nCFG=",
+      "replace": "if not VENV_PY.exists():\n    subprocess.run([sys.executable,\"-m\",\"venv\",str(ROOT/\"functions\"/\"venv\")],check=True)\n    subprocess.run([str(VENV_PY),\"-m\",\"pip\",\"install\",\"-r\",str(ROOT/\"functions\"/\"requirements.txt\")],check=True)\nDEPLOY_MARKER=ROOT/\"functions\"/\".scheduled-functions-deployed\"\nif not DEPLOY_MARKER.exists():\n    firebase=shutil.which(\"firebase.cmd\") or shutil.which(\"firebase\")\n    if not firebase:\n        raise RuntimeError(\"firebase.cmd not found for one-time Functions deploy\")\n    env=os.environ.copy()\n    env[\"NODE_OPTIONS\"]=\"--no-deprecation\"\n    proc=subprocess.run([firebase,\"deploy\",\"--project\",\"indieplus-pohang-khs\",\"--only\",\"functions\"],cwd=ROOT,env=env,text=True,capture_output=True)\n    print(proc.stdout)\n    if proc.stderr:\n        print(proc.stderr)\n    if proc.returncode!=0:\n        raise RuntimeError(f\"one-time Firebase Functions deploy failed: exit={proc.returncode}\")\n    DEPLOY_MARKER.write_text(\"ok\\n\",encoding=\"utf-8\")\nCFG="
+    }
+  ]
+}
