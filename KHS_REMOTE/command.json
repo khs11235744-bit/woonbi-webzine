@@ -1,8 +1,6 @@
 {
-  "request_id": "indie-functions-priority-20260922-1642",
+  "request_id": "indie-sync-first-then-functions-20260922-1648",
   "project": "INDIE",
-  "action": "indieplus_deploy",
-  "confirm_deploy": true,
-  "include_functions": true,
-  "requested_by": "chatgpt-priority-functions"
+  "action": "indieplus_sync",
+  "requested_by": "chatgpt-priority-sync-first"
 }
