@@ -1,0 +1,6 @@
+{
+  "request_id": "indie-hosting-rules-deploy-20260922-1510",
+  "action": "indieplus_deploy",
+  "confirm_deploy": true,
+  "include_functions": false
+}
