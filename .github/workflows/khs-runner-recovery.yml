@@ -23,9 +23,10 @@ jobs:
         shell: powershell
         run: |
           $cfg = Get-Content "KHS_MAINTENANCE/runner_recovery.json" -Raw -Encoding UTF8 | ConvertFrom-Json
-          if ($cfg.target -ne "minijev") { throw "Only minijev recovery is allowed from this workflow" }
+          if ($cfg.target -notin @("minijev","indie")) { throw "Only minijev or indie recovery is allowed from this workflow" }
 
-          $root = Join-Path $env:LOCALAPPDATA "KHS_Runners\minijev"
+          $runnerName = [string]$cfg.target
+          $root = Join-Path $env:LOCALAPPDATA ("KHS_Runners\" + $runnerName)
           $run = Join-Path $root "run.cmd"
           if (-not (Test-Path $run)) { throw "Mini-Jev runner run.cmd missing: $run" }
 
@@ -43,7 +44,7 @@ jobs:
 
           Start-Sleep -Seconds 2
 
-          Write-Host "Starting Mini-Jev runner"
+          Write-Host ("Starting runner: " + $runnerName)
           Start-Process -FilePath "cmd.exe" -ArgumentList "/c","cd /d `"$root`" && call run.cmd" -WorkingDirectory $root -WindowStyle Hidden
           Start-Sleep -Seconds 8
 
@@ -51,5 +52,5 @@ jobs:
             $_.ExecutablePath -and $_.ExecutablePath.StartsWith($rootFull,[StringComparison]::OrdinalIgnoreCase)
           })
 
-          if ($alive.Count -lt 1) { throw "Mini-Jev runner listener did not restart" }
+          if ($alive.Count -lt 1) { throw ("Runner listener did not restart: " + $runnerName) }
           $alive | ForEach-Object { Write-Host "ONLINE_LOCAL PID=$($_.ProcessId) PATH=$($_.ExecutablePath)" }
