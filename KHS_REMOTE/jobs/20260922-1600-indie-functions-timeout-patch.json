@@ -1,0 +1,13 @@
+{
+  "request_id": "indie-functions-timeout-patch-20260922-1600",
+  "action": "indieplus_patch",
+  "patches": [
+    {
+      "path": "scripts/sync_news.py",
+      "mode": "replace",
+      "expected_count": 1,
+      "search": "    env[\"NODE_OPTIONS\"]=\"--no-deprecation\"\n    proc=subprocess.run(",
+      "replace": "    env[\"NODE_OPTIONS\"]=\"--no-deprecation\"\n    env[\"FUNCTIONS_DISCOVERY_TIMEOUT\"]=\"60\"\n    proc=subprocess.run("
+    }
+  ]
+}
