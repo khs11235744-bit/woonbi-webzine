@@ -1,5 +1,8 @@
 {
-  "request_id": "minijev-direct-20260921-1230-v2",
-  "action": "snapshot_guard",
-  "project": "KHS_MINI_JEV"
+  "request_id": "indie-functions-priority-20260922-1642",
+  "project": "INDIE",
+  "action": "indieplus_deploy",
+  "confirm_deploy": true,
+  "include_functions": true,
+  "requested_by": "chatgpt-priority-functions"
 }
