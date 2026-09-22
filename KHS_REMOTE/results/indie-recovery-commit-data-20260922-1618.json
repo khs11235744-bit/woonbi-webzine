@@ -2,6 +2,31 @@
     "request_id":  "indie-recovery-commit-data-20260922-1618",
     "action":  "indieplus_verify_commit",
     "started_at":  "2026-09-22T18:14:42.0644303+09:00",
-    "status":  "RUNNING",
-    "project":  "C:\\Users\\권형석\\Documents\\indieplus-pohang"
+    "status":  "PASS",
+    "project":  "C:\\Users\\권형석\\Documents\\indieplus-pohang",
+    "before_commit":  {
+                          "branch":  "main",
+                          "status":  [
+                                         " M data/live.json",
+                                         " M data/movies.json",
+                                         " M data/programs.json"
+                                     ],
+                          "stash":  [
+                                        "stash@{0}: On main: assistant-v19-incomplete-before-codex"
+                                    ],
+                          "head":  "cc76ce486ead3b6f0ace4e34676cf46887cee4ae"
+                      },
+    "commit_sha":  "3ec19f5acb4135d1489b9a3b9ce1a1aacfbfcc14",
+    "pushed":  true,
+    "after_commit":  {
+                         "branch":  "main",
+                         "status":  [
+
+                                    ],
+                         "stash":  [
+                                       "stash@{0}: On main: assistant-v19-incomplete-before-codex"
+                                   ],
+                         "head":  "3ec19f5acb4135d1489b9a3b9ce1a1aacfbfcc14"
+                     },
+    "finished_at":  "2026-09-22T18:14:52.0580497+09:00"
 }
