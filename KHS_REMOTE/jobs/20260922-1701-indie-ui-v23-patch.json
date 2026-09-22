@@ -40,7 +40,7 @@
     {
       "path": "sw.js",
       "mode": "replace",
-      "search": "const CACHE=\"indie-port-v0182-responsive-editorial\";",
+      "search": "const CACHE=\"indip-v20-ux-editorial\";",
       "replace": "const CACHE=\"indie-port-v023-poster-safe\";",
       "expected_count": 1
     },
