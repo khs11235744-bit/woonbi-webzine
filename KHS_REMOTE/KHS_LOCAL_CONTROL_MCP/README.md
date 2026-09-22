@@ -61,3 +61,49 @@ Auth + Policy Gateway
 ## 참고 방향
 
 기능 아이디어는 MCP 생태계의 일반 패턴과 여러 공개 프로젝트의 UX를 참고하지만, 라이선스가 불명확한 저장소의 코드는 복제하지 않고 새로 구현합니다.
+
+
+## Windows 사용 흐름
+
+### 처음 한 번
+1. bootstrap.ps1 실행
+2. .env에서 WORKSPACE_ROOT 확인
+3. 기본 PERMISSION_PROFILE=read 유지
+4. START_NORMAL.cmd 실행
+
+### 일반 모드
+START_NORMAL.cmd를 실행하면 트레이 GUI가 열린다.
+- 모두 시작: MCP 서버 + Cloudflare Quick Tunnel 동시 시작
+- 모두 중지: 서버와 터널 중지
+- 복구 재시작: 둘 다 재시작
+- URL 복사: 현재 MCP HTTPS 주소 복사
+
+### 고급 모드
+START_ADVANCED.cmd
+- 설정 파일 열기
+- 로그 폴더 열기
+- Node/cloudflared/Local MCP 연결 진단
+
+### 복구 모드
+START_RECOVERY.cmd
+- 죽은 PID/이전 터널 URL 상태 초기화
+- 서버/터널 재생성
+
+### Windows 자동시작
+PowerShell에서 다음 스크립트를 실행한다.
+
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-startup.ps1
+
+제거:
+
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-startup.ps1 -Remove
+
+## 현재 v0.1 보안 기본값
+
+- loopback(127.0.0.1)만 바인딩
+- PERMISSION_PROFILE=read
+- 쓰기/명령 실행은 강한 LOCAL_CONTROL_TOKEN 필요
+- 명령 실행은 SAFE_EXECUTABLES allowlist 적용
+- WORKSPACE_ROOT 밖 접근 차단
+- privileged action audit 기록
+
