@@ -2,6 +2,41 @@
     "request_id":  "indie-commit-latest-data-20260922-1526",
     "action":  "indieplus_verify_commit",
     "started_at":  "2026-09-22T15:23:27.2858593+09:00",
-    "status":  "RUNNING",
-    "project":  "C:\\Users\\권형석\\Documents\\indieplus-pohang"
+    "status":  "PASS",
+    "project":  "C:\\Users\\권형석\\Documents\\indieplus-pohang",
+    "before_commit":  {
+                          "branch":  "main",
+                          "status":  [
+                                         " M data/live.json",
+                                         " M data/movies.json",
+                                         " M data/news-weekly.json",
+                                         " M data/programs.json",
+                                         "?? .firebase-migration-backup-20260922-124531/",
+                                         "?? .v20-backup-20260922-131600/",
+                                         "?? .v20-site.txt",
+                                         "?? .v21-backup-20260922-133218/",
+                                         "?? .v221-backup-20260922-143121/"
+                                     ],
+                          "stash":  [
+                                        "stash@{0}: On main: assistant-v19-incomplete-before-codex"
+                                    ],
+                          "head":  "5cca6064c085fea6129aefa1f8dcb07d5d7619a3"
+                      },
+    "commit_sha":  "68091831567c4b4c4d08344172cd7f833ef02fcb",
+    "pushed":  true,
+    "after_commit":  {
+                         "branch":  "main",
+                         "status":  [
+                                        "?? .firebase-migration-backup-20260922-124531/",
+                                        "?? .v20-backup-20260922-131600/",
+                                        "?? .v20-site.txt",
+                                        "?? .v21-backup-20260922-133218/",
+                                        "?? .v221-backup-20260922-143121/"
+                                    ],
+                         "stash":  [
+                                       "stash@{0}: On main: assistant-v19-incomplete-before-codex"
+                                   ],
+                         "head":  "68091831567c4b4c4d08344172cd7f833ef02fcb"
+                     },
+    "finished_at":  "2026-09-22T15:23:36.0367542+09:00"
 }
