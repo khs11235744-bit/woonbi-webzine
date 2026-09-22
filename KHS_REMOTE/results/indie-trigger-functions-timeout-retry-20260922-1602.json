@@ -2,6 +2,20 @@
     "request_id":  "indie-trigger-functions-timeout-retry-20260922-1602",
     "action":  "indieplus_sync",
     "started_at":  "2026-09-22T15:59:05.3541016+09:00",
-    "status":  "RUNNING",
-    "project":  "C:\\Users\\권형석\\Documents\\indieplus-pohang"
+    "status":  "FAIL",
+    "project":  "C:\\Users\\권형석\\Documents\\indieplus-pohang",
+    "error":  "Traceback (most recent call last):",
+    "git_after":  {
+                      "branch":  "main",
+                      "status":  [
+                                     " M data/live.json",
+                                     " M data/movies.json",
+                                     " M data/programs.json"
+                                 ],
+                      "stash":  [
+                                    "stash@{0}: On main: assistant-v19-incomplete-before-codex"
+                                ],
+                      "head":  "1ad86cf5e4024bcc614e284677f204244c634931"
+                  },
+    "finished_at":  "2026-09-22T15:59:35.9589959+09:00"
 }
