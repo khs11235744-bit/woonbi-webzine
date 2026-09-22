@@ -2,6 +2,31 @@
     "request_id":  "indie-commit-pre-lazydb-data-20260922-1604",
     "action":  "indieplus_verify_commit",
     "started_at":  "2026-09-22T16:01:24.4213192+09:00",
-    "status":  "RUNNING",
-    "project":  "C:\\Users\\권형석\\Documents\\indieplus-pohang"
+    "status":  "PASS",
+    "project":  "C:\\Users\\권형석\\Documents\\indieplus-pohang",
+    "before_commit":  {
+                          "branch":  "main",
+                          "status":  [
+                                         " M data/live.json",
+                                         " M data/movies.json",
+                                         " M data/programs.json"
+                                     ],
+                          "stash":  [
+                                        "stash@{0}: On main: assistant-v19-incomplete-before-codex"
+                                    ],
+                          "head":  "1ad86cf5e4024bcc614e284677f204244c634931"
+                      },
+    "commit_sha":  "678f801b5a095471b06398b0cd219210626122f1",
+    "pushed":  true,
+    "after_commit":  {
+                         "branch":  "main",
+                         "status":  [
+
+                                    ],
+                         "stash":  [
+                                       "stash@{0}: On main: assistant-v19-incomplete-before-codex"
+                                   ],
+                         "head":  "678f801b5a095471b06398b0cd219210626122f1"
+                     },
+    "finished_at":  "2026-09-22T16:01:33.4266072+09:00"
 }
