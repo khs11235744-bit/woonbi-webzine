@@ -1,0 +1,110 @@
+name: INDI+P Emergency Cloud Preview
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "KHS_MAINTENANCE/indie_pages_preview.json"
+      - ".github/workflows/indie-pages-preview.yml"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: indip-pages-preview
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone public INDI+P app
+        run: git clone --depth 1 https://github.com/khs11235744-bit/indieplus-pohang.git site
+
+      - name: Apply queued v23/v24 patches without the home PC
+        shell: python
+        run: |
+          import json, pathlib
+          root=pathlib.Path("site")
+          jobs=[
+            pathlib.Path("KHS_REMOTE/jobs/20260922-1701-indie-ui-v23-patch.json"),
+            pathlib.Path("KHS_REMOTE/jobs/20260922-1703-indie-community-mobile-v24-patch.json"),
+          ]
+          for jp in jobs:
+            job=json.loads(jp.read_text(encoding="utf-8"))
+            for p in job["patches"]:
+              target=root/p["path"]
+              target.parent.mkdir(parents=True,exist_ok=True)
+              mode=p.get("mode","replace")
+              if mode=="write":
+                target.write_text(p.get("content",""),encoding="utf-8")
+              elif mode=="append":
+                old=target.read_text(encoding="utf-8") if target.exists() else ""
+                marker=p.get("marker","")
+                if marker and marker in old:
+                  continue
+                target.write_text(old+p.get("content",""),encoding="utf-8")
+              elif mode=="replace":
+                old=target.read_text(encoding="utf-8")
+                search=p["search"]
+                count=old.count(search)
+                expected=int(p.get("expected_count",1))
+                if count!=expected:
+                  raise SystemExit(f"replace mismatch {p['path']} expected={expected} actual={count}")
+                target.write_text(old.replace(search,p.get("replace","")),encoding="utf-8")
+              else:
+                raise SystemExit(f"unsupported patch mode: {mode}")
+            print("APPLIED",jp)
+
+      - name: Add Firebase public web config for non-Firebase host
+        shell: python
+        run: |
+          import json, pathlib
+          cfg={
+            "projectId":"indieplus-pohang-khs",
+            "appId":"1:953914697180:web:f7b2919342b348120edb19",
+            "storageBucket":"indieplus-pohang-khs.firebasestorage.app",
+            "apiKey":"AIzaSyCDCf3JP1rbM8csLQ0mo3qnS679vhK-f3E",
+            "authDomain":"indieplus-pohang-khs.firebaseapp.com",
+            "messagingSenderId":"953914697180"
+          }
+          pathlib.Path("site/firebase-config.json").write_text(json.dumps(cfg,ensure_ascii=False,indent=2),encoding="utf-8")
+
+      - name: Static sanity checks
+        run: |
+          node --check site/features-v20.js
+          node --check site/features-v21.js
+          node --check site/features-v22.js
+          node --check site/features-v23.js
+          node --check site/features-v24.js
+          python - <<'PY'
+          from pathlib import Path
+          s=Path("site/index.html").read_text(encoding="utf-8")
+          for x in ("v21.css","v22.css","mobile-v24.css","features-v21.js","features-v22.js","features-v24.js"):
+              assert x in s, x
+          print("INDEX_OK")
+          PY
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
