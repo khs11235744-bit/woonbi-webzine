@@ -168,6 +168,16 @@ test('teacher can update only due date with revision history',async()=>{
   assert.equal(a.dueDate,'2026-10-05');
 });
 
+
+test('teacher can relink legacy assignment to approved student account',async()=>{
+  const teacher=auth('teacher','teacher').firestore();
+  await assertSucceeds(saveWithRevision(teacher,'article-a','teacher',()=>({assigneeIds:['student-b'],assigneeNames:['학생 B']})));
+  const a=(await getDoc(doc(teacher,'articles','article-a'))).data();
+  assert.deepEqual(a.assigneeIds,['student-b']);
+  assert.deepEqual(a.assigneeNames,['학생 B']);
+  await assertSucceeds(getDoc(doc(auth('student-b').firestore(),'articles','article-a')));
+  await assertFails(getDoc(doc(auth('student-a').firestore(),'articles','article-a')));
+});
 test('first Google login can self-register only as pending inactive member',async()=>{
   const newcomer=auth('new-student').firestore();
   await assertSucceeds(setDoc(doc(newcomer,'members','new-student'),{displayName:'신규 학생',role:'pending',active:false,createdAt:serverTimestamp()}));
