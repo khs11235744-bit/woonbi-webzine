@@ -1,0 +1,12 @@
+{
+  "name": "woonbi-webzine",
+  "version": "0.4.0",
+  "private": true,
+  "description": "학생 원고 수합·검토·웹진·책 검토본",
+  "scripts": {
+    "test": "node --test tests/core.test.cjs tests/editorial.test.cjs",
+    "check": "node scripts/check.cjs",
+    "start": "python3 -m http.server 8137 --bind 127.0.0.1 --directory web",
+    "build": "python3 scripts/build.py"
+  }
+}

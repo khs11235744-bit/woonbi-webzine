@@ -1,0 +1,27 @@
+rules_version = '2';
+service firebase.storage {
+ match /b/{bucket}/o {
+  function signed(){return request.auth!=null && request.auth.token.email_verified==true;}
+  function me(){return firestore.get(/databases/(default)/documents/members/$(request.auth.uid)).data;}
+  function active(){return signed() && me().active==true;}
+  function staff(){return active() && me().role in ['teacher','editor'];}
+  function teacher(){return active() && me().role=='teacher';}
+  function article(id){return firestore.get(/databases/(default)/documents/articles/$(id)).data;}
+  function permitted(id){return active() && (staff() || request.auth.uid in article(id).assigneeIds);}
+  function photo(){return request.resource.size>0 && request.resource.size<=25*1024*1024 && request.resource.contentType.matches('image/(jpeg|png|webp)');}
+  match /private/{aid}/{mediaId}/{filename} {
+   allow read: if permitted(aid);
+   allow create: if permitted(aid) && article(aid).status in ['draft','changes'] && photo() && filename in ['original','web.webp'];
+   // Immutable originals support frozen print editions and prevent silent replacement.
+   allow update,delete: if false;
+  }
+  match /public/{aid}/{revision}/{filename} {
+   allow read: if firestore.exists(/databases/(default)/documents/publications/$(aid)) &&
+    string(firestore.get(/databases/(default)/documents/publications/$(aid)).data.sourceRevision)==revision;
+   allow create,update: if teacher() && photo() && request.resource.contentType=='image/webp' &&
+    !(firestore.exists(/databases/(default)/documents/publications/$(aid)) && string(firestore.get(/databases/(default)/documents/publications/$(aid)).data.sourceRevision)==revision);
+   allow delete: if false;
+  }
+  match /{all=**}{allow read,write: if false;}
+ }
+}
