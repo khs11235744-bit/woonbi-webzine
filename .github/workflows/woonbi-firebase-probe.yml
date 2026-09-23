@@ -1,0 +1,56 @@
+name: Woonbi Firebase capability probe
+on:
+  push:
+    branches: [woonbi-webzine-v0.6]
+    paths: ['.github/workflows/woonbi-firebase-probe.yml']
+permissions:
+  contents: write
+concurrency:
+  group: woonbi-firebase-probe
+  cancel-in-progress: true
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: woonbi-webzine-v0.6
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save firebase-tools
+      - name: Probe Firebase credentials without exposing values
+        shell: bash
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        run: |
+          mkdir -p deploy
+          {
+            echo "timestamp=$(date -u +%FT%TZ)"
+            for n in FIREBASE_TOKEN FIREBASE_SERVICE_ACCOUNT GOOGLE_CREDENTIALS GCP_SA_KEY; do
+              if [ -n "${!n}" ]; then echo "${n}=PRESENT"; else echo "${n}=MISSING"; fi
+            done
+          } > deploy/firebase-probe.txt
+          if [ -n "$FIREBASE_TOKEN" ]; then
+            if npx firebase-tools projects:list --token "$FIREBASE_TOKEN" --json >/tmp/projects.json 2>/tmp/fb.err; then
+              echo "firebase_projects_list=PASS" >> deploy/firebase-probe.txt
+              node -e "const d=require('/tmp/projects.json'); console.log('visible_projects='+(d.result?.length||d.length||0))" >> deploy/firebase-probe.txt || true
+            else
+              echo "firebase_projects_list=FAIL" >> deploy/firebase-probe.txt
+              sed -E 's/(token|secret|key)[^ ]*/[redacted]/Ig' /tmp/fb.err | tail -20 >> deploy/firebase-probe.txt
+            fi
+          else
+            echo "firebase_projects_list=SKIPPED" >> deploy/firebase-probe.txt
+          fi
+      - name: Commit probe result to v0.6 only
+        run: |
+          git config user.name "Woonbi Firebase probe"
+          git config user.email "woonbi-probe@users.noreply.github.com"
+          git add deploy/firebase-probe.txt
+          git commit -m "chore(woonbi): record Firebase capability probe [skip ci]" || exit 0
+          git push origin HEAD:woonbi-webzine-v0.6
