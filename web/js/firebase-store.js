@@ -32,6 +32,56 @@ class FirebaseStore{
   const names=ids.map(uid=>byId.get(uid)||'승인 계정');
   return this.mutate(id,expected,a=>({...a,assigneeIds:ids,assigneeNames:names,dueDate:String(patch.dueDate||'').slice(0,10),revision:a.revision+1,updatedAt:new Date().toISOString(),updatedBy:this.user.uid,webConsent:false,printConsent:false}));
  }
+ async updateDueDate(id,expected,dueDate){
+  if(!C.teacher(this.user))throw C.error('permission','교사 권한이 필요합니다.');
+  return this.mutate(id,expected,a=>{
+   if(!['draft','changes'].includes(a.status))throw C.error('locked','검토·승인 중인 기사의 마감일은 먼저 상태를 확인해 주세요.');
+   return {...a,dueDate:String(dueDate||'').slice(0,10),revision:a.revision+1,updatedAt:new Date().toISOString(),updatedBy:this.user.uid,webConsent:false,printConsent:false};
+  });
+ }
+ async batchUpdateDueDates(ids,dueDate){
+  const out={updated:[],skipped:[]};
+  for(const id of [...new Set(ids||[])]){try{const a=await this.getArticle(id);await this.updateDueDate(id,a.revision,dueDate);out.updated.push(id);}catch(e){out.skipped.push({id,message:e?.message||String(e)});}}
+  return out;
+ }
+ async sendReminders(articleIds,message,kind='reminder'){
+  if(!C.teacher(this.user))throw C.error('permission','교사 권한이 필요합니다.');
+  const F=this.F,members=await this.listMembers(),linked=new Map(members.filter(m=>m.active&&['student','editor'].includes(m.role)).map(m=>[m.uid,m]));
+  const articles=[];for(const id of [...new Set(articleIds||[])])articles.push(await this.getArticle(id));
+  const batch=F.writeBatch(this.db),sent=[],unlinked=[];
+  for(const a of articles){
+   const names=a.assigneeNames||[],ids=a.assigneeIds||[];
+   ids.forEach((uid,i)=>{
+    if(linked.has(uid)){
+     const ref=F.doc(F.collection(this.db,'notifications'));
+     batch.set(ref,{uid,articleId:a.id,title:a.title,body:String(message||'원고 진행 상황을 확인해 주세요.').slice(0,700),kind:['deadline','reminder','review'].includes(kind)?kind:'reminder',createdAt:F.serverTimestamp(),createdBy:this.user.uid,read:false});
+     sent.push({uid,articleId:a.id});
+    }else unlinked.push({articleId:a.id,name:names[i]||a.byline||'학생'});
+   });
+  }
+  if(sent.length)await batch.commit();
+  return {sent,unlinked,articles};
+ }
+ async listNotifications(){
+  if(!this.user?.active)return[];const F=this.F,q=F.query(F.collection(this.db,'notifications'),F.where('uid','==',this.user.uid),F.limit(50)),s=await F.getDocs(q);
+  return s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.toMillis?.()||0)-(a.createdAt?.toMillis?.()||0));
+ }
+ async markNotificationRead(id){if(!this.user?.active)return;await this.F.updateDoc(this.F.doc(this.db,'notifications',id),{read:true,readAt:this.F.serverTimestamp()});}
+ async linkMemberAssignments(uid){
+  if(!C.teacher(this.user))throw C.error('permission','교사 권한이 필요합니다.');
+  const members=await this.listMembers(),m=members.find(x=>x.uid===uid);if(!m)throw C.error('missing','계정을 찾지 못했습니다.');
+  const name=String(m.displayName||'').trim();if(!name)throw C.error('invalid','계정 이름이 없습니다.');
+  const articles=await this.listArticles(),matched=articles.filter(a=>['draft','changes'].includes(a.status)&&(a.assigneeNames||[]).some(n=>String(n).trim()===name));
+  const updated=[];
+  for(const a of matched){
+   const ids=[...(a.assigneeIds||[])],names=[...(a.assigneeNames||[])];
+   names.forEach((n,i)=>{if(String(n).trim()===name)ids[i]=uid;});
+   const pairs=[];for(let i=0;i<Math.max(ids.length,names.length);i++){const key=ids[i]||'';if(!key||pairs.some(p=>p.id===key))continue;pairs.push({id:key,name:names[i]||name});}
+   await this.mutate(a.id,a.revision,cur=>({...cur,assigneeIds:pairs.map(p=>p.id),assigneeNames:pairs.map(p=>p.name),revision:cur.revision+1,updatedAt:new Date().toISOString(),updatedBy:this.user.uid,webConsent:false,printConsent:false}));
+   updated.push(a.id);
+  }
+  return updated;
+ }
  async listArticles(){if(!this.user?.active)return[];const F=this.F,col=F.collection(this.db,'articles');const q=C.staff(this.user)?F.query(col,F.limit(100)):F.query(col,F.where('assigneeIds','array-contains',this.user.uid),F.limit(100));const s=await F.getDocs(q);return s.docs.map(d=>({...d.data(),id:d.id}));}
  async getArticle(id){const d=await this.F.getDoc(this.F.doc(this.db,'articles',id));if(!d.exists())throw C.error('missing','기사를 찾을 수 없습니다.');return {...d.data(),id:d.id};}
  async createArticle(input){const F=this.F,id=C.uuid(),a=C.newArticle(this.user,{...input,id},new Date().toISOString()),ref=F.doc(this.db,'articles',id);const n={...a,serverWrittenAt:F.serverTimestamp()},b=F.writeBatch(this.db);b.set(ref,n);b.set(F.doc(ref,'revisions','0'),{snapshot:n,actor:this.user.uid,at:F.serverTimestamp()});await b.commit();return a;}

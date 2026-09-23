@@ -73,18 +73,52 @@ service cloud.firestore {
   match /articles/{id} {
    allow read: if canRead(resource.data);
    allow create: if teacher() && valid(request.resource.data) && request.resource.data.id == id && request.resource.data.revision == 0 && request.resource.data.status == 'draft' && !request.resource.data.webConsent && !request.resource.data.printConsent && historyWritten(id,request.resource.data);
-   allow update: if valid(request.resource.data) && request.resource.data.revision == resource.data.revision+1 && historyWritten(id,request.resource.data) && (
-    (editable(resource.data) && request.resource.data.status == resource.data.status && !request.resource.data.webConsent && !request.resource.data.printConsent &&
-     request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title','deck','body','byline','photos','revision','updatedAt','updatedBy','webConsent','printConsent','serverWrittenAt'])) ||
-    (editable(resource.data) && request.resource.data.status == 'submitted' && request.resource.data.title.size()>0 && request.resource.data.body.size()>=60 && request.resource.data.byline.size()>0 && request.resource.data.photos.size()>=resource.data.minPhotos && !request.resource.data.webConsent && !request.resource.data.printConsent &&
-     request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','revision','updatedAt','updatedBy','webConsent','printConsent','serverWrittenAt'])) ||
-    (staff() && resource.data.status in ['submitted','approved'] && request.resource.data.status == 'changes' && request.resource.data.feedback.size()>0 && !request.resource.data.webConsent && !request.resource.data.printConsent &&
-     request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','feedback','revision','updatedAt','updatedBy','webConsent','printConsent','serverWrittenAt'])) ||
-    (teacher() && resource.data.status == 'submitted' && request.resource.data.status == 'approved' &&
-     request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','revision','updatedAt','updatedBy','webConsent','printConsent','serverWrittenAt'])) ||
-     (teacher() && resource.data.status in ['draft','changes'] && request.resource.data.status == resource.data.status &&
-      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['assigneeIds','assigneeNames','dueDate','revision','updatedAt','updatedBy','webConsent','printConsent','serverWrittenAt']))
-   );
+   // Update paths validate only fields that are allowed to change.
+   // Unchanged content was validated at creation or by a previous accepted revision.
+   allow update: if request.resource.data.revision is int &&
+    request.resource.data.revision == resource.data.revision+1 &&
+    request.resource.data.updatedBy == request.auth.uid &&
+    request.resource.data.updatedAt is string && request.resource.data.updatedAt.size() <= 50 &&
+    request.resource.data.serverWrittenAt == request.time &&
+    historyWritten(id,request.resource.data) && (
+     // Teacher assignment / deadline metadata.
+     (teacher() && resource.data.status in ['draft','changes'] &&
+      request.resource.data.status == resource.data.status &&
+      request.resource.data.assigneeIds is list && request.resource.data.assigneeIds.size() >= 1 && request.resource.data.assigneeIds.size() <= 8 &&
+      request.resource.data.assigneeNames is list && request.resource.data.assigneeNames.size() <= 8 &&
+      request.resource.data.dueDate is string && request.resource.data.dueDate.size() <= 10 &&
+      request.resource.data.webConsent == false && request.resource.data.printConsent == false &&
+      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['assigneeIds','assigneeNames','dueDate','revision','updatedAt','updatedBy','webConsent','printConsent','serverWrittenAt'])) ||
+     // Draft text / photo editing.
+     (editable(resource.data) && request.resource.data.status == resource.data.status &&
+      request.resource.data.title is string && request.resource.data.title.size() <= 150 &&
+      request.resource.data.deck is string && request.resource.data.deck.size() <= 350 &&
+      request.resource.data.body is string && request.resource.data.body.size() <= 45000 &&
+      request.resource.data.byline is string && request.resource.data.byline.size() <= 80 &&
+      request.resource.data.webConsent == false && request.resource.data.printConsent == false &&
+      (request.resource.data.photos == resource.data.photos ||
+       (request.resource.data.photos is list && request.resource.data.photos.size() <= 12 && allPhotos(request.resource.data))) &&
+      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title','deck','body','byline','photos','revision','updatedAt','updatedBy','webConsent','printConsent','serverWrittenAt'])) ||
+     // Student/editor submission. Content itself is unchanged in this transition.
+     (editable(resource.data) && request.resource.data.status == 'submitted' &&
+      request.resource.data.title is string && request.resource.data.title.size() > 0 &&
+      request.resource.data.body is string && request.resource.data.body.size() >= 60 &&
+      request.resource.data.byline is string && request.resource.data.byline.size() > 0 &&
+      request.resource.data.photos is list && request.resource.data.photos.size() >= resource.data.minPhotos &&
+      request.resource.data.webConsent == false && request.resource.data.printConsent == false &&
+      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','revision','updatedAt','updatedBy','webConsent','printConsent','serverWrittenAt'])) ||
+     // Staff change request.
+     (staff() && resource.data.status in ['submitted','approved'] &&
+      request.resource.data.status == 'changes' &&
+      request.resource.data.feedback is string && request.resource.data.feedback.size() > 0 && request.resource.data.feedback.size() <= 2500 &&
+      request.resource.data.webConsent == false && request.resource.data.printConsent == false &&
+      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','feedback','revision','updatedAt','updatedBy','webConsent','printConsent','serverWrittenAt'])) ||
+     // Teacher approval.
+     (teacher() && resource.data.status == 'submitted' &&
+      request.resource.data.status == 'approved' &&
+      request.resource.data.webConsent is bool && request.resource.data.printConsent is bool &&
+      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','revision','updatedAt','updatedBy','webConsent','printConsent','serverWrittenAt']))
+    );
    allow delete: if false;
    match /presence/{uid} {
     allow read: if canRead(article(id));
@@ -110,6 +144,22 @@ service cloud.firestore {
      request.resource.data.id==id && request.resource.data.title==article(id).title && request.resource.data.deck==article(id).deck && request.resource.data.body==article(id).body && request.resource.data.byline==article(id).byline && request.resource.data.category==article(id).category && request.resource.data.sourceRevision==article(id).revision &&
      request.resource.data.photos is list && request.resource.data.photos.size()<=12 && publicPhotos(request.resource.data,article(id)) && request.resource.data.serverWrittenAt==request.time;
    allow delete: if teacher();
+  }
+  match /notifications/{id} {
+   allow read: if active() && (teacher() || resource.data.uid == request.auth.uid);
+   allow create: if teacher() &&
+    request.resource.data.keys().hasOnly(['uid','articleId','title','body','kind','createdAt','createdBy','read']) &&
+    request.resource.data.uid is string && request.resource.data.uid.size() > 0 && request.resource.data.uid.size() <= 160 &&
+    request.resource.data.articleId is string && request.resource.data.articleId.size() <= 160 &&
+    request.resource.data.title is string && request.resource.data.title.size() <= 150 &&
+    request.resource.data.body is string && request.resource.data.body.size() <= 700 &&
+    request.resource.data.kind in ['deadline','reminder','review'] &&
+    request.resource.data.createdAt == request.time && request.resource.data.createdBy == request.auth.uid &&
+    request.resource.data.read == false;
+   allow update: if active() && resource.data.uid == request.auth.uid &&
+    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read','readAt']) &&
+    request.resource.data.read == true && request.resource.data.readAt == request.time;
+   allow delete: if false;
   }
   match /issues/{id} {
    allow read: if teacher();

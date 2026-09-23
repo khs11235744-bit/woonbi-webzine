@@ -169,3 +169,42 @@ button,input,textarea,select{border-radius:0!important}
  .dashboard-queues{gap:22px}.dashboard-list article{grid-template-columns:1fr}.dashboard-list .text{justify-self:start}
  .progress-table{overflow-x:auto;padding-bottom:6px}
 }
+
+/* v0.6.3 batch desk, onboarding, notifications, photo assignment */
+.dashboard-actions{border:1px solid var(--ink);background:#f5f2e9;padding:17px 18px;margin:0 0 28px}
+.dashboard-action-title{display:flex;align-items:end;justify-content:space-between;gap:18px;border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:12px}
+.dashboard-action-title h2{font:700 21px/1.25 var(--serif);letter-spacing:-.03em;margin-top:3px}
+.dashboard-action-title>b{font:500 20px/1 Georgia,serif;color:var(--accent)}
+.dashboard-action-controls{display:grid;grid-template-columns:155px minmax(220px,1fr) auto auto auto auto;gap:9px;align-items:end}
+.dashboard-action-controls label{font-size:10px;color:var(--muted);display:grid;gap:4px}
+.dashboard-action-controls input{min-height:38px;background:#fff}.dashboard-action-controls .grow{min-width:0}
+.dashboard-head-actions{display:flex;align-items:center;gap:8px}.dashboard-head-actions .text{font-size:10px}
+.dashboard-list article{grid-template-columns:22px minmax(0,1fr) auto;align-items:center}
+.dashboard-list input[type=checkbox]{width:16px;height:16px;accent-color:var(--navy)}
+.student-notices{border-top:3px solid var(--accent);border-bottom:1px solid var(--line);margin-bottom:22px;background:#fbf8f0;padding:0 16px 6px}
+.student-notices article{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;padding:12px 0;border-top:1px solid var(--line)}
+.student-notices article:first-of-type{border-top:0}.student-notices p{margin:4px 0;font-size:12px}
+.member-onboarding{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.8fr);gap:24px;border-top:2px solid var(--ink);border-bottom:1px solid var(--line);padding:18px 0;margin:18px 0}
+.member-onboarding h2{font:700 22px/1.3 var(--serif)}
+.member-onboarding-actions{display:grid;gap:8px;align-content:center}.member-onboarding code{display:block;padding:10px;border:1px solid var(--line);background:#f4f2eb;font-size:11px;overflow-wrap:anywhere}
+.member-summary{display:flex;gap:18px;border-bottom:1px solid var(--line);padding:0 0 14px;margin-bottom:12px}.member-summary span{font-size:11px;color:var(--muted)}
+.member-row .info small{display:block;margin-top:3px}
+.photo-desk-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:26px 32px;margin-top:20px}
+.photo-desk-card{border-top:2px solid var(--navy);padding-top:12px;min-width:0}
+.photo-desk-card-head{display:flex;justify-content:space-between;gap:14px;align-items:start}.photo-desk-card-head h2{font:700 19px/1.45 var(--serif);margin:3px 0}
+.photo-desk-slots{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+.photo-desk-slot{border:1px solid var(--line);background:#fbfaf5;padding:8px;display:grid;grid-template-columns:82px minmax(0,1fr);gap:9px;align-items:center}
+.photo-desk-slot img{width:82px;aspect-ratio:4/3;object-fit:cover;background:#e6ebe9}.photo-desk-slot>div{display:grid;gap:3px}.photo-desk-slot b{font-size:11px}
+.photo-desk-slot button,.photo-desk-slot small{grid-column:1/-1}.photo-desk-slot button{font-size:10px;min-height:32px}
+@media(max-width:1050px){
+ .dashboard-action-controls{grid-template-columns:150px minmax(220px,1fr) auto auto}.dashboard-action-controls button:nth-last-child(-n+2){grid-row:2}
+ .photo-desk-grid{grid-template-columns:1fr}
+}
+@media(max-width:620px){
+ .dashboard-actions{padding:14px 12px}.dashboard-action-title{align-items:start}
+ .dashboard-action-controls{grid-template-columns:1fr}.dashboard-action-controls button{width:100%}.dashboard-action-controls button:nth-last-child(-n+2){grid-row:auto}
+ .dashboard-list article{grid-template-columns:22px minmax(0,1fr)}.dashboard-list article>.text{grid-column:2}
+ .student-notices article{grid-template-columns:1fr}.student-notices .text{justify-self:start}
+ .member-onboarding{grid-template-columns:1fr}.member-summary{flex-wrap:wrap}
+ .photo-desk-slots{grid-template-columns:1fr}.photo-desk-slot{grid-template-columns:70px minmax(0,1fr)}.photo-desk-slot img{width:70px}
+}

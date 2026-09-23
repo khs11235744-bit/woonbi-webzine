@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 const W=window.Woonbi,C=W.core,$=s=>document.querySelector(s),main=$('#main'),dialog=$('#dialog');
-let newsroom,store,user,view='public',edit=null,dirty=false,editSequence=0,saveTimer=null,saveJob=null,uploading=false,unsubscribe=null,presenceStop=null,filter='all',search='',planKind='all',categoryFilter='all',issueSelection=[];
+let newsroom,store,user,view='public',edit=null,dirty=false,editSequence=0,saveTimer=null,saveJob=null,uploading=false,unsubscribe=null,presenceStop=null,filter='all',search='',planKind='all',categoryFilter='all',issueSelection=[],dashboardSelection=new Set(),photoDeskFilter='all';
 const urls=new Map(),now=()=>new Date().toISOString();
 const h=(tag,attrs={},...children)=>{const e=document.createElement(tag);for(const [k,v] of Object.entries(attrs)){if(v==null||v===false)continue;if(k==='class')e.className=v;else if(k==='text')e.textContent=v;else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);else if(k==='checked')e.checked=!!v;else if(k==='value')e.value=v;else if(k==='disabled'||k==='hidden')e[k]=!!v;else e.setAttribute(k,v===true?'':String(v));}for(const c of children.flat(Infinity)){if(c!=null&&c!==false)e.append(c instanceof Node?c:document.createTextNode(String(c)));}return e;};
 const button=(text,fn,cls='')=>h('button',{class:cls,onclick:async e=>{e.preventDefault();try{await fn(e);}catch(err){showError(err);}}},text);
@@ -9,6 +9,7 @@ function toast(text){const e=$('#toast');e.textContent=text;e.hidden=false;clear
 function showError(e){console.error(e);toast(e?.message||'처리하지 못했습니다. 다시 확인해 주세요.');}
 function download(blob,name){const u=URL.createObjectURL(blob),a=h('a',{href:u,download:name});document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),15000);}
 function textDownload(data,name){download(new Blob([data],{type:'text/plain;charset=utf-8'}),name);}
+async function copyText(text){try{await navigator.clipboard.writeText(String(text));toast('클립보드에 복사했습니다.');}catch{const t=h('textarea',{hidden:false});t.value=String(text);document.body.append(t);t.select();document.execCommand('copy');t.remove();toast('클립보드에 복사했습니다.');}}
 function dialogOpen(title,content,actions=[]){$('#dialogBody').replaceChildren(h('div',{class:'dialog-header'},h('h2',{},title),button('닫기',()=>dialog.close(),'text')),content,h('div',{class:'actions'},actions));if(!dialog.open)dialog.showModal();}
 dialog.addEventListener('click',e=>{if(e.target===dialog)dialog.close();});
 function setSave(text,isError=false){const e=$('#saveStatus');if(e){e.textContent=text;e.classList.toggle('error',isError);}}
@@ -28,7 +29,7 @@ function clearLocalBuffers(){for(const k of W.session.keys())if(k.startsWith('wo
 function refreshHeader(){
  const reading=['public','archive','examples','reader'].includes(view);document.body.classList.toggle('reading-view',reading);main.className=reading?'newsroom-main':'desk-main';document.querySelectorAll('.desk-only').forEach(e=>e.hidden=reading);document.querySelectorAll('.reader-only').forEach(e=>e.hidden=!reading);
 
- const account=$('#account');account.replaceChildren();$('#navArticles').textContent=C.staff(user)?'기사 계획':'내 기사';$('#navDashboard').hidden=!C.teacher(user);$('#navBook').hidden=!C.teacher(user);$('#navMembers').hidden=!C.teacher(user);
+ const account=$('#account');account.replaceChildren();$('#navArticles').textContent=C.staff(user)?'기사 계획':'내 기사';$('#navDashboard').hidden=!C.teacher(user);$('#navPhotos').hidden=!C.teacher(user);$('#navBook').hidden=!C.teacher(user);$('#navMembers').hidden=!C.teacher(user);
  if(store.mode==='demo'){
  const select=h('select',{'aria-label':'학생별 화면 미리보기',id:'demoUser'});for(const u of W.DEMO_USERS)select.append(h('option',{value:u.uid},u.displayName+(u.sourceRole&&u.sourceRole!=='기자'?' · '+u.sourceRole:'')));select.value=user?.uid||'';
  select.addEventListener('change',async()=>{if(!(await leaveEditor())){select.value=user.uid;return;}clearLocalBuffers();user=await store.login(select.value);filter='all';search='';planKind='all';categoryFilter='all';listen();refreshHeader();await navigate('articles');});account.append(select);
@@ -36,9 +37,9 @@ function refreshHeader(){
  else account.append(button('Google 로그인',async()=>{try{await store.login();}catch(e){if(e.code==='auth/popup-blocked'){dialogOpen('팝업이 차단됐습니다',h('p',{},'같은 창에서 Google 로그인을 진행할 수 있습니다.'),[button('같은 창에서 로그인',()=>store.loginRedirect(),'primary')]);}else throw e;}}));
  document.querySelectorAll('.top [data-nav]').forEach(e=>e.classList.toggle('current',e.dataset.nav===view));
 }
-function listen(){unsubscribe?.();unsubscribe=store.subscribe(()=>{if(!edit&&['articles','public','members','dashboard'].includes(view))renderCurrent().catch(showError);else if(edit){const indicator=$('#remoteNotice');if(indicator)indicator.hidden=false;}});}
+function listen(){unsubscribe?.();unsubscribe=store.subscribe(()=>{if(!edit&&['articles','public','members','dashboard','photos'].includes(view))renderCurrent().catch(showError);else if(edit){const indicator=$('#remoteNotice');if(indicator)indicator.hidden=false;}});}
 async function navigate(next){if(!(await leaveEditor()))return;view=next;refreshHeader();await renderCurrent();window.scrollTo({top:0,behavior:'instant'});}
-async function renderCurrent(){if(view==='archive')return newsroom.archiveHome();if(view==='examples')return newsroom.examples();if(view==='public')return renderPublic();if(!user)return renderLogin();if(!user.active)return renderPending();if(view==='dashboard')return renderDashboard();if(view==='book')return renderBook();if(view==='members')return renderMembers();return renderArticles();}
+async function renderCurrent(){if(view==='archive')return newsroom.archiveHome();if(view==='examples')return newsroom.examples();if(view==='public')return renderPublic();if(!user)return renderLogin();if(!user.active)return renderPending();if(view==='dashboard')return renderDashboard();if(view==='photos')return renderPhotoDesk();if(view==='book')return renderBook();if(view==='members')return renderMembers();return renderArticles();}
 function renderLogin(){main.replaceChildren(h('div',{class:'panel'},h('h1',{},'웅비 편집실'),h('p',{},'Google 계정으로 로그인하고 담당교사의 승인 후 배정된 기사를 작성합니다.'),button('Google로 로그인',()=>store.login(),'primary')));}
 function renderPending(){main.replaceChildren(h('div',{class:'panel'},h('h1',{},'참여 승인을 기다리고 있습니다'),h('p',{},'담당교사가 계정을 승인하고 기사를 배정하면 이곳에 내 기사가 나타납니다.'),button('승인 상태 확인',async()=>{location.reload();})));}
 function articleState(a){return a.status==='draft'&&!a.body.trim()?'작성 전':C.STATUS[a.status];}
@@ -67,7 +68,7 @@ async function renderPlanMembers(){
  for(const person of p.people){const assigned=all.filter(a=>a.assigneeIds.includes(person.uid));root.append(h('article',{class:'roster-card'},h('div',{class:'roster-person'},h('span',{class:'initial'},person.name.slice(-2)),h('div',{},h('h3',{},person.name),h('small',{},`${person.grade}학년 · ${person.sourceRole}${person.roleNote?' / '+person.roleNote:''}`))),h('ul',{},assigned.map(a=>h('li',{},button(a.title,()=>openEditor(a.id),'text')))),h('p',{class:'small muted'},assigned.length?`배정 ${assigned.length}건 · Google 계정 미연결`:'기사 선택 확인 필요 · Google 계정 미연결')));}
 }
 async function renderArticles(){
- const p=W.plan2026,rows=(await store.listArticles()).sort((a,b)=>(a.planOrder||999)-(b.planOrder||999)||a.title.localeCompare(b.title)),isStaff=C.staff(user);
+ const p=W.plan2026,rows=(await store.listArticles()).sort((a,b)=>(a.planOrder||999)-(b.planOrder||999)||a.title.localeCompare(b.title)),isStaff=C.staff(user),notices=!isStaff&&typeof store.listNotifications==='function'?await store.listNotifications():[];
  const top=h('section',{class:'plan-masthead'},h('div',{},h('div',{class:'eyebrow'},'POHANG HIGH SCHOOL · WOONBI'),h('h1',{},isStaff?'2026 기사 편집실':user.displayName+'의\n기사 작업실'),h('p',{class:'intro'},isStaff?'초안을 읽고, 학생의 취재를 더하고, 검토를 요청하세요.':'배정된 제목을 열고 글과 사진을 더하세요.\n디자인은 따로 맞추지 않아도 됩니다.')));
  const aside=h('div',{class:'plan-masthead-aside'},h('span',{class:'issue-label'},'2026 / 편집 준비'),h('p',{class:'source-short'},'웅비 기사 편집부'),h('p',{class:'small muted'},'초안 작성 · 사진 · 검토 · 발행'),button('원본과 가져온 내용',sourceDialog,'text'));
  if(C.teacher(user))aside.append(button('새 기사 배정',assignDialog,'primary'));if(isStaff)top.append(aside);else top.classList.add('student-masthead');
@@ -84,7 +85,8 @@ async function renderArticles(){
  const detail=h('div',{class:'row-detail'},h('span',{class:'badge '+a.status},articleState(a)),h('span',{class:'row-due'},a.dueDate?a.dueDate+' 마감':'마감 미정'),a.body||a.photos.length?h('span',{class:'small'},`${a.body.length.toLocaleString()}자 · 사진 ${a.photos.length}장${a.photos.some(W.editorial.sample)?' · 예시 교체 필요':''}`):null);
  list.append(h('article',{class:'article-row','data-article':a.id},h('span',{class:'row-no'},String(a.planOrder||rows.indexOf(a)+1).padStart(2,'0')),t,detail,button(C.canEdit(user,a)?a.body?'이어 쓰기':'원고 쓰기':'원고 보기',()=>openEditor(a.id),'row-action')));}}
  const toolbar=h('div',{class:'plan-toolbar'},kindTabs,h('div',{class:'plan-search'},cats,input));
- main.replaceChildren(top,stats,toolbar,h('div',{class:'plan-list-head'},filters,shown),list);updateList();
+ let noticeBox=null;const unread=notices.filter(n=>!n.read);if(unread.length){noticeBox=h('section',{class:'student-notices'},h('div',{class:'dashboard-section-head'},h('div',{},h('h2',{},'편집부 알림'),h('p',{class:'small muted'},'담당교사가 보낸 마감·원고 안내입니다.')),h('b',{},unread.length)));for(const n of unread.slice(0,12))noticeBox.append(h('article',{},h('div',{},h('b',{},n.title),h('p',{},n.body),h('small',{class:'muted'},n.createdAt?.toDate?n.createdAt.toDate().toLocaleString('ko-KR'):'')),button('확인',async()=>{await store.markNotificationRead(n.id);await renderArticles();},'text')));}
+ main.replaceChildren(...(noticeBox?[noticeBox]:[]),top,stats,toolbar,h('div',{class:'plan-list-head'},filters,shown),list);updateList();
  if(p){const unanswered=p.pendingTopics.filter(x=>isStaff||x.uid===user.uid),questions=p.assignmentQuestions.filter(x=>isStaff||x.uid===user.uid);const notes=h('section',{class:'planning-notes'});
  if(unanswered.length){const d=h('details',{class:'pending-topics',id:'pendingTopics'},h('summary',{},h('b',{},`탐구 주제 미정 ${unanswered.length}명`),h('span',{},'빈 자동생성 기사는 넣지 않았습니다.')));d.append(h('div',{class:'pending-names'},unanswered.map(x=>h('span',{},x.name))),h('p',{class:'small muted'},'원본의 개인 탐구 제목 칸이 비어 있습니다. 주제를 정한 뒤 새 기사로 배정하세요.'));notes.append(d);}
  if(questions.length)notes.append(h('div',{class:'assignment-question'},h('b',{},'배정 확인이 필요한 항목'),questions.map(x=>h('p',{},`${x.name} — “${x.raw}”`)),h('small',{},'원본에 두 선택지가 함께 적혀 있어 담당자를 임의로 확정하지 않았습니다.')));
@@ -116,7 +118,7 @@ async function uploadPlannedPhoto(slot,index,file){
  uploading=true;const root=$('#uploadProgress');
  try{root.textContent='사진 슬롯 준비 중…';const d=await preparePhoto(file,edit.id);
   d.photo.caption=(slot.caption||'').replace(/ · 실제 현장 사진으로 교체 필요$/,'').slice(0,300);
-  d.photo.alt=(slot.alt||file.name.replace(/\.[^.]+$/,'')).slice(0,200);
+  const slotAlt=String(slot.alt||'');d.photo.alt=(/교체|예시|placeholder/i.test(slotAlt)?file.name.replace(/\.[^.]+$/,''):slotAlt||file.name.replace(/\.[^.]+$/,'')).slice(0,200);
   await store.upload(edit.id,d.photo,d.original,d.web,v=>{root.textContent='사진 저장 '+Math.round(v*100)+'%';});
   const at=Math.min(index,edit.photos.length);edit.photos.splice(at,0,d.photo);changed();await save();await renderPhotoGrid();renderPreflight();toast((index+1)+'번 사진 슬롯을 채웠습니다.');
  }finally{uploading=false;root.textContent='';}
@@ -209,6 +211,7 @@ async function renderPublic(){return newsroom.home();}
 async function renderDashboard(){
  if(!C.teacher(user))return renderPending();
  const [articles,members,published]=await Promise.all([store.listArticles(),store.listMembers(),store.listPublic()]);
+ dashboardSelection=new Set([...dashboardSelection].filter(id=>articles.some(a=>a.id===id)));
  const pubIds=new Set(published.map(a=>a.id)),today=new Date().toISOString().slice(0,10);
  const bodyReady=a=>String(a.body||'').trim().length>=60;
  const photoReady=a=>a.photos.length>=Number(a.minPhotos||0)&&!a.photos.some(W.editorial.sample);
@@ -220,20 +223,26 @@ async function renderDashboard(){
  const overdue=articles.filter(a=>a.dueDate&&a.dueDate<today&&a.status!=='approved');
  const complete=articles.filter(a=>bodyReady(a)&&photoReady(a));
  const metrics=[
-  ['전체 기사',articles.length,'기사 계획'],
-  ['원고 진행',complete.length,articles.length?Math.round(complete.length/articles.length*100)+'%':'0%'],
-  ['미작성',unstarted.length,'60자 미만'],
-  ['사진 부족',photoShort.length,'필수 장수·예시'],
-  ['검토 대기',review.length,'제출 원고'],
-  ['발행 대기',publishReady.length,'승인·웹동의']
+  ['전체 기사',articles.length,'기사 계획'],['원고 진행',complete.length,articles.length?Math.round(complete.length/articles.length*100)+'%':'0%'],
+  ['미작성',unstarted.length,'60자 미만'],['사진 부족',photoShort.length,'필수 장수·예시'],['검토 대기',review.length,'제출 원고'],['발행 대기',publishReady.length,'승인·웹동의']
  ];
  const head=h('div',{class:'dashboard-head'},h('div',{},h('div',{class:'eyebrow'},'EDITORIAL CONTROL DESK'),h('h1',{},'웅비 편집장 대시보드'),h('p',{class:'intro'},'학생별 진행률과 미제출·사진 부족·검토·발행 대기를 한 화면에서 확인합니다.')),h('div',{class:'dashboard-stamp'},'기준 '+new Date().toLocaleString('ko-KR')));
  const cards=h('section',{class:'dashboard-metrics'},metrics.map(([label,value,note])=>h('article',{},h('span',{},label),h('strong',{},value),h('small',{},note))));
+ const due=h('input',{type:'date','aria-label':'선택 기사 마감일'}),message=h('input',{type:'text',maxlength:300,value:'원고와 사진 진행 상황을 확인해 주세요.','aria-label':'학생 알림 문구'}),selected=h('b',{},dashboardSelection.size+'개 선택');
+ function refreshSelected(){selected.textContent=dashboardSelection.size+'개 선택';}
+ function selectedArticles(){return articles.filter(a=>dashboardSelection.has(a.id));}
+ function reminderCopy(rows,msg){
+  const groups=new Map();for(const a of rows){for(const name of a.assigneeNames||[a.byline||'학생']){if(!groups.has(name))groups.set(name,[]);groups.get(name).push(a);}}
+  return [...groups.entries()].map(([name,aa])=>name+'\n'+aa.map(a=>'• '+a.title+(a.dueDate?' · 마감 '+a.dueDate:'')).join('\n')+'\n'+msg).join('\n\n');
+ }
+ const actions=h('section',{class:'dashboard-actions'},h('div',{class:'dashboard-action-title'},h('div',{},h('span',{class:'eyebrow'},'BATCH DESK'),h('h2',{},'선택 기사 일괄 작업')),selected),h('div',{class:'dashboard-action-controls'},h('label',{},'마감일',due),h('label',{class:'grow'},'알림 문구',message),button('마감일 변경',async()=>{const ids=[...dashboardSelection];if(!ids.length)return toast('먼저 기사를 선택해 주세요.');if(!due.value)return toast('마감일을 선택해 주세요.');const r=await store.batchUpdateDueDates(ids,due.value);toast('마감일 '+r.updated.length+'건 변경 · 건너뜀 '+r.skipped.length+'건');dashboardSelection.clear();await renderDashboard();},'primary'),button('인앱 알림',async()=>{const rows=selectedArticles();if(!rows.length)return toast('먼저 기사를 선택해 주세요.');const r=await store.sendReminders(rows.map(a=>a.id),message.value||'진행 상황을 확인해 주세요.','reminder');if(r.unlinked.length)await copyText(reminderCopy(rows,message.value));toast('인앱 알림 '+r.sent.length+'건'+(r.unlinked.length?' · 미연결 학생 안내문 복사':'') );},'primary'),button('안내문 복사',async()=>{const rows=selectedArticles();if(!rows.length)return toast('먼저 기사를 선택해 주세요.');await copyText(reminderCopy(rows,message.value));},'text'),button('선택 초기화',()=>{dashboardSelection.clear();renderDashboard();},'text')));
  function queue(title,rows,note,cls=''){
-  const box=h('section',{class:'dashboard-queue '+cls},h('div',{class:'dashboard-section-head'},h('div',{},h('h2',{},title),h('p',{class:'small muted'},note)),h('b',{},rows.length)));
+  const chooseAll=button('목록 선택',()=>{for(const a of rows)dashboardSelection.add(a.id);refreshSelected();box.querySelectorAll('input[type=checkbox]').forEach(x=>x.checked=true);},'text');
+  const box=h('section',{class:'dashboard-queue '+cls},h('div',{class:'dashboard-section-head'},h('div',{},h('h2',{},title),h('p',{class:'small muted'},note)),h('div',{class:'dashboard-head-actions'},h('b',{},rows.length),chooseAll)));
   const list=h('div',{class:'dashboard-list'});if(!rows.length)list.append(h('p',{class:'empty'},'현재 해당 기사가 없습니다.'));
-  for(const a of rows.sort((x,y)=>(x.dueDate||'9999').localeCompare(y.dueDate||'9999')||(x.planOrder||999)-(y.planOrder||999))){
-   list.append(h('article',{},h('div',{},h('span',{class:'row-category'},a.category),h('h3',{},a.title),h('p',{class:'small muted'},articleNames(a)+' · '+(a.dueDate?'마감 '+a.dueDate:'마감 미정')+' · '+String(a.body||'').length.toLocaleString()+'자 · 사진 '+a.photos.length+'/'+Number(a.minPhotos||0))),button('열기',()=>openEditor(a.id),'text')));
+  for(const a of [...rows].sort((x,y)=>(x.dueDate||'9999').localeCompare(y.dueDate||'9999')||(x.planOrder||999)-(y.planOrder||999))){
+   const check=h('input',{type:'checkbox',checked:dashboardSelection.has(a.id),'aria-label':a.title+' 선택'});check.addEventListener('change',()=>{check.checked?dashboardSelection.add(a.id):dashboardSelection.delete(a.id);refreshSelected();});
+   list.append(h('article',{},check,h('div',{},h('span',{class:'row-category'},a.category),h('h3',{},a.title),h('p',{class:'small muted'},articleNames(a)+' · '+(a.dueDate?'마감 '+a.dueDate:'마감 미정')+' · '+String(a.body||'').length.toLocaleString()+'자 · 사진 '+a.photos.length+'/'+Number(a.minPhotos||0))),button('열기',()=>openEditor(a.id),'text')));
   }box.append(list);return box;
  }
  const queues=h('div',{class:'dashboard-queues'},queue('미작성',unstarted,'본문 60자 미만'),queue('사진 부족',photoShort,'필수 사진 미달 또는 교체용 예시'),queue('검토 대기',review,'학생이 제출한 원고','review'),queue('수정 요청',changes,'보완 후 재제출 필요'),queue('발행 대기',publishReady,'승인 완료·웹 공개 동의 확인'),queue('마감 지남',overdue,'승인 전 마감일 경과','danger'));
@@ -241,19 +250,44 @@ async function renderDashboard(){
  for(const a of articles){const ids=a.assigneeIds||[],names=a.assigneeNames||[];ids.forEach((uid,i)=>{const name=(names[i]||memberNames.get(uid)||'원본 배정 미연결').trim(),key='name:'+name;if(!people.has(key))people.set(key,{name,assigned:0,ready:0,submitted:0,approved:0,photoShort:0});const p=people.get(key);p.assigned++;if(bodyReady(a)&&photoReady(a))p.ready++;if(a.status==='submitted')p.submitted++;if(a.status==='approved')p.approved++;if(!photoReady(a))p.photoShort++;});}
  for(const m of members){if(m.role==='teacher')continue;const name=(m.displayName||'승인 계정').trim(),key='name:'+name;if(!people.has(key))people.set(key,{name,assigned:0,ready:0,submitted:0,approved:0,photoShort:0});}
  const table=h('div',{class:'dashboard-people'},h('div',{class:'dashboard-section-head'},h('div',{},h('h2',{},'학생별 진행률'),h('p',{class:'small muted'},'배정 기사 기준 · Google 계정 연결 여부와 무관하게 원래 배정명도 표시합니다.'))));
- const rows=h('div',{class:'progress-table'});
- rows.append(h('div',{class:'progress-row head'},...['이름','배정','원고+사진','검토대기','승인','사진부족'].map(x=>h('span',{},x))));
- for(const p of [...people.values()].sort((a,b)=>b.assigned-a.assigned||a.name.localeCompare(b.name))){
-  const pct=p.assigned?Math.round(p.ready/p.assigned*100):0,prog=h('div',{class:'student-progress'},h('span',{},p.ready+'/'+p.assigned),h('progress',{max:100,value:pct}),h('small',{},pct+'%'));
-  rows.append(h('div',{class:'progress-row'},h('b',{},p.name),h('span',{},p.assigned),prog,h('span',{},p.submitted),h('span',{},p.approved),h('span',{},p.photoShort)));
- }table.append(rows);
- main.replaceChildren(head,cards,queues,table);
+ const progressRows=h('div',{class:'progress-table'});progressRows.append(h('div',{class:'progress-row head'},...['이름','배정','원고+사진','검토대기','승인','사진부족'].map(x=>h('span',{},x))));
+ for(const p of [...people.values()].sort((a,b)=>b.assigned-a.assigned||a.name.localeCompare(b.name))){const pct=p.assigned?Math.round(p.ready/p.assigned*100):0,prog=h('div',{class:'student-progress'},h('span',{},p.ready+'/'+p.assigned),h('progress',{max:100,value:pct}),h('small',{},pct+'%'));progressRows.append(h('div',{class:'progress-row'},h('b',{},p.name),h('span',{},p.assigned),prog,h('span',{},p.submitted),h('span',{},p.approved),h('span',{},p.photoShort)));}
+ table.append(progressRows);main.replaceChildren(head,cards,actions,queues,table);
+}
+async function renderPhotoDesk(){
+ if(!C.teacher(user))return renderPending();
+ const articles=await store.listArticles(),byId=new Map(articles.map(a=>[a.id,a])),links=W.legacyArticleLinks||{},liveByLegacy=new Map(Object.entries(links).map(([aid,lid])=>[lid,byId.get(aid)]).filter(x=>x[1]));
+ const refs=(W.newsroomData?.examples||[]).filter(x=>x.photos?.length),total=refs.reduce((n,x)=>n+x.photos.length,0),linkedSlots=refs.reduce((n,x)=>n+(liveByLegacy.has(x.id)?x.photos.length:0),0);
+ const head=h('div',{class:'dashboard-head'},h('div',{},h('div',{class:'eyebrow'},'PHOTO ASSIGNMENT DESK'),h('h1',{},'웅비 사진 정리'),h('p',{class:'intro'},'원래 index·패키지의 120개 사진 슬롯을 기사별로 확인하고 실제 승인 사진을 연결합니다.')),h('div',{class:'dashboard-stamp'},'전체 '+total+' 슬롯 · 운영 연결 '+linkedSlots));
+ const tabs=h('div',{class:'kind-tabs'});for(const [k,label] of [['all','전체'],['linked','운영 기사'],['missing','사진 필요'],['archive','복원 자료']])tabs.append(button(label,()=>{photoDeskFilter=k;renderPhotoDesk();},photoDeskFilter===k?'active':''));
+ const root=h('div',{class:'photo-desk-grid'});
+ const rows=refs.filter(r=>{const live=liveByLegacy.get(r.id);if(photoDeskFilter==='linked')return !!live;if(photoDeskFilter==='archive')return !live;if(photoDeskFilter==='missing')return !!live&&live.photos.length<r.photos.length;return true;});
+ for(const ref of rows){let live=liveByLegacy.get(ref.id)||null;const card=h('section',{class:'photo-desk-card'},h('div',{class:'photo-desk-card-head'},h('div',{},h('span',{class:'row-category'},ref.category||'복원 자료'),h('h2',{},live?live.title:(ref.headline||ref.title))),h('span',{class:live?'slot-state filled':'slot-state'},live?'운영 기사 연결':'복원 자료')));
+  if(live)card.append(h('p',{class:'small muted'},articleNames(live)+' · 실제 사진 '+live.photos.length+'/'+ref.photos.length),button('기사 열기',()=>openEditor(live.id),'text'));else card.append(h('p',{class:'small muted'},'운영 기사와 직접 연결되지 않은 참고·복원용 사진 계획입니다.'));
+  const slots=h('div',{class:'photo-desk-slots'});
+  for(let i=0;i<ref.photos.length;i++){const slot=ref.photos[i],filled=live?.photos?.[i],box=h('article',{class:'photo-desk-slot'});box.append(h('img',{src:slot.sourceAsset,alt:slot.alt||'사진 슬롯',loading:'lazy'}),h('div',{},h('b',{},(i+1)+'번'),h('span',{class:filled?'slot-state filled':'slot-state'},filled?'실제 사진 연결됨':live?'사진 필요':'보관 슬롯')));
+   if(live&&['draft','changes'].includes(live.status)&&!filled&&i===live.photos.length){const input=h('input',{type:'file',accept:'image/jpeg,image/png,image/webp',hidden:true});const status=h('small',{class:'muted'},'');input.addEventListener('change',async()=>{const file=input.files[0];if(!file)return;try{status.textContent='업로드 중…';const current=await store.getArticle(live.id),d=await preparePhoto(file,current.id);d.photo.caption=(slot.caption||'').replace(/ · 실제 현장 사진으로 교체 필요$/,'').slice(0,300);const slotAlt=String(slot.alt||'');d.photo.alt=(/교체|예시|placeholder/i.test(slotAlt)?file.name.replace(/\.[^.]+$/,''):slotAlt||file.name.replace(/\.[^.]+$/,'')).slice(0,200);await store.upload(current.id,d.photo,d.original,d.web,v=>status.textContent='업로드 '+Math.round(v*100)+'%');const photos=[...current.photos,d.photo];live=await store.saveArticle(current.id,current.revision,{photos});status.textContent='연결 완료';toast('사진 슬롯을 채웠습니다.');await renderPhotoDesk();}catch(e){status.textContent='실패';showError(e);}});box.append(input,button('사진 연결',()=>input.click(),'text'),status);}
+   else if(live&&!filled&&i>live.photos.length)box.append(h('small',{class:'muted'},'앞 슬롯부터 채워 주세요.'));
+   slots.append(box);
+  }card.append(slots);root.append(card);
+ }
+ main.replaceChildren(head,tabs,root,h('p',{class:'small muted source-bottom'},'실제 사진은 원본 비공개 + WebP 공개용 파생본 구조로 저장됩니다. 복원 자료 슬롯은 운영 기사에 연결되기 전에는 업로드하지 않습니다.'));
 }
 async function renderMembers(){
  if(store.mode==='demo'&&W.plan2026)return renderPlanMembers();
-if(!C.teacher(user))return renderPending();const members=await store.listMembers(),rows=h('div',{class:'panel'});main.replaceChildren(h('div',{class:'heading-row'},h('div',{},h('div',{class:'eyebrow'},'MEMBERS'),h('h1',{},'참여자 승인'),h('p',{class:'intro'},'Google 로그인은 본인 확인입니다. 기사 접근 권한은 별도로 승인합니다.'))),rows);
- for(const m of members){const row=h('div',{class:'member-row'},h('div',{class:'info'},h('b',{},m.displayName),h('span',{},m.role==='teacher'?'담당교사':m.active?m.role==='editor'?'편집장':'학생 기자':'승인 대기')),h('span',{class:'badge'},m.active?'활성':'대기'));
- if(m.role!=='teacher')row.append(button('기자 승인',async()=>{await store.setMember(m.uid,'student',true);await renderMembers();}),button('편집장',async()=>{await store.setMember(m.uid,'editor',true);await renderMembers();}),button('권한 중지',async()=>{if(confirm('이 계정의 편집 접근을 중지할까요?')){await store.setMember(m.uid,'pending',false);await renderMembers();}},'danger'));rows.append(row);}}
+ if(!C.teacher(user))return renderPending();
+ const members=await store.listMembers(),articles=await store.listArticles(),rows=h('div',{class:'panel'}),pending=members.filter(m=>!m.active),activeStudents=members.filter(m=>m.active&&['student','editor'].includes(m.role));
+ const loginUrl=location.origin+'/?student=login';
+ const onboarding=h('section',{class:'member-onboarding'},h('div',{},h('span',{class:'eyebrow'},'GOOGLE ACCOUNT ONBOARDING'),h('h2',{},'학생 계정 연결'),h('p',{class:'small muted'},'학생이 아래 주소에서 Google 로그인하면 승인 대기로 나타납니다. 승인 뒤 이름이 같은 기존 기사 배정을 실제 계정과 연결할 수 있습니다.')),h('div',{class:'member-onboarding-actions'},h('code',{},loginUrl),button('로그인 주소 복사',()=>copyText(loginUrl),'text')));
+ const summary=h('div',{class:'member-summary'},h('span',{},'승인 대기 '+pending.length),h('span',{},'학생·편집장 '+activeStudents.length),h('span',{},'교사 '+members.filter(m=>m.role==='teacher').length));
+ main.replaceChildren(h('div',{class:'heading-row'},h('div',{},h('div',{class:'eyebrow'},'MEMBERS'),h('h1',{},'참여자 승인'),h('p',{class:'intro'},'Google 로그인은 본인 확인입니다. 기사 접근 권한은 별도로 승인합니다.'))),onboarding,summary,rows);
+ for(const m of members){
+  const matches=articles.filter(a=>['draft','changes'].includes(a.status)&&(a.assigneeNames||[]).some(n=>String(n).trim()===String(m.displayName||'').trim()));
+  const row=h('div',{class:'member-row'},h('div',{class:'info'},h('b',{},m.displayName),h('span',{},m.role==='teacher'?'담당교사':m.active?m.role==='editor'?'편집장':'학생 기자':'승인 대기'),matches.length?h('small',{class:'muted'},'이름 일치 배정 '+matches.length+'건'):null),h('span',{class:'badge'},m.active?'활성':'대기'));
+  if(m.role!=='teacher')row.append(button('기자 승인',async()=>{await store.setMember(m.uid,'student',true);await renderMembers();}),button('편집장',async()=>{await store.setMember(m.uid,'editor',true);await renderMembers();}),matches.length&&typeof store.linkMemberAssignments==='function'?button('이름 같은 기사 연결',async()=>{const changed=await store.linkMemberAssignments(m.uid);toast('기사 배정 '+changed.length+'건을 실제 계정에 연결했습니다.');await renderMembers();},'text'):null,button('권한 중지',async()=>{if(confirm('이 계정의 편집 접근을 중지할까요?')){await store.setMember(m.uid,'pending',false);await renderMembers();}},'danger'));
+  rows.append(row);
+ }
+}
 async function renderBook(){if(!C.teacher(user))return renderPending();const articles=(await store.listArticles()).filter(a=>a.status==='approved'&&a.printConsent),all=new Map(articles.map(a=>[a.id,a]));issueSelection=issueSelection.filter(id=>all.has(id));const title=h('input',{id:'issueTitle',value:'웅비 · 2026 편집본',maxlength:150}),pick=h('div'),order=h('ol',{class:'book-order'}),archives=h('div');
  const head=h('div',{class:'heading-row'},h('div',{},h('div',{class:'eyebrow'},'PRINT EDITION'),h('h1',{},'한 번 쓴 원고, 한 권의 교지'),h('p',{class:'intro'},'책 수록 동의를 확인한 승인 기사만 묶습니다. 확정본은 이후 웹 원고 수정과 분리해 보관합니다.')));
  function renderOrder(){order.replaceChildren();if(!issueSelection.length)order.append(h('li',{class:'muted'},'왼쪽에서 기사를 골라 주세요.'));for(const [i,id] of issueSelection.entries()){const up=button('↑',()=>{if(i>0){[issueSelection[i-1],issueSelection[i]]=[issueSelection[i],issueSelection[i-1]];renderOrder();}}),down=button('↓',()=>{if(i<issueSelection.length-1){[issueSelection[i+1],issueSelection[i]]=[issueSelection[i],issueSelection[i+1]];renderOrder();}});up.setAttribute('aria-label','기사 순서 올리기');down.setAttribute('aria-label','기사 순서 내리기');order.append(h('li',{},h('span',{},`${i+1}. ${all.get(id).title}`),up,down));}}
@@ -273,7 +307,7 @@ window.addEventListener('online',()=>{if(dirty)save().catch(()=>{});});window.ad
 (async()=>{try{const cfg=window.WOONBI_CONFIG||{};if(!['demo','firebase'].includes(cfg.mode))throw new Error('운영 모드를 명시해야 합니다.');store=cfg.mode==='demo'?new W.DemoStore():new W.FirebaseStore(cfg);try{await store.init();}catch(e){if(cfg.mode==='demo'&&['SecurityError','InvalidStateError','UnknownError'].includes(e.name)){store.channel?.close();store=new W.MemoryStore();await store.init();}else throw e;}user=store.user;
  newsroom=W.createNewsroom({h,button,main,store:()=>store,user:()=>user,openEditor,navigate,renderArticle,imageNode,dialogOpen,toast,leaveEditor,setView:v=>{view=v;refreshHeader();}});
  $('#modeBanner').textContent=store.mode==='demo'?(store.persistence==='memory'?'편집 미리보기 · 원고는 미발행 | 이 탭 임시 저장 · 실제 로그인·서버 연결 전':'편집 미리보기 · 원고는 미발행 | 이 기기에 저장 · 실제 Google 로그인 연결 전'):'웅비 편집실 · 승인된 계정만 원고를 작성할 수 있습니다.';$('#modeBanner').classList.toggle('live',store.mode==='firebase');
- store.onAuthChange=async()=>{user=store.user;clearLocalBuffers();listen();refreshHeader();await navigate(user?'articles':'public');};store.onError=showError;listen();refreshHeader();await renderCurrent();
+ store.onAuthChange=async()=>{user=store.user;clearLocalBuffers();listen();refreshHeader();await navigate(user?'articles':'public');};store.onError=showError;listen();refreshHeader();await renderCurrent();if(new URLSearchParams(location.search).get('student')==='login'){view='articles';refreshHeader();await renderCurrent();}
  // Dev inspection helpers expose no additional live authorization. Firebase rules remain the boundary.
  if(store.mode==='demo')W.demo={store,getCurrent:()=>edit,newsroom};
  if(location.hash.startsWith('#read/')){const id=decodeURIComponent(location.hash.slice(6));await newsroom.read(id,id.startsWith('reference-'));}

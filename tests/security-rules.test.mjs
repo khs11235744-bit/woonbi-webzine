@@ -7,7 +7,7 @@ import {
   assertFails,
 } from '@firebase/rules-unit-testing';
 import {
-  doc, getDoc, setDoc, writeBatch, serverTimestamp, Timestamp,
+  doc, getDoc, setDoc, updateDoc, writeBatch, serverTimestamp, Timestamp,
 } from 'firebase/firestore';
 import {
   ref, uploadBytes, getBytes, deleteObject,
@@ -159,6 +159,51 @@ test('student cannot publish',async()=>{
   await assertFails(setDoc(doc(db,'publications','article-approved'),publication));
 });
 
+
+
+test('teacher can update only due date with revision history',async()=>{
+  const teacher=auth('teacher','teacher').firestore();
+  await assertSucceeds(saveWithRevision(teacher,'article-a','teacher',()=>({dueDate:'2026-10-05'})));
+  const a=(await getDoc(doc(teacher,'articles','article-a'))).data();
+  assert.equal(a.dueDate,'2026-10-05');
+});
+
+test('first Google login can self-register only as pending inactive member',async()=>{
+  const newcomer=auth('new-student').firestore();
+  await assertSucceeds(setDoc(doc(newcomer,'members','new-student'),{displayName:'신규 학생',role:'pending',active:false,createdAt:serverTimestamp()}));
+  await assertFails(setDoc(doc(newcomer,'members','forged'),{displayName:'위조',role:'student',active:true,createdAt:serverTimestamp()}));
+});
+test('full editorial flow: student submit -> editor changes -> student resubmit -> teacher approve',async()=>{
+  const student=auth('student-a').firestore();
+  const editor=auth('editor','editor').firestore();
+  const teacher=auth('teacher','teacher').firestore();
+  await assertSucceeds(saveWithRevision(student,'article-a','student-a',()=>({status:'submitted'})));
+  let a=(await getDoc(doc(editor,'articles','article-a'))).data();
+  assert.equal(a.status,'submitted');
+  await assertSucceeds(saveWithRevision(editor,'article-a','editor',()=>({status:'changes',feedback:'사진 설명을 보강하세요.',webConsent:false,printConsent:false})));
+  a=(await getDoc(doc(student,'articles','article-a'))).data();
+  assert.equal(a.status,'changes');
+  await assertSucceeds(saveWithRevision(student,'article-a','student-a',()=>({status:'submitted',webConsent:false,printConsent:false})));
+  a=(await getDoc(doc(teacher,'articles','article-a'))).data();
+  assert.equal(a.status,'submitted');
+  await assertSucceeds(saveWithRevision(teacher,'article-a','teacher',()=>({status:'approved',webConsent:true,printConsent:true})));
+  a=(await getDoc(doc(teacher,'articles','article-a'))).data();
+  assert.equal(a.status,'approved');
+  assert.equal(a.webConsent,true);
+});
+
+test('teacher reminder is readable only by recipient and recipient can mark read',async()=>{
+  const teacher=auth('teacher','teacher').firestore();
+  const studentA=auth('student-a').firestore();
+  const studentB=auth('student-b').firestore();
+  const refNotice=doc(teacher,'notifications','notice-a');
+  await assertSucceeds(setDoc(refNotice,{
+    uid:'student-a',articleId:'article-a',title:'테스트 기사',body:'마감일을 확인해 주세요.',kind:'deadline',createdAt:serverTimestamp(),createdBy:'teacher',read:false,
+  }));
+  await assertSucceeds(getDoc(doc(studentA,'notifications','notice-a')));
+  await assertFails(getDoc(doc(studentB,'notifications','notice-a')));
+  await assertSucceeds(updateDoc(doc(studentA,'notifications','notice-a'),{read:true,readAt:serverTimestamp()}));
+});
 test('teacher can create article only with matching revision zero in same batch',async()=>{
   const db=auth('teacher','teacher').firestore();
   const stamp=serverTimestamp();
