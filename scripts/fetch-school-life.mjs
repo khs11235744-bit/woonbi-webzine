@@ -70,7 +70,7 @@ function checkedAt(){
 }
 
 async function neisMeal(apiKey,ymd){
-  const q=new URLSearchParams({KEY:apiKey,Type:'json',pIndex:'1',pSize:'10',ATPT_OFCDC_SC_CODE:OFFICE,SD_SCHUL_CODE:SCHOOL,MLSV_YMD:compactYmd(ymd)});
+  const params={Type:'json',pIndex:'1',pSize:'10',ATPT_OFCDC_SC_CODE:OFFICE,SD_SCHUL_CODE:SCHOOL,MLSV_YMD:compactYmd(ymd)};if(apiKey)params.KEY=apiKey;const q=new URLSearchParams(params);
   const j=await (await get(NEIS_ORIGIN+'/mealServiceDietInfo?'+q)).json();
   const rows=j.mealServiceDietInfo?.[1]?.row||[];
   const lunch=rows.find(x=>x.MMEAL_SC_NM==='중식')||rows[0];
@@ -98,7 +98,7 @@ async function officialMeal(homeHtml){
 }
 async function neisSchedule(apiKey,ymd){
   const [from,to]=weekBounds(ymd);
-  const q=new URLSearchParams({KEY:apiKey,Type:'json',pIndex:'1',pSize:'50',ATPT_OFCDC_SC_CODE:OFFICE,SD_SCHUL_CODE:SCHOOL,AA_FROM_YMD:compactYmd(from),AA_TO_YMD:compactYmd(to)});
+  const params={Type:'json',pIndex:'1',pSize:'50',ATPT_OFCDC_SC_CODE:OFFICE,SD_SCHUL_CODE:SCHOOL,AA_FROM_YMD:compactYmd(from),AA_TO_YMD:compactYmd(to)};if(apiKey)params.KEY=apiKey;const q=new URLSearchParams(params);
   const j=await (await get(NEIS_ORIGIN+'/SchoolSchedule?'+q)).json();
   const rows=j.SchoolSchedule?.[1]?.row||[];
   const items=rows.map(x=>({date:`${x.AA_YMD?.slice(0,4)}-${x.AA_YMD?.slice(4,6)}-${x.AA_YMD?.slice(6,8)}`,title:x.EVENT_NM||''})).filter(x=>x.date&&x.title);
@@ -176,11 +176,11 @@ let homeHtml='';
 try{homeHtml=await (await get(SCHOOL_HOME)).text();}catch(e){console.warn('[school-life] homepage failed:',e.message)}
 
 const meal=await safe('meal',
-  ()=>apiKey?neisMeal(apiKey,ymd):officialMeal(homeHtml),
+  async()=>{try{return await neisMeal(apiKey,ymd)}catch(e){console.warn('[school-life] NEIS meal fallback:',e.message);return officialMeal(homeHtml)}},
   {title:'오늘의 급식',source:'포항고 공식 홈페이지 · 오늘의 식단',url:MEAL_PAGE}
 );
 const schedule=await safe('schedule',
-  ()=>apiKey?neisSchedule(apiKey,ymd):officialSchedule(ymd),
+  async()=>{try{return await neisSchedule(apiKey,ymd)}catch(e){console.warn('[school-life] NEIS schedule fallback:',e.message);return officialSchedule(ymd)}},
   {title:'이번 주 일정',source:'포항고 공식 홈페이지 · 학교일정',url:SCHEDULE_PAGE}
 );
 const notice=await safe('notice',
@@ -192,7 +192,7 @@ const result={
   mode:'live',
   date:ymd,
   updatedAt:checkedAt(),
-  sourceMode:apiKey?'NEIS 우선 · 공식 홈페이지 보완':'포항고 공식 홈페이지',
+  sourceMode:apiKey?'NEIS Open API(인증키) 우선 · 공식 홈페이지 보완':'NEIS Open API 우선 · 공식 홈페이지 보완',
   meal,schedule,notice
 };
 await fs.mkdir(path.dirname(outPath),{recursive:true});

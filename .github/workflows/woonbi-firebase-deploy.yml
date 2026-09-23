@@ -16,18 +16,23 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: npm
 
-      - name: Check source
+      - name: Install project tooling
+        run: npm ci
+
+      - name: Check source and security rules
         run: |
           npm run check
           npm test
+          npm run test:rules
           npm run build
 
       - id: auth
@@ -48,10 +53,7 @@ jobs:
           NEIS_API_KEY: ${{ secrets.NEIS_API_KEY }}
         run: node scripts/fetch-school-life.mjs
 
-      - name: Install Firebase CLI
-        run: npm install --global firebase-tools@15.30.2
-
       - name: Deploy Woonbi only
         env:
           FIREBASE_TOKEN: ${{ steps.auth.outputs.access_token }}
-        run: firebase deploy --project woonbi-webzine-2026 --only firestore,storage,hosting --non-interactive
+        run: npx firebase deploy --project woonbi-webzine-2026 --only firestore,storage,hosting --non-interactive

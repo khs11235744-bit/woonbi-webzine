@@ -52,12 +52,21 @@ class FirebaseStore{
   },e=>this.onError?.(e));
   return()=>{clearInterval(timer);unsub();F.deleteDoc(own).catch(()=>{});};
  }
+ async objectExists(path){
+  const r=this.S.ref(this.storage,path);
+  try{await this.S.getMetadata(r);return true;}catch(e){if(e?.code==='storage/object-not-found')return false;throw e;}
+ }
  async upload(id,photo,original,web,progress){
-  if(!this.storage)throw C.error('storage-disabled','클라우드 사진 저장을 아직 연결하지 않았습니다. Blaze 결제 확인 후 별도로 설정해야 합니다.');
+  if(!this.storage)throw C.error('storage-disabled','클라우드 사진 저장을 아직 연결하지 않았습니다.');
   const a=await this.getArticle(id);if(!C.canEdit(this.user,a))throw C.error('permission','원고 수정 권한이 필요합니다.');
   let finished=0,total=original.size+web.size;
-  for(const [path,blob] of [[photo.originalPath,original],[photo.webPath,web]]){const task=this.S.uploadBytesResumable(this.S.ref(this.storage,path),blob,{contentType:blob.type,cacheControl:'private,no-store'});
-   await new Promise((resolve,reject)=>task.on('state_changed',s=>progress?.((finished+s.bytesTransferred)/total),reject,resolve));finished+=blob.size;}
+  for(const [path,blob] of [[photo.originalPath,original],[photo.webPath,web]]){
+   const objectRef=this.S.ref(this.storage,path);
+   if(await this.objectExists(path)){finished+=blob.size;progress?.(finished/total);continue;}
+   const task=this.S.uploadBytesResumable(objectRef,blob,{contentType:blob.type,cacheControl:'private,no-store'});
+   await new Promise((resolve,reject)=>task.on('state_changed',snap=>progress?.((finished+snap.bytesTransferred)/total),reject,resolve));
+   finished+=blob.size;
+  }
   return photo;
  }
  async mediaBlob(path){if(!this.storage)throw C.error('storage-disabled','사진 저장소가 연결되지 않았습니다.');return this.S.getBlob(this.S.ref(this.storage,path),25*1024*1024);}
@@ -65,7 +74,12 @@ class FirebaseStore{
  async publish(id,expected){
   const F=this.F,a=await this.getArticle(id);if(a.revision!==expected)throw C.error('conflict','원고가 바뀌었습니다.');const p=C.publication(this.user,a,new Date().toISOString());
   const existing=await F.getDoc(F.doc(this.db,'publications',id));if(existing.exists()&&existing.data().sourceRevision===expected)return existing.data();
-  for(let i=0;i<a.photos.length;i++){const blob=await this.mediaBlob(a.photos[i].webPath);await this.S.uploadBytes(this.S.ref(this.storage,p.photos[i].webPath),blob,{contentType:'image/webp',cacheControl:'no-store'});}
+  for(let i=0;i<a.photos.length;i++){
+   const path=p.photos[i].webPath;
+   if(await this.objectExists(path))continue;
+   const blob=await this.mediaBlob(a.photos[i].webPath);
+   await this.S.uploadBytes(this.S.ref(this.storage,path),blob,{contentType:'image/webp',cacheControl:'no-store'});
+  }
   return F.runTransaction(this.db,async tx=>{const current=await tx.get(F.doc(this.db,'articles',id));if(!current.exists()||current.data().revision!==expected||current.data().status!=='approved'||!current.data().webConsent)throw C.error('conflict','발행 중 원고 또는 동의 상태가 바뀌었습니다.');tx.set(F.doc(this.db,'publications',id),{...p,serverWrittenAt:F.serverTimestamp()});return p;});
  }
  async unpublish(id){if(!C.teacher(this.user))throw C.error('permission','교사 권한이 필요합니다.');await this.F.deleteDoc(this.F.doc(this.db,'publications',id));}

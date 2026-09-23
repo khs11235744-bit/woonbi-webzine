@@ -1,0 +1,486 @@
+{
+  "version": 1,
+  "count": 96,
+  "items": [
+    {
+      "slot": "A01",
+      "file": "A01-1.svg",
+      "label": "대표사진"
+    },
+    {
+      "slot": "A02",
+      "file": "A02-1.svg",
+      "label": "대표사진"
+    },
+    {
+      "slot": "A03",
+      "file": "A03-1.svg",
+      "label": "대표사진"
+    },
+    {
+      "slot": "A03",
+      "file": "A03-2.svg",
+      "label": "관련 장면"
+    },
+    {
+      "slot": "A03",
+      "file": "A03-3.svg",
+      "label": "세부 사진"
+    },
+    {
+      "slot": "A03",
+      "file": "A03-4.svg",
+      "label": "자료 이미지"
+    },
+    {
+      "slot": "A07",
+      "file": "A07-1.svg",
+      "label": "대표 현장사진"
+    },
+    {
+      "slot": "A07",
+      "file": "A07-2.svg",
+      "label": "학생 표정"
+    },
+    {
+      "slot": "A07",
+      "file": "A07-3.svg",
+      "label": "단체사진"
+    },
+    {
+      "slot": "A07",
+      "file": "A07-4.svg",
+      "label": "세부 장면"
+    },
+    {
+      "slot": "A10",
+      "file": "A10-1.svg",
+      "label": "대표 현장사진"
+    },
+    {
+      "slot": "A10",
+      "file": "A10-2.svg",
+      "label": "학생 표정"
+    },
+    {
+      "slot": "A10",
+      "file": "A10-3.svg",
+      "label": "단체사진"
+    },
+    {
+      "slot": "A10",
+      "file": "A10-4.svg",
+      "label": "세부 장면"
+    },
+    {
+      "slot": "A20",
+      "file": "A20-1.svg",
+      "label": "대표사진"
+    },
+    {
+      "slot": "A20",
+      "file": "A20-2.svg",
+      "label": "관련 장면"
+    },
+    {
+      "slot": "A20",
+      "file": "A20-3.svg",
+      "label": "세부 사진"
+    },
+    {
+      "slot": "A04",
+      "file": "A04-1.svg",
+      "label": "대표 현장사진"
+    },
+    {
+      "slot": "A04",
+      "file": "A04-2.svg",
+      "label": "학생 표정"
+    },
+    {
+      "slot": "A04",
+      "file": "A04-3.svg",
+      "label": "단체사진"
+    },
+    {
+      "slot": "A04",
+      "file": "A04-4.svg",
+      "label": "세부 장면"
+    },
+    {
+      "slot": "A05",
+      "file": "A05-1.svg",
+      "label": "대표 현장사진"
+    },
+    {
+      "slot": "A05",
+      "file": "A05-2.svg",
+      "label": "학생 표정"
+    },
+    {
+      "slot": "A05",
+      "file": "A05-3.svg",
+      "label": "단체사진"
+    },
+    {
+      "slot": "A05",
+      "file": "A05-4.svg",
+      "label": "세부 장면"
+    },
+    {
+      "slot": "A06",
+      "file": "A06-1.svg",
+      "label": "대표 현장사진"
+    },
+    {
+      "slot": "A06",
+      "file": "A06-2.svg",
+      "label": "학생 표정"
+    },
+    {
+      "slot": "A06",
+      "file": "A06-3.svg",
+      "label": "단체사진"
+    },
+    {
+      "slot": "A06",
+      "file": "A06-4.svg",
+      "label": "세부 장면"
+    },
+    {
+      "slot": "A09",
+      "file": "A09-1.svg",
+      "label": "장소 전경"
+    },
+    {
+      "slot": "A09",
+      "file": "A09-2.svg",
+      "label": "관찰 장면"
+    },
+    {
+      "slot": "A09",
+      "file": "A09-3.svg",
+      "label": "이동 장면"
+    },
+    {
+      "slot": "A09",
+      "file": "A09-4.svg",
+      "label": "세부 유물"
+    },
+    {
+      "slot": "A12",
+      "file": "A12-1.svg",
+      "label": "대표 현장사진"
+    },
+    {
+      "slot": "A12",
+      "file": "A12-2.svg",
+      "label": "학생 표정"
+    },
+    {
+      "slot": "A12",
+      "file": "A12-3.svg",
+      "label": "단체사진"
+    },
+    {
+      "slot": "A12",
+      "file": "A12-4.svg",
+      "label": "세부 장면"
+    },
+    {
+      "slot": "A13",
+      "file": "A13-1.svg",
+      "label": "대표사진"
+    },
+    {
+      "slot": "A13",
+      "file": "A13-2.svg",
+      "label": "관련 장면"
+    },
+    {
+      "slot": "A13",
+      "file": "A13-3.svg",
+      "label": "세부 사진"
+    },
+    {
+      "slot": "A13",
+      "file": "A13-4.svg",
+      "label": "자료 이미지"
+    },
+    {
+      "slot": "A25",
+      "file": "A25-1.svg",
+      "label": "대표 현장사진"
+    },
+    {
+      "slot": "A25",
+      "file": "A25-2.svg",
+      "label": "학생 표정"
+    },
+    {
+      "slot": "A25",
+      "file": "A25-3.svg",
+      "label": "단체사진"
+    },
+    {
+      "slot": "A25",
+      "file": "A25-4.svg",
+      "label": "세부 장면"
+    },
+    {
+      "slot": "A16",
+      "file": "A16-1.svg",
+      "label": "인터뷰 인물사진"
+    },
+    {
+      "slot": "A16",
+      "file": "A16-2.svg",
+      "label": "대화 장면"
+    },
+    {
+      "slot": "A16",
+      "file": "A16-3.svg",
+      "label": "공간 전경"
+    },
+    {
+      "slot": "A16",
+      "file": "A16-4.svg",
+      "label": "자료 사진"
+    },
+    {
+      "slot": "A17",
+      "file": "A17-1.svg",
+      "label": "인터뷰 인물사진"
+    },
+    {
+      "slot": "A17",
+      "file": "A17-2.svg",
+      "label": "대화 장면"
+    },
+    {
+      "slot": "A17",
+      "file": "A17-3.svg",
+      "label": "공간 전경"
+    },
+    {
+      "slot": "A18",
+      "file": "A18-1.svg",
+      "label": "대표사진"
+    },
+    {
+      "slot": "A18",
+      "file": "A18-2.svg",
+      "label": "관련 장면"
+    },
+    {
+      "slot": "A18",
+      "file": "A18-3.svg",
+      "label": "세부 사진"
+    },
+    {
+      "slot": "A18",
+      "file": "A18-4.svg",
+      "label": "자료 이미지"
+    },
+    {
+      "slot": "A19",
+      "file": "A19-1.svg",
+      "label": "인터뷰 인물사진"
+    },
+    {
+      "slot": "A19",
+      "file": "A19-2.svg",
+      "label": "대화 장면"
+    },
+    {
+      "slot": "A19",
+      "file": "A19-3.svg",
+      "label": "공간 전경"
+    },
+    {
+      "slot": "A19",
+      "file": "A19-4.svg",
+      "label": "자료 사진"
+    },
+    {
+      "slot": "A22",
+      "file": "A22-1.svg",
+      "label": "인터뷰 인물사진"
+    },
+    {
+      "slot": "A22",
+      "file": "A22-2.svg",
+      "label": "대화 장면"
+    },
+    {
+      "slot": "A22",
+      "file": "A22-3.svg",
+      "label": "공간 전경"
+    },
+    {
+      "slot": "A22",
+      "file": "A22-4.svg",
+      "label": "자료 사진"
+    },
+    {
+      "slot": "A08",
+      "file": "A08-1.svg",
+      "label": "인터뷰 인물사진"
+    },
+    {
+      "slot": "A08",
+      "file": "A08-2.svg",
+      "label": "대화 장면"
+    },
+    {
+      "slot": "A08",
+      "file": "A08-3.svg",
+      "label": "공간 전경"
+    },
+    {
+      "slot": "A08",
+      "file": "A08-4.svg",
+      "label": "자료 사진"
+    },
+    {
+      "slot": "A11",
+      "file": "A11-1.svg",
+      "label": "대표사진"
+    },
+    {
+      "slot": "A11",
+      "file": "A11-2.svg",
+      "label": "관련 장면"
+    },
+    {
+      "slot": "A11",
+      "file": "A11-3.svg",
+      "label": "세부 사진"
+    },
+    {
+      "slot": "A11",
+      "file": "A11-4.svg",
+      "label": "자료 이미지"
+    },
+    {
+      "slot": "A15",
+      "file": "A15-1.svg",
+      "label": "대표사진"
+    },
+    {
+      "slot": "A15",
+      "file": "A15-2.svg",
+      "label": "관련 장면"
+    },
+    {
+      "slot": "A15",
+      "file": "A15-3.svg",
+      "label": "세부 사진"
+    },
+    {
+      "slot": "A15",
+      "file": "A15-4.svg",
+      "label": "자료 이미지"
+    },
+    {
+      "slot": "A21",
+      "file": "A21-1.svg",
+      "label": "대표사진"
+    },
+    {
+      "slot": "A21",
+      "file": "A21-2.svg",
+      "label": "관련 장면"
+    },
+    {
+      "slot": "A21",
+      "file": "A21-3.svg",
+      "label": "세부 사진"
+    },
+    {
+      "slot": "A23",
+      "file": "A23-1.svg",
+      "label": "대표사진"
+    },
+    {
+      "slot": "A24",
+      "file": "A24-1.svg",
+      "label": "대표사진"
+    },
+    {
+      "slot": "A24",
+      "file": "A24-2.svg",
+      "label": "관련 장면"
+    },
+    {
+      "slot": "A24",
+      "file": "A24-3.svg",
+      "label": "세부 사진"
+    },
+    {
+      "slot": "A24",
+      "file": "A24-4.svg",
+      "label": "자료 이미지"
+    },
+    {
+      "slot": "A26",
+      "file": "A26-1.svg",
+      "label": "대표사진"
+    },
+    {
+      "slot": "A26",
+      "file": "A26-2.svg",
+      "label": "관련 장면"
+    },
+    {
+      "slot": "A26",
+      "file": "A26-3.svg",
+      "label": "세부 사진"
+    },
+    {
+      "slot": "A26",
+      "file": "A26-4.svg",
+      "label": "자료 이미지"
+    },
+    {
+      "slot": "A27",
+      "file": "A27-1.svg",
+      "label": "대표사진"
+    },
+    {
+      "slot": "A27",
+      "file": "A27-2.svg",
+      "label": "관련 장면"
+    },
+    {
+      "slot": "A27",
+      "file": "A27-3.svg",
+      "label": "세부 사진"
+    },
+    {
+      "slot": "A27",
+      "file": "A27-4.svg",
+      "label": "자료 이미지"
+    },
+    {
+      "slot": "A28",
+      "file": "A28-1.svg",
+      "label": "대표사진"
+    },
+    {
+      "slot": "A28",
+      "file": "A28-2.svg",
+      "label": "관련 장면"
+    },
+    {
+      "slot": "A28",
+      "file": "A28-3.svg",
+      "label": "세부 사진"
+    },
+    {
+      "slot": "A28",
+      "file": "A28-4.svg",
+      "label": "자료 이미지"
+    }
+  ]
+}

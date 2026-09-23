@@ -11,16 +11,16 @@ service firebase.storage {
   function photo(){return request.resource.size>0 && request.resource.size<=25*1024*1024 && request.resource.contentType.matches('image/(jpeg|png|webp)');}
   match /private/{aid}/{mediaId}/{filename} {
    allow read: if permitted(aid);
-   allow create: if permitted(aid) && article(aid).status in ['draft','changes'] && photo() && filename in ['original','web.webp'];
-   // Immutable originals support frozen print editions and prevent silent replacement.
+   allow create: if resource == null && permitted(aid) && article(aid).status in ['draft','changes'] && photo() && filename in ['original','web.webp'];
    allow update,delete: if false;
   }
   match /public/{aid}/{revision}/{filename} {
-   allow read: if firestore.exists(/databases/(default)/documents/publications/$(aid)) &&
-    string(firestore.get(/databases/(default)/documents/publications/$(aid)).data.sourceRevision)==revision;
-   allow create,update: if teacher() && photo() && request.resource.contentType=='image/webp' &&
-    !(firestore.exists(/databases/(default)/documents/publications/$(aid)) && string(firestore.get(/databases/(default)/documents/publications/$(aid)).data.sourceRevision)==revision);
-   allow delete: if false;
+   allow read: if teacher() || (firestore.exists(/databases/(default)/documents/publications/$(aid)) &&
+    string(firestore.get(/databases/(default)/documents/publications/$(aid)).data.sourceRevision)==revision);
+   allow create: if resource == null && teacher() && photo() && request.resource.contentType=='image/webp' &&
+    !(firestore.exists(/databases/(default)/documents/publications/$(aid)) &&
+      string(firestore.get(/databases/(default)/documents/publications/$(aid)).data.sourceRevision)==revision);
+   allow update,delete: if false;
   }
   match /{all=**}{allow read,write: if false;}
  }

@@ -16,13 +16,17 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: npm
+
+      - name: Install project tooling
+        run: npm ci
 
       - id: auth
         name: Authenticate to Google Cloud with OIDC
@@ -42,10 +46,7 @@ jobs:
           NEIS_API_KEY: ${{ secrets.NEIS_API_KEY }}
         run: node scripts/fetch-school-life.mjs
 
-      - name: Install Firebase CLI
-        run: npm install --global firebase-tools@15.30.2
-
       - name: Deploy refreshed Hosting
         env:
           FIREBASE_TOKEN: ${{ steps.auth.outputs.access_token }}
-        run: firebase deploy --project woonbi-webzine-2026 --only hosting --non-interactive
+        run: npx firebase deploy --project woonbi-webzine-2026 --only hosting --non-interactive
