@@ -1,0 +1,40 @@
+name: Woonbi Firebase deploy
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type DEPLOY-WOONBI'
+        required: true
+permissions:
+  contents: read
+jobs:
+  deploy:
+    if: github.event.inputs.confirm == 'DEPLOY-WOONBI'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts || npm install --ignore-scripts
+      - run: npm run check && npm test
+      - name: Write private live config
+        env:
+          WOONBI_LIVE_CONFIG: ${{ secrets.WOONBI_LIVE_CONFIG }}
+        run: |
+          test -n "$WOONBI_LIVE_CONFIG"
+          printf '%s' "$WOONBI_LIVE_CONFIG" > .woonbi-live-config.json
+          python3 scripts/build.py --live-config .woonbi-live-config.json
+      - name: Install Firebase CLI
+        run: npm install --no-save firebase-tools
+      - name: Deploy Woonbi only
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS_JSON: ${{ secrets.WOONBI_FIREBASE_SERVICE_ACCOUNT }}
+          WOONBI_PROJECT_ID: ${{ secrets.WOONBI_FIREBASE_PROJECT_ID }}
+        run: |
+          test -n "$GOOGLE_APPLICATION_CREDENTIALS_JSON"
+          test -n "$WOONBI_PROJECT_ID"
+          printf '%s' "$GOOGLE_APPLICATION_CREDENTIALS_JSON" > /tmp/woonbi-sa.json
+          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/woonbi-sa.json
+          npx firebase-tools deploy --project "$WOONBI_PROJECT_ID" --only firestore:rules,storage,hosting --non-interactive
