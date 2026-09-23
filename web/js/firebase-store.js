@@ -18,8 +18,9 @@ class FirebaseStore{
    }catch(e){if(!settled){settled=true;reject(e);}else this.onError?.(e);}
   },reject);});return this;
  }
- async login(){await this.A.signInWithPopup(this.auth,new this.A.GoogleAuthProvider());}
- async loginRedirect(){return this.A.signInWithRedirect(this.auth,new this.A.GoogleAuthProvider());}
+ provider(){const p=new this.A.GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});return p;}
+ async login(){await this.A.signInWithPopup(this.auth,this.provider());}
+ async loginRedirect(){return this.A.signInWithRedirect(this.auth,this.provider());}
  async logout(){await this.A.signOut(this.auth);this.user=null;}
  async listMembers(){const F=this.F;if(!C.teacher(this.user))return this.user?[this.user]:[];const s=await F.getDocs(F.query(F.collection(this.db,'members'),F.limit(250)));return s.docs.map(d=>({uid:d.id,...d.data()}));}
  async setMember(uid,role,active){if(!C.teacher(this.user)||!['student','editor','pending'].includes(role))throw C.error('permission','계정 권한을 확인해 주세요.');await this.F.updateDoc(this.F.doc(this.db,'members',uid),{role,active});}
@@ -32,6 +33,17 @@ class FirebaseStore{
  transition(id,expected,target,options){return this.mutate(id,expected,a=>C.transition(this.user,a,expected,target,options,new Date().toISOString()));}
  async history(id){const F=this.F,s=await F.getDocs(F.query(F.collection(this.db,'articles',id,'revisions'),F.orderBy('at','desc'),F.limit(30)));return s.docs.map(d=>({id:d.id,...d.data()}));}
  subscribe(cb){if(!this.user?.active)return()=>{};const F=this.F,col=F.collection(this.db,'articles'),q=C.staff(this.user)?F.query(col,F.limit(100)):F.query(col,F.where('assigneeIds','array-contains',this.user.uid),F.limit(100));let first=true;return F.onSnapshot(q,()=>{if(first){first=false;return;}cb();},e=>this.onError?.(e));}
+ watchEditors(id,cb){
+  if(!this.user?.active)return()=>{};
+  const F=this.F,own=F.doc(this.db,'articles',id,'presence',this.user.uid),col=F.collection(this.db,'articles',id,'presence');
+  const beat=()=>F.setDoc(own,{displayName:(this.user.displayName||'편집자').slice(0,60),updatedAt:F.serverTimestamp()},{merge:true}).catch(e=>this.onError?.(e));
+  beat();const timer=setInterval(beat,30000);
+  const unsub=F.onSnapshot(col,s=>{
+   const now=Date.now(),rows=s.docs.map(d=>({uid:d.id,...d.data()})).filter(x=>x.uid!==this.user.uid&&x.updatedAt?.toMillis&&now-x.updatedAt.toMillis()<90000);
+   cb(rows);
+  },e=>this.onError?.(e));
+  return()=>{clearInterval(timer);unsub();F.deleteDoc(own).catch(()=>{});};
+ }
  async upload(id,photo,original,web,progress){
   if(!this.storage)throw C.error('storage-disabled','클라우드 사진 저장을 아직 연결하지 않았습니다. Blaze 결제 확인 후 별도로 설정해야 합니다.');
   const a=await this.getArticle(id);if(!C.canEdit(this.user,a))throw C.error('permission','원고 수정 권한이 필요합니다.');
