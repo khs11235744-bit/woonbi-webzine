@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 const W=window.Woonbi,C=W.core,$=s=>document.querySelector(s),main=$('#main'),dialog=$('#dialog');
-let newsroom,store,user,view='public',edit=null,dirty=false,editSequence=0,saveTimer=null,saveJob=null,uploading=false,unsubscribe=null,filter='all',search='',planKind='all',categoryFilter='all',issueSelection=[];
+let newsroom,store,user,view='public',edit=null,dirty=false,editSequence=0,saveTimer=null,saveJob=null,uploading=false,unsubscribe=null,presenceStop=null,filter='all',search='',planKind='all',categoryFilter='all',issueSelection=[];
 const urls=new Map(),now=()=>new Date().toISOString();
 const h=(tag,attrs={},...children)=>{const e=document.createElement(tag);for(const [k,v] of Object.entries(attrs)){if(v==null||v===false)continue;if(k==='class')e.className=v;else if(k==='text')e.textContent=v;else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);else if(k==='checked')e.checked=!!v;else if(k==='value')e.value=v;else if(k==='disabled'||k==='hidden')e[k]=!!v;else e.setAttribute(k,v===true?'':String(v));}for(const c of children.flat(Infinity)){if(c!=null&&c!==false)e.append(c instanceof Node?c:document.createTextNode(String(c)));}return e;};
 const button=(text,fn,cls='')=>h('button',{class:cls,onclick:async e=>{e.preventDefault();try{await fn(e);}catch(err){showError(err);}}},text);
@@ -23,7 +23,7 @@ async function save(){
  catch(e){setSave(e.code==='conflict'?'수정 충돌 · 내 글은 이 탭에 보관됨':'서버 저장 실패 · 이 탭에만 임시 보관됨',true);const box=$('#conflictBox');if(box){box.hidden=false;box.replaceChildren(h('p',{},e.message),button('내 원고 사본 받기',()=>textDownload(JSON.stringify({articleId:edit.id,...readEditor()},null,2),'woonbi-unsaved-draft.json')),button('최신 원고 다시 열기',async()=>{if(confirm('현재 입력 내용은 사본으로 먼저 보관해 주세요. 최신 원고로 다시 열까요?')){dirty=false;await openEditor(edit.id);}}));}buffer();throw e;}
  })();saveJob=task;try{await task;}finally{saveJob=null;}if(dirty&&seq!==editSequence)return save();
 }
-async function leaveEditor(){clearTimeout(saveTimer);if(uploading){toast('사진 저장이 끝난 뒤 이동해 주세요.');return false;}if(dirty){try{await save();}catch{toast('저장되지 않은 글이 있습니다. 먼저 사본을 보관해 주세요.');return false;}}edit=null;dirty=false;return true;}
+async function leaveEditor(){clearTimeout(saveTimer);if(uploading){toast('사진 저장이 끝난 뒤 이동해 주세요.');return false;}if(dirty){try{await save();}catch{toast('저장되지 않은 글이 있습니다. 먼저 사본을 보관해 주세요.');return false;}}presenceStop?.();presenceStop=null;edit=null;dirty=false;return true;}
 function clearLocalBuffers(){for(const k of W.session.keys())if(k.startsWith('woonbi-buffer:'))W.session.removeItem(k);for(const v of urls.values())URL.revokeObjectURL(v);urls.clear();}
 function refreshHeader(){
  const reading=['public','archive','examples','reader'].includes(view);document.body.classList.toggle('reading-view',reading);main.className=reading?'newsroom-main':'desk-main';document.querySelectorAll('.desk-only').forEach(e=>e.hidden=reading);document.querySelectorAll('.reader-only').forEach(e=>e.hidden=!reading);
@@ -118,6 +118,8 @@ async function openEditor(id){
  if(!writable)photos.querySelector('.photo-tools').hidden=true;
  const top=h('div',{class:'editor-top'},button('← 기사 목록',()=>navigate('articles'),'text'),h('span',{class:'badge '+edit.status},articleState(edit)),h('span',{id:'saveStatus',class:'save-status'},store.mode==='demo'?(store.persistence==='memory'?'이 탭에만 임시 저장됨':'이 기기에 저장됨'):'학교 서버에서 불러옴'));
  main.replaceChildren(top,h('div',{class:'notice',id:'remoteNotice',hidden:true},'기사가 변경되었습니다. 같은 원고를 다른 탭에서 편집했다면 저장할 때 버전을 다시 확인합니다.'),h('div',{class:'notice error',id:'conflictBox',hidden:true}),h('div',{class:'editor-grid'},h('div',{},edit.feedback?h('div',{class:'notice warn'},h('b',{},'수정 의견'),h('p',{},edit.feedback)):null,planBrief(edit),edit.contentOrigin?newsroom.editorialNotes(edit):null,writing,h('div',{style:'height:28px'}),photos),side));
+ const presence=h('div',{class:'presence-line',id:'presenceLine',hidden:true});main.insertBefore(presence,main.children[1]);
+ if(writable&&typeof store.watchEditors==='function'){presence.hidden=false;presence.textContent='공동 편집 상태 확인 중…';presenceStop=store.watchEditors(edit.id,rows=>{presence.replaceChildren();if(!rows.length){presence.textContent='현재 이 원고를 다른 편집자가 열어두고 있지 않습니다.';return;}presence.append(h('strong',{},'함께 열어둔 사람 '),document.createTextNode(rows.map(x=>x.displayName).join(' · ')+' · 저장 시 버전 충돌을 확인합니다.'));});}
  const buf=W.session.getItem(bufferKey());if(buf&&writable){const saved=JSON.parse(buf);main.prepend(h('div',{class:'notice recovery'},h('p',{},'이 탭에 서버 저장을 마치지 못한 원고가 있습니다.'),button('임시 원고 복구',()=>{title.value=saved.patch.title;body.value=saved.patch.body;deck.value=saved.patch.deck;byline.value=saved.patch.byline;edit.photos=saved.patch.photos;edit.revision=saved.revision;changed();renderPhotoGrid();}),button('임시 사본 받기',()=>textDownload(JSON.stringify(saved,null,2),'woonbi-recovery.json'))));}
  await renderPhotoGrid();renderPreflight();window.scrollTo(0,0);
 }
