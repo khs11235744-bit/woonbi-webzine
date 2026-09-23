@@ -1,0 +1,13 @@
+{
+  "mode": "firebase",
+  "firebase": {
+    "apiKey": "PUBLIC_FIREBASE_WEB_API_KEY",
+    "authDomain": "woonbi-example.firebaseapp.com",
+    "projectId": "woonbi-example",
+    "storageBucket": "woonbi-example.firebasestorage.app",
+    "messagingSenderId": "000000000000",
+    "appId": "1:000000000000:web:example"
+  },
+  "enableStorage": true,
+  "schoolLifeEndpoint": ""
+}
