@@ -1,12 +1,12 @@
-name: Woonbi v0.5 checks — no deployment
+name: Woonbi v0.6 checks — no deployment
 on:
   push:
-    branches: [woonbi-webzine-v0.5]
+    branches: [woonbi-webzine-v0.6]
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: woonbi-v05-${{ github.ref }}
+  group: woonbi-v06-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   checks:
