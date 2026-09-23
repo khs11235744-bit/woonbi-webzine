@@ -23,3 +23,8 @@ web/assets/archive/
 *원고포함.html
 *.log
 bootstrap/payload-*.txt
+
+.woonbi-live-config.json
+.firebase-auth-local.json
+firebase-debug.log
+firebase-debug.*.log

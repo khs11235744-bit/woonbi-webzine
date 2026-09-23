@@ -139,7 +139,7 @@ async function historyDialog(){
  dialogOpen('수정 이력 · 최근 기록',list);
 }
 async function mediaUrl(path){if(urls.has(path))return urls.get(path);const blob=await store.mediaBlob(path),u=URL.createObjectURL(blob);urls.set(path,u);return u;}
-async function imageNode(p){const img=h('img',{alt:p.alt||p.caption||'기사 사진',width:p.width||1200,height:p.height||800,loading:'lazy'});try{img.src=await mediaUrl(p.webPath);}catch{img.replaceWith?.();return h('div',{class:'notice warn'},'사진을 불러오지 못했습니다. 원고는 그대로 보존됩니다.');}return img;}
+async function imageNode(p){const img=h('img',{alt:p.alt||p.caption||'기사 사진',width:p.width||1200,height:p.height||800,loading:'lazy'});if(p.sourceAsset){img.src=p.sourceAsset;return img;}try{img.src=await mediaUrl(p.webPath);}catch{img.replaceWith?.();return h('div',{class:'notice warn'},'사진을 불러오지 못했습니다. 원고는 그대로 보존됩니다.');}return img;}
 async function replacePhoto(id,file){
  if(!file||!edit||!C.canEdit(user,edit)||uploading)return;
  const index=edit.photos.findIndex(p=>p.id===id);if(index<0)return;

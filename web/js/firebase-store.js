@@ -24,6 +24,14 @@ class FirebaseStore{
  async logout(){await this.A.signOut(this.auth);this.user=null;}
  async listMembers(){const F=this.F;if(!C.teacher(this.user))return this.user?[this.user]:[];const s=await F.getDocs(F.query(F.collection(this.db,'members'),F.limit(250)));return s.docs.map(d=>({uid:d.id,...d.data()}));}
  async setMember(uid,role,active){if(!C.teacher(this.user)||!['student','editor','pending'].includes(role))throw C.error('permission','계정 권한을 확인해 주세요.');await this.F.updateDoc(this.F.doc(this.db,'members',uid),{role,active});}
+ async updateAssignment(id,expected,patch){
+  if(!C.teacher(this.user))throw C.error('permission','교사 권한이 필요합니다.');
+  const ids=[...new Set((patch.assigneeIds||[]).map(String).filter(Boolean))];
+  if(!ids.length||ids.length>8)throw C.error('invalid','담당 학생을 1명 이상 8명 이하로 선택해 주세요.');
+  const members=await this.listMembers(),byId=new Map(members.map(m=>[m.uid,m.displayName||'학생']));
+  const names=ids.map(uid=>byId.get(uid)||'승인 계정');
+  return this.mutate(id,expected,a=>({...a,assigneeIds:ids,assigneeNames:names,dueDate:String(patch.dueDate||'').slice(0,10),revision:a.revision+1,updatedAt:new Date().toISOString(),updatedBy:this.user.uid,webConsent:false,printConsent:false}));
+ }
  async listArticles(){if(!this.user?.active)return[];const F=this.F,col=F.collection(this.db,'articles');const q=C.staff(this.user)?F.query(col,F.limit(100)):F.query(col,F.where('assigneeIds','array-contains',this.user.uid),F.limit(100));const s=await F.getDocs(q);return s.docs.map(d=>({...d.data(),id:d.id}));}
  async getArticle(id){const d=await this.F.getDoc(this.F.doc(this.db,'articles',id));if(!d.exists())throw C.error('missing','기사를 찾을 수 없습니다.');return {...d.data(),id:d.id};}
  async createArticle(input){const F=this.F,id=C.uuid(),a=C.newArticle(this.user,{...input,id},new Date().toISOString()),ref=F.doc(this.db,'articles',id);const n={...a,serverWrittenAt:F.serverTimestamp()},b=F.writeBatch(this.db);b.set(ref,n);b.set(F.doc(ref,'revisions','0'),{snapshot:n,actor:this.user.uid,at:F.serverTimestamp()});await b.commit();return a;}
@@ -53,7 +61,7 @@ class FirebaseStore{
   return photo;
  }
  async mediaBlob(path){if(!this.storage)throw C.error('storage-disabled','사진 저장소가 연결되지 않았습니다.');return this.S.getBlob(this.S.ref(this.storage,path),25*1024*1024);}
- async listPublic(){const F=this.F,s=await F.getDocs(F.query(F.collection(this.db,'publications'),F.limit(100)));return s.docs.map(d=>({...d.data(),id:d.id}));}
+ async listPublic(){const F=this.F,s=await F.getDocs(F.query(F.collection(this.db,'publications'),F.limit(100))),plan=new Map((W.plan2026?.articles||[]).map(a=>[a.id,a]));return s.docs.map(d=>{let row={...(plan.get(d.id)||{}),...d.data(),id:d.id};if(plan.has(d.id)&&(!row.photos||!row.photos.length)&&W.seedWithSamples)row=W.seedWithSamples([row])[0];return row;});}
  async publish(id,expected){
   const F=this.F,a=await this.getArticle(id);if(a.revision!==expected)throw C.error('conflict','원고가 바뀌었습니다.');const p=C.publication(this.user,a,new Date().toISOString());
   const existing=await F.getDoc(F.doc(this.db,'publications',id));if(existing.exists()&&existing.data().sourceRevision===expected)return existing.data();
