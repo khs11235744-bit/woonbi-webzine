@@ -9,5 +9,5 @@
                      "appId":  "1:285370921993:web:5e9b50f4f5415d3bfe34d8"
                  },
     "enableStorage":  true,
-    "schoolLifeEndpoint":  ""
+    "schoolLifeEndpoint":  "/school-life.json"
 }

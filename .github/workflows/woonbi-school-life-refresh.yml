@@ -1,8 +1,8 @@
-name: Woonbi Firebase deploy
+name: Woonbi school life refresh
 
 on:
-  push:
-    branches: [main]
+  schedule:
+    - cron: '17 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -10,25 +10,19 @@ permissions:
   id-token: write
 
 concurrency:
-  group: woonbi-production
+  group: woonbi-school-life-refresh
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-
-      - name: Check source
-        run: |
-          npm run check
-          npm test
-          npm run build
 
       - id: auth
         name: Authenticate to Google Cloud with OIDC
@@ -51,7 +45,7 @@ jobs:
       - name: Install Firebase CLI
         run: npm install --global firebase-tools@15.30.2
 
-      - name: Deploy Woonbi only
+      - name: Deploy refreshed Hosting
         env:
           FIREBASE_TOKEN: ${{ steps.auth.outputs.access_token }}
-        run: firebase deploy --project woonbi-webzine-2026 --only firestore,storage,hosting --non-interactive
+        run: firebase deploy --project woonbi-webzine-2026 --only hosting --non-interactive

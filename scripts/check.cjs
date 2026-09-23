@@ -1,5 +1,6 @@
 const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process');
 for(const f of fs.readdirSync('web/js').filter(f=>f.endsWith('.js')))cp.execFileSync(process.execPath,['--check',path.join('web/js',f)],{stdio:'inherit'});
+cp.execFileSync(process.execPath,['--check','scripts/fetch-school-life.mjs'],{stdio:'inherit'});
 for(const f of ['package.json','firebase.json','firebase/firestore.indexes.json','firebase/cors.example.json'])JSON.parse(fs.readFileSync(f,'utf8'));
 
 const referencePath='web/js/reference-data.js';
