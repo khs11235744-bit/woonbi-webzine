@@ -95,6 +95,33 @@ async function assignDialog(){const members=(await store.listMembers()).filter(m
  if(!members.length)form.append(h('p',{class:'warning'},'참여자 화면에서 학생 계정을 먼저 승인해 주세요.'));
  const submit=button('기사 만들기',async()=>{if(!form.reportValidity())return;const data=new FormData(form),a=await store.createArticle({title:String(data.get('title')),category:String(data.get('category')),dueDate:String(data.get('dueDate')),minPhotos:Number(data.get('minPhotos')),assigneeIds:data.getAll('assignee')});dialog.close();toast('기사 배정을 저장했습니다.');await openEditor(a.id);},'primary');dialogOpen('새 기사 배정',form,[submit]);}
 function renderPreflight(){const host=$('#v4Preflight');if(!host||!edit)return;const a={...edit,...readEditor()},items=W.editorial.preflight(a);host.replaceChildren(h('h3',{},'편집 체크'),h('p',{class:'small'},'자동 검사는 사실 검증을 대신하지 않습니다.'),...items.map(x=>h('p',{class:'check-'+x.severity},x.text)));if(!items.length)host.append(h('p',{},'형식 확인 완료 · 사실·출처는 사람이 확인하세요.'));}
+function photoPlanPanel(a,writable){
+ const plan=W.legacyPlanFor?.(a.id);if(!plan?.photos?.length)return null;
+ const wrap=h('section',{class:'photo-plan'},h('div',{class:'photo-plan-head'},h('div',{},h('span',{class:'eyebrow'},'ORIGINAL PHOTO PLAN'),h('h3',{},'원래 사진 계획')),h('span',{class:'small muted'},plan.photos.length+'개 슬롯')));
+ wrap.append(h('p',{class:'small muted'},'원래 index/웅비 패키지의 사진 배치를 보존했습니다. 이 이미지는 자리표시자이며 실제 사진을 올리면 순서대로 채워집니다.'));
+ const grid=h('div',{class:'photo-plan-grid'});
+ plan.photos.forEach((slot,i)=>{const card=h('article',{class:'photo-plan-slot'}),filled=a.photos[i];
+  card.append(h('img',{src:slot.sourceAsset,alt:slot.alt||'교체용 사진 슬롯',loading:'lazy'}),h('div',{class:'photo-plan-copy'},h('b',{},(i+1)+'번 · '+(slot.caption||'사진 슬롯').replace(/ · 실제 현장 사진으로 교체 필요$/,'')),h('span',{class:filled?'slot-state filled':'slot-state'},filled?'실제 사진 연결됨':'사진 필요')));
+  if(writable&&!filled){const input=h('input',{type:'file',accept:'image/jpeg,image/png,image/webp',hidden:true,'aria-label':(i+1)+'번 슬롯 사진 선택'});input.addEventListener('change',()=>uploadPlannedPhoto(slot,i,input.files[0]).catch(showError));card.append(input,button('이 슬롯에 사진 넣기',()=>input.click(),'text'));}
+  grid.append(card);
+ });
+ wrap.append(grid);return wrap;
+}
+async function uploadPlannedPhoto(slot,index,file){
+ if(!file||!edit||!C.canEdit(user,edit)||uploading)return;
+ if(edit.photos.length>=12)throw new Error('사진은 기사당 최대 12장입니다.');
+ uploading=true;const root=$('#uploadProgress');
+ try{root.textContent='사진 슬롯 준비 중…';const d=await preparePhoto(file,edit.id);
+  d.photo.caption=(slot.caption||'').replace(/ · 실제 현장 사진으로 교체 필요$/,'').slice(0,300);
+  d.photo.alt=(slot.alt||file.name.replace(/\.[^.]+$/,'')).slice(0,200);
+  await store.upload(edit.id,d.photo,d.original,d.web,v=>{root.textContent='사진 저장 '+Math.round(v*100)+'%';});
+  const at=Math.min(index,edit.photos.length);edit.photos.splice(at,0,d.photo);changed();await save();await renderPhotoGrid();renderPreflight();toast((index+1)+'번 사진 슬롯을 채웠습니다.');
+ }finally{uploading=false;root.textContent='';}
+}
+function movePhoto(sourceId,targetIndex){
+ if(!edit)return;const from=edit.photos.findIndex(x=>x.id===sourceId);if(from<0||targetIndex<0||targetIndex>=edit.photos.length||from===targetIndex)return;
+ const [p]=edit.photos.splice(from,1);edit.photos.splice(targetIndex,0,p);changed();renderPhotoGrid();renderPreflight();
+}
 async function openEditor(id){
  if(edit&&!(await leaveEditor()))return;edit=await store.getArticle(id);dirty=false;editSequence=0;view='editor';refreshHeader();const writable=C.canEdit(user,edit);
  const title=h('input',{id:'articleTitle',value:edit.title,placeholder:'기사 제목',maxlength:150,'aria-label':'기사 제목',disabled:!writable});
@@ -114,8 +141,11 @@ async function openEditor(id){
  side.append(h('div',{class:'panel',id:'v4Preflight','aria-live':'polite'}));
  side.append(h('div',{class:'panel'},h('h3',{},'기록과 미리보기'),button('기사 미리보기',async()=>{const a={...edit,...readEditor()};const content=await renderArticle(a);dialogOpen('발행 전 미리보기',content);}),button('수정 이력 보기',historyDialog),button('내 원고 사본 받기',()=>textDownload(JSON.stringify({...edit,...readEditor()},null,2),'woonbi-article-backup.json'))));
  const file=h('input',{type:'file',multiple:true,accept:'image/jpeg,image/png,image/webp',hidden:true,id:'photoInput'});file.addEventListener('change',()=>uploadFiles(file.files).catch(showError));
- const photos=h('section',{},h('h2',{},'사진'),h('p',{class:'muted small'},'대표사진은 첫 번째 사진입니다. 나머지는 글 사이에 자동으로 나누어 넣습니다. 원본은 인쇄용으로 따로 보관합니다.'),file,h('div',{class:'photo-tools'},button('사진 여러 장 올리기',()=>{if(writable)file.click();}),button('학교 드라이브',()=>dialogOpen('학교 드라이브 연결은 다음 단계입니다',h('p',{},'첫 버전은 기기에서 직접 업로드합니다. 학교 폴더의 공유 권한을 확인한 후 별도 선택 기능을 붙일 예정입니다. 폴더 전체를 공개하지 않습니다.')))),h('div',{id:'uploadProgress'}),h('div',{class:'photo-grid',id:'photoGrid'}));
- if(!writable)photos.querySelector('.photo-tools').hidden=true;
+ const drop=h('div',{class:'photo-dropzone',role:'button',tabindex:writable?0:-1,'aria-disabled':String(!writable)},h('strong',{},'사진을 여기로 끌어오거나 눌러 선택'),h('span',{},'JPG · PNG · WebP / 장당 25MB / 웹용 WebP 자동 생성'));
+ if(writable){drop.addEventListener('click',()=>file.click());drop.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();file.click();}});for(const ev of ['dragenter','dragover'])drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('is-drag');});for(const ev of ['dragleave','drop'])drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('is-drag');});drop.addEventListener('drop',e=>uploadFiles(e.dataTransfer.files).catch(showError));}
+ const planPanel=photoPlanPanel(edit,writable);
+ const photos=h('section',{class:'editor-photos'},h('div',{class:'photo-section-head'},h('div',{},h('h2',{},'사진'),h('p',{class:'muted small'},'첫 번째 사진이 대표사진입니다. 원본은 비공개 보관하고 1600px 이하 WebP 공개용 파생본을 자동 생성합니다.')),h('span',{class:'photo-count'},edit.photos.length+'/12')),file,drop,h('div',{class:'photo-tools'},button('사진 여러 장 올리기',()=>{if(writable)file.click();})),planPanel,h('div',{id:'uploadProgress','aria-live':'polite'}),h('div',{class:'photo-grid',id:'photoGrid'}));
+ if(!writable){drop.classList.add('disabled');photos.querySelector('.photo-tools').hidden=true;}
  const top=h('div',{class:'editor-top'},button('← 기사 목록',()=>navigate('articles'),'text'),h('span',{class:'badge '+edit.status},articleState(edit)),h('span',{id:'saveStatus',class:'save-status'},store.mode==='demo'?(store.persistence==='memory'?'이 탭에만 임시 저장됨':'이 기기에 저장됨'):'학교 서버에서 불러옴'));
  main.replaceChildren(top,h('div',{class:'notice',id:'remoteNotice',hidden:true},'기사가 변경되었습니다. 같은 원고를 다른 탭에서 편집했다면 저장할 때 버전을 다시 확인합니다.'),h('div',{class:'notice error',id:'conflictBox',hidden:true}),h('div',{class:'editor-grid'},h('div',{},edit.feedback?h('div',{class:'notice warn'},h('b',{},'수정 의견'),h('p',{},edit.feedback)):null,planBrief(edit),edit.contentOrigin?newsroom.editorialNotes(edit):null,writing,h('div',{style:'height:28px'}),photos),side));
  const presence=h('div',{class:'presence-line',id:'presenceLine',hidden:true});main.insertBefore(presence,main.children[1]);
@@ -149,12 +179,12 @@ async function replacePhoto(id,file){
  }catch(e){if(edit.photos[index]?.id!==previous.id){edit.photos[index]=previous;buffer();}throw e;}
  finally{uploading=false;root.textContent='';}
 }
-async function renderPhotoGrid(){const grid=$('#photoGrid');if(!grid||!edit)return;const a=edit;grid.replaceChildren();for(let i=0;i<a.photos.length;i++){const p=a.photos[i],writable=C.canEdit(user,a),box=h('div',{class:'photo-box'});box.dataset.photoId=p.id;box.append(await imageNode(p));if(W.editorial.sample(p))box.append(h('span',{class:'sample-badge'},'교체용 예시 · 올해 현장 아님'));const caption=h('input',{value:p.caption,maxlength:300,disabled:!writable}),alt=h('input',{value:p.alt,maxlength:200,disabled:!writable}),pos=h('select',{disabled:!writable},h('option',{value:-1},i===0?'자동 · 대표사진':'자동 · 본문 사이'));
+async function renderPhotoGrid(){const grid=$('#photoGrid');if(!grid||!edit)return;const a=edit;grid.replaceChildren();const counter=document.querySelector('.photo-count');if(counter)counter.textContent=a.photos.length+'/12';for(let i=0;i<a.photos.length;i++){const p=a.photos[i],writable=C.canEdit(user,a),box=h('div',{class:'photo-box'});box.dataset.photoId=p.id;box.draggable=writable;if(writable){box.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain',p.id);e.dataTransfer.effectAllowed='move';box.classList.add('is-dragging');});box.addEventListener('dragend',()=>box.classList.remove('is-dragging'));box.addEventListener('dragover',e=>{e.preventDefault();box.classList.add('drag-over');});box.addEventListener('dragleave',()=>box.classList.remove('drag-over'));box.addEventListener('drop',e=>{e.preventDefault();box.classList.remove('drag-over');const source=e.dataTransfer.getData('text/plain');movePhoto(source,i);});}box.append(await imageNode(p));if(W.editorial.sample(p))box.append(h('span',{class:'sample-badge'},'교체용 예시 · 올해 현장 아님'));const caption=h('input',{value:p.caption,maxlength:300,disabled:!writable}),alt=h('input',{value:p.alt,maxlength:200,disabled:!writable}),pos=h('select',{disabled:!writable},h('option',{value:-1},i===0?'자동 · 대표사진':'자동 · 본문 사이'));
  for(let k=0;k<C.blocks(readEditor().body).length;k++)pos.append(h('option',{value:k},`${k+1}번째 문단 뒤`));pos.value=p.after;
  const livePhoto=()=>edit?.photos.find(x=>x.id===p.id);caption.addEventListener('input',()=>{const x=livePhoto();if(x){x.caption=caption.value;changed();}});alt.addEventListener('input',()=>{const x=livePhoto();if(x){x.alt=alt.value;changed();}});pos.addEventListener('change',()=>{const x=livePhoto();if(x){x.after=Number(pos.value);changed();}});
  box.append(h('label',{},'사진 설명 · 선택',caption),h('label',{},'사진 대체 설명',alt),h('label',{},'배치 위치',pos),h('span',{class:'small muted'},`${p.width}×${p.height} · 원본 ${(p.originalBytes/1024/1024).toFixed(1)}MB`));
  if(writable){const replacement=h('input',{type:'file',accept:'image/jpeg,image/png,image/webp',class:'replace-input',hidden:true,'aria-label':'이 사진 교체'});replacement.addEventListener('change',()=>replacePhoto(p.id,replacement.files[0]).catch(showError));box.append(replacement,button('사진 교체',()=>replacement.click(),'replace-photo'));}
- if(writable)box.append(h('div',{class:'actions'},i>0?button('대표사진으로',()=>{const index=edit.photos.findIndex(x=>x.id===p.id);const selected=edit.photos.splice(index,1)[0];if(selected)edit.photos.unshift(selected);changed();return renderPhotoGrid();}):null,button('기사에서 빼기',()=>{if(!confirm('이 사진을 기사에서 뺄까요? 저장된 원본과 이전 버전은 삭제하지 않습니다.'))return;edit.photos=edit.photos.filter(x=>x.id!==p.id);changed();renderPreflight();return renderPhotoGrid();},'remove danger')));grid.append(box);}
+ if(writable)box.append(h('div',{class:'actions photo-order'},i>0?button('대표사진',()=>movePhoto(p.id,0),'text'):h('span',{class:'cover-mark'},'대표사진'),i>0?button('← 앞으로',()=>movePhoto(p.id,i-1),'text'):null,i<a.photos.length-1?button('뒤로 →',()=>movePhoto(p.id,i+1),'text'):null,button('기사에서 빼기',()=>{if(!confirm('이 사진을 기사에서 뺄까요? 저장된 원본과 이전 버전은 삭제하지 않습니다.'))return;edit.photos=edit.photos.filter(x=>x.id!==p.id);changed();renderPreflight();return renderPhotoGrid();},'remove danger')));grid.append(box);}
  if(!a.photos.length)grid.append(h('div',{class:'empty',style:'grid-column:1/-1'},'사진을 선택하면 이곳에서 설명과 배치를 확인합니다.'));}
 async function preparePhoto(file,aid){
  if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('JPG, PNG, WebP 사진을 선택해 주세요. HEIC는 JPG로 저장한 뒤 올려 주세요.');
