@@ -75,6 +75,14 @@ service cloud.firestore {
      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','revision','updatedAt','updatedBy','webConsent','printConsent','serverWrittenAt']))
    );
    allow delete: if false;
+   match /presence/{uid} {
+    allow read: if canRead(article(id));
+    allow create,update: if active() && uid == request.auth.uid && canRead(article(id)) &&
+      request.resource.data.keys().hasOnly(['displayName','updatedAt']) &&
+      request.resource.data.displayName is string && request.resource.data.displayName.size() <= 60 &&
+      request.resource.data.updatedAt == request.time;
+    allow delete: if active() && uid == request.auth.uid;
+   }
    match /revisions/{v} {
     allow read: if canRead(article(id));
     allow create: if active() && request.resource.data.keys().hasOnly(['snapshot','actor','at']) && request.resource.data.actor==request.auth.uid && request.resource.data.at==request.time &&
