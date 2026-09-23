@@ -40,7 +40,7 @@ jobs:
         run: python3 scripts/build.py --live-config deploy/firebase-live-config.json
 
       - name: Install Firebase CLI
-        run: npm install --global firebase-tools@15.30.2
+        run: npm install --global firebase-tools@15.22.1
 
       - name: Deploy Woonbi only
         run: firebase deploy --project woonbi-webzine-2026 --only firestore,storage,hosting --non-interactive
