@@ -1,0 +1,36 @@
+name: Woonbi source checks — no deployment
+on:
+  push:
+    branches: [woonbi-webzine-v0.4]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: woonbi-source-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  source:
+    if: github.ref_name == 'woonbi-webzine-v0.4'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: woonbi-webzine-v0.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Materialize reviewed source once
+        run: python3 bootstrap/expand.py
+      - name: Syntax and JSON
+        run: npm run check
+      - name: Domain and editorial tests
+        run: npm test
+      - name: Commit materialized source, dedicated branch only
+        shell: bash
+        run: |
+          test "$GITHUB_REF_NAME" = "woonbi-webzine-v0.4"
+          git add -- README.md CHANGELOG.md .gitignore package.json firebase.json web firebase scripts tests docs examples bootstrap/EXPANDED.txt
+          if git diff --cached --quiet; then exit 0; fi
+          git -c user.name='Woonbi source checks' -c user.email='woonbi-source@users.noreply.github.com' commit -m 'chore: materialize verified Woonbi source [skip ci]'
+          git push origin HEAD:refs/heads/woonbi-webzine-v0.4

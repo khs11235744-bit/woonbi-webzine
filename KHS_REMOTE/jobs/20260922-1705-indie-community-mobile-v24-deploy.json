@@ -1,7 +1,0 @@
-{
-  "request_id": "indie-community-mobile-v24-deploy-20260922-1712",
-  "action": "indieplus_deploy",
-  "project": "INDIE",
-  "confirm_deploy": true,
-  "include_functions": false
-}

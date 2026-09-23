@@ -1,8 +1,0 @@
-{
-  "request_id": "indie-social-prepared-20260921-1815",
-  "project": "INDIE",
-  "action": "indieplus_codex",
-  "push_after": false,
-  "requested_by": "webchat",
-  "prompt": "Work only inside C:\\Users\\권형석\\Documents\\indieplus-pohang.\n\nDO NOT run git pull/commit/push/reset/checkout/stash. Modify working-tree files only. Leave changes dirty for outer KHS verification/commit.\n\nGoal: finish production-ready social sharing and safe login adapters for the static GitHub Pages/PWA architecture.\n\n1) Preserve existing card-news PNG/ZIP/Web Share multi-file behavior.\n2) Add explicit share actions in the existing share panel:\n- 시스템 공유\n- 링크 복사\n- X/Twitter\n- Facebook\n- Kakao only when a valid public JS key/config is available; otherwise show 설정 필요 without fake success.\n3) Share payload: movie title, one-line review, optional rating, tags, canonical URL.\n4) URL-share providers that cannot attach images must honestly fall back to text+URL.\n5) No fake success if provider/browser rejects.\n6) Login/profile adapters:\n- preserve localStorage device profile fallback\n- provider states 연결됨 / 연결 가능 / 설정 필요\n- Google/Kakao/Naver adapter boundaries\n- never commit client secrets/private keys\n- static SPA/public-client patterns only\n- if config missing, app remains fully usable locally.\n7) Add safe config example/document only with key NAMES, no values.\n8) Mobile 390px profile/share UI must not collide with header or bottom nav.\n9) Preserve 8 official longforms, 6 share presets exact, Editorial Cover default, discover→criticism→newsroom, direct mobile criticism tab.\n10) Run node --check on changed JS and all features-v*.js present, parse data/*.json, run relevant probe if browser prerequisites exist. Do not commit."
-}

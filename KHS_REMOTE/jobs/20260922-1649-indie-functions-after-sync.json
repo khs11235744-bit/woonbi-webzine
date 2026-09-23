@@ -1,8 +1,0 @@
-{
-  "request_id": "indie-functions-after-sync-20260922-1649",
-  "project": "INDIE",
-  "action": "indieplus_deploy",
-  "confirm_deploy": true,
-  "include_functions": true,
-  "requested_by": "chatgpt-after-sync"
-}

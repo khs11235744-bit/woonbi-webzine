@@ -1,8 +1,0 @@
-{
-  "request_id": "indie-roadmap-prepared-20260921-1815",
-  "project": "INDIE",
-  "action": "indieplus_codex",
-  "push_after": false,
-  "requested_by": "webchat",
-  "prompt": "Work only inside C:\\Users\\권형석\\Documents\\indieplus-pohang.\n\nDO NOT run git pull/commit/push/reset/checkout/stash. Modify working-tree files only. Leave changes dirty for outer KHS verification/commit.\n\nImplement the next ROADMAP_100 audience features in a bounded pass:\n1) already-started showtimes become disabled/non-bookable in UI based on KST; <=30min gets restrained 곧 시작 badge\n2) movie detail synopsis 4–6 line collapsed state + 더 읽기/접기\n3) discovery filters using real metadata only: current/upcoming, under 90 min, weekend, today evening, genre where available\n4) watched-date edit polish and MY counts\n5) if safe, local beta long-review/spoiler/title/0.5 rating without disturbing official 8 longforms\n\nPreserve UI identity, criticism content, card-news, SNS work, 6 presets, home order, mobile criticism nav.\nRun syntax/data checks and relevant probes. Do not commit."
-}

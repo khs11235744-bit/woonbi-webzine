@@ -1,11 +1,7 @@
-<div align="center">
+# 웅비 웹진 v0.4 — 독립 작업 브랜치
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+이 브랜치는 웅비 웹진의 소스만 다룹니다. 기존 main 및 다른 프로젝트는 변경하지 않습니다. 학교의 실제 기사, 학생 명단, 사진과 지난 호 원본은 포함하지 않습니다.
 
-  <h1>Built with AI Studio</h2>
+최초 소스 전개 후 web/, tests/, docs/ 파일을 직접 편집할 수 있습니다. 전개 과정은 GitHub-hosted ubuntu-latest에서 검증된 소스를 풀고 단위 검사를 실행할 뿐, PC 원격 제어·Firebase 배포는 하지 않습니다.
 
-  <p>The fastest path from prompt to production with Gemini.</p>
-
-  <a href="https://aistudio.google.com/apps">Start building</a>
-
-</div>
+200개 개선점은 실제 전문가 인터뷰가 아니라 100개 가상 역할의 검토입니다. 실제 Google 로그인과 학교 기기 간 동시 작업은 별도 검증 대상입니다.

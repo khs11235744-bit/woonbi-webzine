@@ -1,5 +1,0 @@
-{
-  "request_id": "autodirector-bridge-upgrade-20260923-0851-v2",
-  "purpose": "Validate multi-project supervisor, preserve INDIE worker, and harden AutoDirector local worker for Windows PowerShell",
-  "requested_at": "2026-09-23T08:56:00+09:00"
-}

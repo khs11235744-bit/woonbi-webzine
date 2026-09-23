@@ -1,6 +1,0 @@
-{
-  "request_id": "indie-sync-deploy-current-data-20260922-1521",
-  "action": "indieplus_sync_deploy",
-  "confirm_deploy": true,
-  "include_functions": false
-}

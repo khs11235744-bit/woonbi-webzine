@@ -1,6 +1,0 @@
-{
-  "request_id": "indie-firebase-auto-deploy-20260922-1508",
-  "action": "indieplus_deploy",
-  "confirm_deploy": true,
-  "include_functions": true
-}

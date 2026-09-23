@@ -1,8 +1,0 @@
-{
-    "request_id":  "minijev-direct-20260921-1230-v2",
-    "action":  "snapshot_guard",
-    "started_at":  "2026-09-21T12:37:29.4094959+09:00",
-    "status":  "BLOCKED",
-    "reason":  "UNSUPPORTED_ACTION",
-    "finished_at":  "2026-09-21T12:37:29.4115268+09:00"
-}

@@ -1,9 +1,0 @@
-{
-  "request_id": "indie-news-review-prepared-20260921-2135",
-  "project": "INDIE",
-  "action": "indieplus_codex",
-  "push_after": false,
-  "requested_at": "2026-09-21T12:34:41.154Z",
-  "requested_by": "webchat",
-  "prompt": "Work only inside C:\\Users\\권형석\\Documents\\indieplus-pohang.\n\nDO NOT run git pull/commit/push/reset/checkout/stash. Modify working-tree files only and leave changes dirty for outer verification/commit.\n\nThe news-only harness refresh has already run. Review data/news-weekly.json and finish the editorial pass for fresh items.\n\nRules:\n- only real items already present in data/news-weekly.json\n- do not fabricate articles, sources, dates, quotes, or claims\n- preserve sourceUrl/url/titleOriginal\n- translationStatus must become translated-reviewed only when you actually fill a Korean title and an accurate 4–7 sentence summaryKo\n- add concise whyItMatters and 2–4 keyPoints where supported by the item/source metadata\n- preserve prior translated-reviewed entries unless a clear factual correction is necessary\n- keep full article text out of repo\n- keep top categories: 국내 영화 / 한국 독립·예술 / 예술영화관 / 지역 예술 / 영화제 / 해외 독립·예술 / 아시아\n- for 지역 예술, set localArtsType only when evidence supports one of 전시/공연/음악/문학; otherwise leave null/absent\n- prioritize official festival/domestic/art-cinema/local-art sources\n- no political or unrelated general news\n- do not modify the 8 official criticism longforms\n\nValidation:\n- parse data/news-weekly.json\n- python -m py_compile scripts/sync_news.py scripts/build_news_weekly.py\n- node --check app.js and existing features-v*.js and sw.js\n- git diff --check\n- do not commit.\n\nFinal Korean output: count of new/updated translated-reviewed items, categories covered, any items left pending and why."
-}

@@ -1,7 +1,0 @@
-{
-  "request_id": "indie-deploy-functions-after-billing-20260922-1639",
-  "action": "indieplus_deploy",
-  "project": "INDIE",
-  "confirm_deploy": true,
-  "include_functions": true
-}

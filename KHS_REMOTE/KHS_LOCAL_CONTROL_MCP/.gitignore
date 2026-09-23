@@ -1,7 +1,0 @@
-.env
-node_modules/
-.khs-mcp/
-*.log
-dist/
-coverage/
-.mcp-artifacts/
