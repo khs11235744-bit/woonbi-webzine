@@ -74,7 +74,13 @@ async function neisMeal(apiKey,ymd){
   const j=await (await get(NEIS_ORIGIN+'/mealServiceDietInfo?'+q)).json();
   const rows=j.mealServiceDietInfo?.[1]?.row||[];
   const lunch=rows.find(x=>x.MMEAL_SC_NM==='중식')||rows[0];
-  if(!lunch)throw new Error('NEIS 급식 결과 없음');
+  if(!lunch)return {
+    title:'오늘의 급식',
+    status:'등록 없음',
+    body:'오늘은 나이스에 등록된 급식 정보가 없습니다.',
+    source:'나이스 급식식단정보',
+    url:MEAL_PAGE
+  };
   return {
     title:'오늘의 급식',
     status:`${lunch.MMEAL_SC_NM||'급식'} · ${lunch.CAL_INFO||''}`.replace(/ · $/,''),

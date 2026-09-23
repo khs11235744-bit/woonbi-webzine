@@ -41,8 +41,12 @@ def req(method,url,tok,body=None):
         raise RuntimeError(f'HTTP {e.code}: '+e.read().decode('utf-8','replace')[:1200])
 def scalar(v):
     if not isinstance(v,dict): return None
-    for k in ('stringValue','integerValue','booleanValue','doubleValue','timestampValue'):
-        if k in v:return v[k]
+    if 'stringValue' in v: return v['stringValue']
+    if 'integerValue' in v: return int(v['integerValue'])
+    if 'doubleValue' in v: return float(v['doubleValue'])
+    if 'booleanValue' in v: return bool(v['booleanValue'])
+    if 'timestampValue' in v: return v['timestampValue']
+    if 'nullValue' in v: return None
     if 'arrayValue' in v:return [scalar(x) for x in v['arrayValue'].get('values',[])]
     if 'mapValue' in v:return {k:scalar(x) for k,x in v['mapValue'].get('fields',{}).items()}
     return None

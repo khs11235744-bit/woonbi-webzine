@@ -28,7 +28,7 @@ function clearLocalBuffers(){for(const k of W.session.keys())if(k.startsWith('wo
 function refreshHeader(){
  const reading=['public','archive','examples','reader'].includes(view);document.body.classList.toggle('reading-view',reading);main.className=reading?'newsroom-main':'desk-main';document.querySelectorAll('.desk-only').forEach(e=>e.hidden=reading);document.querySelectorAll('.reader-only').forEach(e=>e.hidden=!reading);
 
- const account=$('#account');account.replaceChildren();$('#navArticles').textContent=C.staff(user)?'기사 계획':'내 기사';$('#navBook').hidden=!C.teacher(user);$('#navMembers').hidden=!C.teacher(user);
+ const account=$('#account');account.replaceChildren();$('#navArticles').textContent=C.staff(user)?'기사 계획':'내 기사';$('#navDashboard').hidden=!C.teacher(user);$('#navBook').hidden=!C.teacher(user);$('#navMembers').hidden=!C.teacher(user);
  if(store.mode==='demo'){
  const select=h('select',{'aria-label':'학생별 화면 미리보기',id:'demoUser'});for(const u of W.DEMO_USERS)select.append(h('option',{value:u.uid},u.displayName+(u.sourceRole&&u.sourceRole!=='기자'?' · '+u.sourceRole:'')));select.value=user?.uid||'';
  select.addEventListener('change',async()=>{if(!(await leaveEditor())){select.value=user.uid;return;}clearLocalBuffers();user=await store.login(select.value);filter='all';search='';planKind='all';categoryFilter='all';listen();refreshHeader();await navigate('articles');});account.append(select);
@@ -36,9 +36,9 @@ function refreshHeader(){
  else account.append(button('Google 로그인',async()=>{try{await store.login();}catch(e){if(e.code==='auth/popup-blocked'){dialogOpen('팝업이 차단됐습니다',h('p',{},'같은 창에서 Google 로그인을 진행할 수 있습니다.'),[button('같은 창에서 로그인',()=>store.loginRedirect(),'primary')]);}else throw e;}}));
  document.querySelectorAll('.top [data-nav]').forEach(e=>e.classList.toggle('current',e.dataset.nav===view));
 }
-function listen(){unsubscribe?.();unsubscribe=store.subscribe(()=>{if(!edit&&['articles','public','members'].includes(view))renderCurrent().catch(showError);else if(edit){const indicator=$('#remoteNotice');if(indicator)indicator.hidden=false;}});}
+function listen(){unsubscribe?.();unsubscribe=store.subscribe(()=>{if(!edit&&['articles','public','members','dashboard'].includes(view))renderCurrent().catch(showError);else if(edit){const indicator=$('#remoteNotice');if(indicator)indicator.hidden=false;}});}
 async function navigate(next){if(!(await leaveEditor()))return;view=next;refreshHeader();await renderCurrent();window.scrollTo({top:0,behavior:'instant'});}
-async function renderCurrent(){if(view==='archive')return newsroom.archiveHome();if(view==='examples')return newsroom.examples();if(view==='public')return renderPublic();if(!user)return renderLogin();if(!user.active)return renderPending();if(view==='book')return renderBook();if(view==='members')return renderMembers();return renderArticles();}
+async function renderCurrent(){if(view==='archive')return newsroom.archiveHome();if(view==='examples')return newsroom.examples();if(view==='public')return renderPublic();if(!user)return renderLogin();if(!user.active)return renderPending();if(view==='dashboard')return renderDashboard();if(view==='book')return renderBook();if(view==='members')return renderMembers();return renderArticles();}
 function renderLogin(){main.replaceChildren(h('div',{class:'panel'},h('h1',{},'웅비 편집실'),h('p',{},'Google 계정으로 로그인하고 담당교사의 승인 후 배정된 기사를 작성합니다.'),button('Google로 로그인',()=>store.login(),'primary')));}
 function renderPending(){main.replaceChildren(h('div',{class:'panel'},h('h1',{},'참여 승인을 기다리고 있습니다'),h('p',{},'담당교사가 계정을 승인하고 기사를 배정하면 이곳에 내 기사가 나타납니다.'),button('승인 상태 확인',async()=>{location.reload();})));}
 function articleState(a){return a.status==='draft'&&!a.body.trim()?'작성 전':C.STATUS[a.status];}
@@ -54,7 +54,10 @@ async function assignmentDialog(id){
 function planBrief(a){
  if(!a.sourceRange)return null;
  const detail=h('details',{class:'plan-brief'},h('summary',{},h('span',{},a.planKind==='research'?'개인 탐구 기사':'학교 기사'),h('b',{},'배정 정보'),h('span',{class:'brief-names'},articleNames(a))));
- detail.append(h('div',{class:'brief-body'},h('p',{},`담당 ${articleNames(a)} / ${a.dueDate?'마감 '+a.dueDate:'마감일 미정'}`),h('p',{},`원본 ${a.sourceRange}${a.assignmentSources?.length?' · 배정 '+a.assignmentSources.map(s=>s.range).join(' / '):''}`),h('p',{},'올해 기사 계획에 기존 원고와 새 초안을 연결했습니다. 배정 정보와 원고 출처는 별도로 보존합니다.'),(a.notes||[]).map(n=>h('p',{class:'small'},n)),h('p',{class:'small muted'},a.categorySource||'')));
+ const briefBody=h('div',{class:'brief-body'},h('p',{},`담당 ${articleNames(a)} / ${a.dueDate?'마감 '+a.dueDate:'마감일 미정'}`),h('p',{},a.sourceRange?`원본 ${a.sourceRange}${a.assignmentSources?.length?' · 배정 '+a.assignmentSources.map(s=>s.range).join(' / '):''}`:'복원·편집 메타데이터'),h('p',{},'올해 기사 계획에 기존 원고와 새 초안을 연결했습니다. 배정 정보와 원고 출처는 별도로 보존합니다.'));
+ if(a.reportingQuestions?.length)briefBody.append(h('div',{class:'reporting-guide'},h('b',{},'취재 질문'),h('ol',{},a.reportingQuestions.map(q=>h('li',{},q)))));
+ for(const n of a.notes||[])briefBody.append(h('p',{class:'small'},n));
+ briefBody.append(h('p',{class:'small muted'},a.categorySource||''));detail.append(briefBody);
  if(C.teacher(user)&&typeof store.updateAssignment==='function')detail.append(button('담당자·마감일 변경',()=>assignmentDialog(a.id),'text'));
  return detail;
 }
@@ -203,6 +206,49 @@ async function legacyRenderPublic(){const pub=(await store.listPublic()).sort((a
  for(const a of pub){const card=h('article',{class:'public-card'});if(a.photos[0])card.append(await imageNode(a.photos[0]));else card.append(h('div',{class:'cover-placeholder'},a.category));card.append(h('div',{class:'eyebrow',style:'margin-top:17px'},a.category),h('h2',{},a.title),h('p',{},a.deck||C.paragraphs(a.body)[0]?.slice(0,120)||''),h('p',{class:'small'},a.byline),button('기사 읽기 →',async()=>dialogOpen('웅비 웹진',await renderArticle(a)),'text'));grid.append(card);}
 }
 async function renderPublic(){return newsroom.home();}
+async function renderDashboard(){
+ if(!C.teacher(user))return renderPending();
+ const [articles,members,published]=await Promise.all([store.listArticles(),store.listMembers(),store.listPublic()]);
+ const pubIds=new Set(published.map(a=>a.id)),today=new Date().toISOString().slice(0,10);
+ const bodyReady=a=>String(a.body||'').trim().length>=60;
+ const photoReady=a=>a.photos.length>=Number(a.minPhotos||0)&&!a.photos.some(W.editorial.sample);
+ const unstarted=articles.filter(a=>a.status==='draft'&&!bodyReady(a));
+ const photoShort=articles.filter(a=>a.photos.length<Number(a.minPhotos||0)||a.photos.some(W.editorial.sample));
+ const review=articles.filter(a=>a.status==='submitted');
+ const changes=articles.filter(a=>a.status==='changes');
+ const publishReady=articles.filter(a=>a.status==='approved'&&a.webConsent&&!pubIds.has(a.id));
+ const overdue=articles.filter(a=>a.dueDate&&a.dueDate<today&&a.status!=='approved');
+ const complete=articles.filter(a=>bodyReady(a)&&photoReady(a));
+ const metrics=[
+  ['전체 기사',articles.length,'기사 계획'],
+  ['원고 진행',complete.length,articles.length?Math.round(complete.length/articles.length*100)+'%':'0%'],
+  ['미작성',unstarted.length,'60자 미만'],
+  ['사진 부족',photoShort.length,'필수 장수·예시'],
+  ['검토 대기',review.length,'제출 원고'],
+  ['발행 대기',publishReady.length,'승인·웹동의']
+ ];
+ const head=h('div',{class:'dashboard-head'},h('div',{},h('div',{class:'eyebrow'},'EDITORIAL CONTROL DESK'),h('h1',{},'웅비 편집장 대시보드'),h('p',{class:'intro'},'학생별 진행률과 미제출·사진 부족·검토·발행 대기를 한 화면에서 확인합니다.')),h('div',{class:'dashboard-stamp'},'기준 '+new Date().toLocaleString('ko-KR')));
+ const cards=h('section',{class:'dashboard-metrics'},metrics.map(([label,value,note])=>h('article',{},h('span',{},label),h('strong',{},value),h('small',{},note))));
+ function queue(title,rows,note,cls=''){
+  const box=h('section',{class:'dashboard-queue '+cls},h('div',{class:'dashboard-section-head'},h('div',{},h('h2',{},title),h('p',{class:'small muted'},note)),h('b',{},rows.length)));
+  const list=h('div',{class:'dashboard-list'});if(!rows.length)list.append(h('p',{class:'empty'},'현재 해당 기사가 없습니다.'));
+  for(const a of rows.sort((x,y)=>(x.dueDate||'9999').localeCompare(y.dueDate||'9999')||(x.planOrder||999)-(y.planOrder||999))){
+   list.append(h('article',{},h('div',{},h('span',{class:'row-category'},a.category),h('h3',{},a.title),h('p',{class:'small muted'},articleNames(a)+' · '+(a.dueDate?'마감 '+a.dueDate:'마감 미정')+' · '+String(a.body||'').length.toLocaleString()+'자 · 사진 '+a.photos.length+'/'+Number(a.minPhotos||0))),button('열기',()=>openEditor(a.id),'text')));
+  }box.append(list);return box;
+ }
+ const queues=h('div',{class:'dashboard-queues'},queue('미작성',unstarted,'본문 60자 미만'),queue('사진 부족',photoShort,'필수 사진 미달 또는 교체용 예시'),queue('검토 대기',review,'학생이 제출한 원고','review'),queue('수정 요청',changes,'보완 후 재제출 필요'),queue('발행 대기',publishReady,'승인 완료·웹 공개 동의 확인'),queue('마감 지남',overdue,'승인 전 마감일 경과','danger'));
+ const people=new Map(),memberNames=new Map(members.map(m=>[m.uid,m.displayName||'승인 계정']));
+ for(const a of articles){const ids=a.assigneeIds||[],names=a.assigneeNames||[];ids.forEach((uid,i)=>{const name=(names[i]||memberNames.get(uid)||'원본 배정 미연결').trim(),key='name:'+name;if(!people.has(key))people.set(key,{name,assigned:0,ready:0,submitted:0,approved:0,photoShort:0});const p=people.get(key);p.assigned++;if(bodyReady(a)&&photoReady(a))p.ready++;if(a.status==='submitted')p.submitted++;if(a.status==='approved')p.approved++;if(!photoReady(a))p.photoShort++;});}
+ for(const m of members){if(m.role==='teacher')continue;const name=(m.displayName||'승인 계정').trim(),key='name:'+name;if(!people.has(key))people.set(key,{name,assigned:0,ready:0,submitted:0,approved:0,photoShort:0});}
+ const table=h('div',{class:'dashboard-people'},h('div',{class:'dashboard-section-head'},h('div',{},h('h2',{},'학생별 진행률'),h('p',{class:'small muted'},'배정 기사 기준 · Google 계정 연결 여부와 무관하게 원래 배정명도 표시합니다.'))));
+ const rows=h('div',{class:'progress-table'});
+ rows.append(h('div',{class:'progress-row head'},...['이름','배정','원고+사진','검토대기','승인','사진부족'].map(x=>h('span',{},x))));
+ for(const p of [...people.values()].sort((a,b)=>b.assigned-a.assigned||a.name.localeCompare(b.name))){
+  const pct=p.assigned?Math.round(p.ready/p.assigned*100):0,prog=h('div',{class:'student-progress'},h('span',{},p.ready+'/'+p.assigned),h('progress',{max:100,value:pct}),h('small',{},pct+'%'));
+  rows.append(h('div',{class:'progress-row'},h('b',{},p.name),h('span',{},p.assigned),prog,h('span',{},p.submitted),h('span',{},p.approved),h('span',{},p.photoShort)));
+ }table.append(rows);
+ main.replaceChildren(head,cards,queues,table);
+}
 async function renderMembers(){
  if(store.mode==='demo'&&W.plan2026)return renderPlanMembers();
 if(!C.teacher(user))return renderPending();const members=await store.listMembers(),rows=h('div',{class:'panel'});main.replaceChildren(h('div',{class:'heading-row'},h('div',{},h('div',{class:'eyebrow'},'MEMBERS'),h('h1',{},'참여자 승인'),h('p',{class:'intro'},'Google 로그인은 본인 확인입니다. 기사 접근 권한은 별도로 승인합니다.'))),rows);

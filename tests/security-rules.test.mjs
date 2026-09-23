@@ -99,6 +99,19 @@ test('assigned student can read and save own draft with revision history',async(
   await assertSucceeds(saveWithRevision(db,'article-a','student-a',()=>({title:'학생 수정 제목'})));
 });
 
+
+test('draft can attach uploaded photo metadata with revision history',async()=>{
+  const db=auth('teacher','teacher').firestore();
+  const photo={
+    id:'photo-e2e',caption:'',alt:'e2e-photo',after:-1,width:1200,height:800,
+    originalBytes:36374,originalType:'image/jpeg',
+    originalPath:'private/article-a/photo-e2e/original',webPath:'private/article-a/photo-e2e/web.webp',
+  };
+  await assertSucceeds(saveWithRevision(db,'article-a','teacher',()=>({photos:[photo]})));
+  const saved=(await getDoc(doc(db,'articles','article-a'))).data();
+  assert.equal(saved.photos.length,1);
+  assert.equal(saved.photos[0].id,'photo-e2e');
+});
 test('other student and pending account cannot read assigned draft',async()=>{
   await assertFails(getDoc(doc(auth('student-b').firestore(),'articles','article-a')));
   await assertFails(getDoc(doc(auth('pending').firestore(),'articles','article-a')));
