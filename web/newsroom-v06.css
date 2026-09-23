@@ -43,6 +43,7 @@ button,input,textarea,select{border-radius:0!important}
 .plan-masthead{border-bottom:1px solid var(--ink);padding-bottom:22px}.plan-masthead h1{font-size:42px;letter-spacing:-.05em}
 .plan-totals{border-bottom:1px solid var(--line)}.plan-totals>div{background:transparent;border:0;border-right:1px solid var(--line)}
 .article-row{border-bottom:1px solid var(--line);border-radius:0!important}.article-row:hover{background:#f0efe9}
+.presence-line{margin:0 0 12px;padding:8px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:10px;color:#5f6b70}.presence-line strong{color:var(--accent);margin-right:4px}
 .article-row .row-no{font-family:Georgia,serif;font-size:14px;color:#7f888c}
 .row-title{font-size:17px;font-weight:800}.row-category{font-size:9px;letter-spacing:.08em;color:var(--accent)}
 .editor-grid{grid-template-columns:minmax(0,1fr) 300px;gap:42px}.editor-grid>div:first-child{min-width:0}
