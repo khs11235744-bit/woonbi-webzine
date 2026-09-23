@@ -3,7 +3,7 @@
 W.createNewsroom=function(api){
  const {h,button,main,store:storeFn,user:userFn,openEditor,navigate,renderArticle,imageNode,dialogOpen,toast}=api;
  const C=W.core,E=W.editorial;let category='all',query='',sortMode='plan',generation=0;
- const data=()=>W.newsroomData||{},archive=()=>W.archiveData||{};
+ const data=()=>W.newsroomData||{},archive=()=>W.archiveData||{},restored=()=>W.restoredMedia||{};
  const asset=k=>{const p=archive().media?.[k]||'';return W.embeddedAssets?.[p]||p;};
  const file=p=>W.embeddedAssets?.[p]||p;
  const safeUrl=s=>{try{const u=new URL(s);return u.protocol==='https:'?u.href:'';}catch{return '';}};
@@ -16,6 +16,9 @@ W.createNewsroom=function(api){
  function bookmarks(){try{return new Set(JSON.parse(W.session.getItem(bookmarkKey())||'[]'));}catch{return new Set();}}
  function match(a){return ['all','all-list'].includes(category)||(category==='saved'?bookmarks().has(a.id):category==='research'?a.planKind==='research':category==='feature'?['특집','학교 사람들'].includes(a.category):a.planKind!=='research'&&['학교 이야기','학생 글','편집실'].includes(a.category));}
  function staticPhoto(k,alt){const src=asset(k);return src?h('figure',{class:'n-photo'},h('img',{src,alt,loading:'lazy',decoding:'async'}),h('figcaption',{},'지난 호 자료사진')):null;}
+ function restoredPhotos(a){return restored().byArticle?.[a.id]||[];}
+ function effectivePhotos(a){return a?.photos?.length?a.photos:restoredPhotos(a);}
+ function mediaShowcase(){const items=restored().showcase||[];if(!items.length)return null;const grid=h('div',{class:'n-restored-grid'});for(const x of items)grid.append(h('figure',{class:'n-restored-item'},h('img',{src:x.src,alt:x.caption,loading:'lazy',decoding:'async',width:x.width,height:x.height}),h('figcaption',{},h('b',{},x.caption),h('span',{},x.note||'복원 자료'))));return h('section',{class:'n-restored-section','aria-label':'복원 자료사진'},sectionHead('복원 자료 화보','이전 웅비 패키지에서 되살린 실제 이미지·자료 화면'),grid);}
  function headlink(a){return h('a',{href:'#read/'+encodeURIComponent(a.id),onclick:e=>{e.preventDefault();read(a.id,isReference(a)).catch(toastError);}},a.headline||a.title);}
  function toastError(e){toast(e.message||'기사를 열지 못했습니다.');}
  function meta(a){return h('div',{class:'n-meta'},h('span',{},a.assigneeNames?.length?'취재·수정 '+a.assigneeNames.join(' · '):a.byline||'편집실'),h('span',{},E.readingMinutes(a.body)+'분 읽기'),h('span',{class:'n-status'},label(a)));}
@@ -23,10 +26,9 @@ W.createNewsroom=function(api){
  function cleanPage(){generation++;document.body.classList.add('reading-view');main.className='newsroom-main';main.replaceChildren();document.getElementById('readProgress')?.remove();}
  function sectionHead(title,sub,action){return h('div',{class:'n-section-head'},h('div',{},h('h2',{},title),sub?h('p',{},sub):null),action);}
  async function articlePhoto(a,priority=false){
-  const p=a.photos?.[0];if(p){const img=await imageNode(p);if(img.tagName==='IMG'){img.loading=priority?'eager':'lazy';if(priority)img.setAttribute('fetchpriority','high');img.decoding='async';}
-   return h('figure',{class:'n-photo'},img,h('figcaption',{},E.sample(p)?h('span',{class:'sample-badge'},'교체용 예시 · 실제 현장 아님'):p.caption||'기사 사진'));}
-  return h('div',{class:'v4-empty-image'},h('span',{},smallLabel(a)),h('small',{},'사진 준비 중'));
- }
+   const p=effectivePhotos(a)[0];if(p){const img=await imageNode(p);if(img.tagName==='IMG'){img.loading=priority?'eager':'lazy';if(priority)img.setAttribute('fetchpriority','high');img.decoding='async';}return h('figure',{class:'n-photo'+(p.restored?' restored-photo':'')},img,h('figcaption',{},p.restored?h('span',{class:'restored-badge'},'복원 자료'):E.sample(p)?h('span',{class:'sample-badge'},'교체용 예시 · 실제 현장 아님'):null,p.caption||'기사 사진'));}
+   const title=(a.headline||a.title||'웅비').replace(/^\[.*?\]\s*/,'');return h('div',{class:'v4-empty-image editorial-placeholder'},h('span',{},smallLabel(a)),h('strong',{},title.slice(0,34)),h('small',{},'사진 취재 준비 중'));
+  }
  async function card(a,withPhoto=true){const art=h('article',{class:'n-card','data-read-card':a.id});
   if(withPhoto)art.append(h('a',{class:'n-card-image',href:'#read/'+a.id,'aria-label':a.title+' 기사 읽기',onclick:e=>{e.preventDefault();read(a.id,isReference(a)).catch(toastError);}},await articlePhoto(a)));
   art.append(h('span',{class:'n-section-label'},smallLabel(a)),h('h3',{},headlink(a)),h('p',{class:'n-excerpt'},excerpt(a)),meta(a));return art;
@@ -41,7 +43,7 @@ W.createNewsroom=function(api){
   const sort=h('select',{'aria-label':'기사 정렬',id:'newsSort'},h('option',{value:'plan'},'편집 순서'),h('option',{value:'updated'},'최근 수정'),h('option',{value:'title'},'제목순'));sort.value=sortMode;
   sort.addEventListener('change',()=>{sortMode=sort.value;category=category==='all'?'all-list':category;home();});
   main.append(h('div',{class:'n-toolbar'},tabs,h('label',{class:'n-search'},search),sort));
-  if(storeFn().mode==='demo')main.append(h('div',{class:'n-edition-note'},h('b',{},'2026 편집 미리보기'),h('span',{},'미발행 원고 · 예시 사진은 교체 후 사용합니다.')));else if(rows.some(isReference))main.append(h('div',{class:'n-edition-note'},h('b',{},'예시 기사 포함'),h('span',{},'실제 발행 기사가 쌓이는 동안 기존 완성 예시 원고 12편을 함께 보여줍니다.')));
+  if(storeFn().mode==='demo')main.append(h('div',{class:'n-edition-note'},h('b',{},'2026 편집 미리보기'),h('span',{},'미발행 원고 · 예시 사진은 교체 후 사용합니다.')));else if(rows.some(isReference)){const refCount=rows.filter(isReference).length;main.append(h('div',{class:'n-edition-note'},h('b',{},'예시·복원 기사 포함'),h('span',{},'실제 발행 기사가 쌓이는 동안 예시·복원 원고 '+refCount+'편과 복원 자료사진을 함께 보여줍니다.')));}
   if(category!=='all'||q){
    main.append(sectionHead(q?'“'+query+'” 검색 결과':categories.find(x=>x[0]===category)?.[1]||'모든 기사',filtered.length+'편',button('조건 초기화',()=>{reset();home();},'text')));
    const grid=h('section',{class:'n-list-grid','aria-live':'polite'});main.append(grid);
@@ -56,14 +58,14 @@ W.createNewsroom=function(api){
   const side=h('aside',{class:'n-side'},h('div',{class:'n-side-title'},'함께 읽는 학교 소식'));
   for(const a of sides)side.append(await card(a,true));
   side.append(h('div',{class:'n-desk-link'},h('b',{},'취재한 이야기를 더해주세요.'),button('내 기사 이어 쓰기 ↗',()=>navigate('articles'),'text')));
-  if(token!==generation)return;main.append(h('section',{class:'n-front'},leadArt,side));
+  if(token!==generation)return;main.append(h('section',{class:'n-front'},leadArt,side));const restoredBlock=mediaShowcase();if(restoredBlock)main.append(restoredBlock);
   const research=rows.filter(a=>a.planKind==='research'),feature=rows.filter(a=>['학교 사람들','특집'].includes(a.category)&&!sides.some(s=>s.id===a.id)&&a.id!==lead.id);
   for(const [title,sub,items,cls] of [['학생이 묻습니다','일상의 의문에서 시작한 탐구',research.slice(0,4),'n-research-grid'],['학교 안의 사람들','인터뷰와 교류, 이어 쓰는 이야기',feature.slice(0,3),'n-feature-grid']]){
    if(!items.length)continue;const grid=h('section',{class:cls});main.append(sectionHead(title,sub),grid);for(const a of items){const c=await card(a,true);if(token!==generation)return;grid.append(c);}
   }
   if(archive().pages?.length){main.append(h('section',{class:'n-archive-promo'},h('div',{},h('span',{class:'n-section-label'},'ARCHIVE / 지난 호'),h('h2',{},'지난해의 학교를\n다시 펼치다.'),h('p',{},'2025년 학교 기록 · 표지 발간 표기는 2026년. 원본 지면을 별도로 보관합니다.'),button('지난 호 읽기 →',()=>navigate('archive'),'ink-button')),h('button',{class:'n-archive-cover',onclick:()=>navigate('archive'),'aria-label':'지난 호 표지 열기'},h('img',{src:asset('archive-cover'),alt:'웅비 VOL.41 원본 표지',loading:'lazy'}))));}
   const shown=new Set([lead.id,...sides.map(a=>a.id),...research.slice(0,4).map(a=>a.id),...feature.slice(0,3).map(a=>a.id)]),other=rows.filter(a=>!shown.has(a.id));
-  main.append(sectionHead('더 읽을 기사',other.length+'편'),h('section',{class:'n-more-list'},other.slice(0,8).map(a=>h('article',{},h('span',{class:'n-section-label'},smallLabel(a)),h('h3',{},headlink(a)),meta(a)))));
+  const moreGrid=h('section',{class:'n-more-grid'});for(const a of other.slice(0,8)){const c=await card(a,true);if(token!==generation)return;moreGrid.append(c);}main.append(sectionHead('더 읽을 기사',other.length+'편'),moreGrid);
   main.append(button('모든 기사 '+rows.length+'편 보기 →',()=>{category='all-list';home();window.scrollTo(0,0);},'n-all-button'));
  }
  async function read(id,reference=false){
@@ -78,7 +80,7 @@ W.createNewsroom=function(api){
   const controls=h('div',{class:'n-reader-controls'},button('← 목록으로',back,'text'),h('div',{class:'n-reading-tools'},keep,button('글자 작게',()=>{document.body.classList.remove('large-reading');W.session.setItem('woonbi-reader-size','normal');},'text'),button('글자 크게',()=>{document.body.classList.add('large-reading');W.session.setItem('woonbi-reader-size','large');},'text')));
   const article=h('article',{class:'n-longread',id:'newsArticle'},h('header',{class:'n-story-head'},h('div',{class:'n-section-label'},reference?a.archiveLabel:smallLabel(a)),h('h1',{},a.headline||a.title),h('p',{class:'n-story-deck'},a.deck||''),meta(a)));
   if(isDraft)article.append(h('aside',{class:'n-draft-notice'},reference?'복원한 예시 원고입니다. 연도와 인용을 확인한 뒤 참고하세요.':'미발행 '+label(a)+'입니다. 취재·필자·사진을 확인한 뒤 발행합니다.'));
-  const rendered=await renderArticle({...a,photos:a.photos||[],category:a.category||'예시 원고'}),copy=rendered.querySelector('.read-copy');copy.classList.add('n-story-copy');article.append(copy);
+  const rendered=await renderArticle({...a,photos:effectivePhotos(a),category:a.category||'예시 원고'}),copy=rendered.querySelector('.read-copy');copy.classList.add('n-story-copy');article.append(copy);
   const toc=h('aside',{class:'n-read-aside'},h('h3',{},'이 글에서'));
   [...copy.querySelectorAll('h3')].forEach((el,i)=>{el.id='sub-'+i;toc.append(h('a',{href:'#sub-'+i,onclick:e=>{e.preventDefault();el.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'});}},el.textContent));});
   if(!reference&&C.canEdit(userFn(),a))toc.append(button('이 기사 수정하기 ↗',()=>openEditor(a.id),'ink-button'));

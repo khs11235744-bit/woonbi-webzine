@@ -1,0 +1,26 @@
+[
+  {
+    "path": "assets/restored/cover-art.webp",
+    "caption": "기존 웅비 패키지 표지 시안",
+    "width": 1600,
+    "height": 842
+  },
+  {
+    "path": "assets/restored/article-a2026-002.webp",
+    "caption": "기존 웅비 패키지 인물 자료사진",
+    "width": 1352,
+    "height": 1600
+  },
+  {
+    "path": "assets/restored/synergy-01.webp",
+    "caption": "시너지 활동 보고서 자료 화면 1",
+    "width": 1488,
+    "height": 985
+  },
+  {
+    "path": "assets/restored/synergy-02.webp",
+    "caption": "시너지 활동 보고서 자료 화면 2",
+    "width": 1485,
+    "height": 986
+  }
+]

@@ -30,5 +30,10 @@ if(fs.existsSync(referencePath)){
   if(referenceAssets.length!==24)throw new Error('Expected 24 reference SVG assets, found '+referenceAssets.length);
   const legacy=JSON.parse(fs.readFileSync('web/assets/legacy-plan/index.json','utf8'));
   if(legacy.count!==96||legacy.items?.length!==96)throw new Error('Expected 96 legacy plan placeholder assets.');
+  const restored='web/js/restored-media.js';
+  if(!fs.existsSync(restored)||!index.includes('js/restored-media.js'))throw new Error('Restored public media must be loaded.');
+  const restoredAssets=fs.readdirSync('web/assets/restored').filter(f=>/\.webp$/i.test(f));
+  if(restoredAssets.length!==4)throw new Error('Expected 4 restored WebP assets, found '+restoredAssets.length);
+  if(!index.includes('editorial-polish.css'))throw new Error('Editorial polish stylesheet is not loaded.');
 }
-console.log('JS syntax, JSON, public reference libraries, and 18 production legacy links: PASS');
+console.log('JS syntax, JSON, 40 reference articles, 120 legacy slots, 4 restored WebP assets, and editorial polish: PASS');
