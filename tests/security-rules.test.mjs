@@ -7,7 +7,7 @@ import {
   assertFails,
 } from '@firebase/rules-unit-testing';
 import {
-  doc, getDoc, setDoc, updateDoc, writeBatch, serverTimestamp, Timestamp,
+  doc, getDoc, getDocs, collection, query, where, setDoc, updateDoc, writeBatch, serverTimestamp, Timestamp,
 } from 'firebase/firestore';
 import {
   ref, uploadBytes, getBytes, deleteObject,
@@ -213,6 +213,22 @@ test('teacher reminder is readable only by recipient and recipient can mark read
   await assertSucceeds(getDoc(doc(studentA,'notifications','notice-a')));
   await assertFails(getDoc(doc(studentB,'notifications','notice-a')));
   await assertSucceeds(updateDoc(doc(studentA,'notifications','notice-a'),{read:true,readAt:serverTimestamp()}));
+});
+
+test('recipient can list only own reminders while teacher can list all',async()=>{
+  await env.withSecurityRulesDisabled(async ctx=>{
+    const db=ctx.firestore();
+    await setDoc(doc(db,'notifications','n-a'),{uid:'student-a',articleId:'article-a',title:'A',body:'A',kind:'reminder',createdAt:Timestamp.now(),createdBy:'teacher',read:false});
+    await setDoc(doc(db,'notifications','n-b'),{uid:'student-b',articleId:'article-a',title:'B',body:'B',kind:'reminder',createdAt:Timestamp.now(),createdBy:'teacher',read:false});
+  });
+  const a=auth('student-a').firestore();
+  const own=query(collection(a,'notifications'),where('uid','==','student-a'));
+  const ownSnap=await assertSucceeds(getDocs(own));
+  assert.equal(ownSnap.size,1);
+  await assertFails(getDocs(collection(a,'notifications')));
+  const teacher=auth('teacher','teacher').firestore();
+  const all=await assertSucceeds(getDocs(collection(teacher,'notifications')));
+  assert.equal(all.size,2);
 });
 test('teacher can create article only with matching revision zero in same batch',async()=>{
   const db=auth('teacher','teacher').firestore();
