@@ -41,7 +41,8 @@ function photo(a,key,i){
 }
 function apply(rows){
  return (rows||[]).map((a,index)=>{
-  if(a.photos?.some(p=>!p.placeholder&&!String(p.webPath||'').startsWith('seed/')))return a;
+  // Preserve article-specific photo plans. Last-year media only fills examples that have no photo plan at all.
+  if(Array.isArray(a.photos)&&a.photos.length)return a;
   const key=pick(a,index),second=order[(order.indexOf(key)+3+(index%3))%order.length];
   return {...a,photos:[photo(a,key,0),photo(a,second,1)]};
  });
