@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 const W=window.Woonbi,C=W.core,$=s=>document.querySelector(s),main=$('#main'),dialog=$('#dialog');
-let newsroom,store,user,view='public',edit=null,dirty=false,editSequence=0,saveTimer=null,saveJob=null,uploading=false,unsubscribe=null,presenceStop=null,filter='all',search='',planKind='all',categoryFilter='all',issueSelection=[],dashboardSelection=new Set(),photoDeskFilter='all',photoScanState={rows:[],duplicates:0,nearDuplicates:0,selected:new Set()};
+let newsroom,store,user,view='public',edit=null,dirty=false,editSequence=0,saveTimer=null,aiTimer=null,saveJob=null,uploading=false,unsubscribe=null,presenceStop=null,filter='all',search='',planKind='all',categoryFilter='all',issueSelection=[],dashboardSelection=new Set(),photoDeskFilter='all',photoScanState={rows:[],duplicates:0,nearDuplicates:0,selected:new Set()};
 const urls=new Map(),now=()=>new Date().toISOString();
 const h=(tag,attrs={},...children)=>{const e=document.createElement(tag);for(const [k,v] of Object.entries(attrs)){if(v==null||v===false)continue;if(k==='class')e.className=v;else if(k==='text')e.textContent=v;else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);else if(k==='checked')e.checked=!!v;else if(k==='value')e.value=v;else if(k==='disabled'||k==='hidden')e[k]=!!v;else e.setAttribute(k,v===true?'':String(v));}for(const c of children.flat(Infinity)){if(c!=null&&c!==false)e.append(c instanceof Node?c:document.createTextNode(String(c)));}return e;};
 const button=(text,fn,cls='')=>h('button',{class:cls,onclick:async e=>{e.preventDefault();try{await fn(e);}catch(err){showError(err);}}},text);
@@ -16,7 +16,7 @@ function setSave(text,isError=false){const e=$('#saveStatus');if(e){e.textConten
 function bufferKey(){return edit&&user?`woonbi-buffer:${store.mode}:${user.uid}:${edit.id}`:'';}
 function buffer(){if(!edit)return;try{W.session.setItem(bufferKey(),JSON.stringify({revision:edit.revision,patch:readEditor(),at:now()}));}catch{} }
 function readEditor(){if(!edit)return{};return {title:$('#articleTitle')?.value??edit.title,deck:$('#articleDeck')?.value??edit.deck,body:$('#articleBody')?.value??edit.body,byline:$('#articleByline')?.value??edit.byline,photos:C.clone(edit.photos)};}
-function changed(){if(!edit)return;dirty=true;editSequence++;setSave('저장 대기 · 이 탭에 임시 보관');buffer();const count=$('#charCount');if(count)count.textContent=`${readEditor().body.length.toLocaleString()}자`;clearTimeout(saveTimer);saveTimer=setTimeout(()=>save().catch(()=>{}),900);renderPreflight();}
+function changed(){if(!edit)return;dirty=true;editSequence++;setSave('저장 대기 · 이 탭에 임시 보관');buffer();const count=$('#charCount');if(count)count.textContent=`${readEditor().body.length.toLocaleString()}자`;clearTimeout(saveTimer);saveTimer=setTimeout(()=>save().catch(()=>{}),900);renderPreflight();clearTimeout(aiTimer);aiTimer=setTimeout(renderAiGuard,420);}
 async function save(){
  clearTimeout(saveTimer);if(saveJob){await saveJob;if(dirty)return save();return;}
  if(!edit||!dirty)return;const targetId=edit.id,seq=editSequence,patch=readEditor(),expected=edit.revision;setSave('저장 중…');
@@ -27,7 +27,7 @@ async function save(){
 async function leaveEditor(){clearTimeout(saveTimer);if(uploading){toast('사진 저장이 끝난 뒤 이동해 주세요.');return false;}if(dirty){try{await save();}catch{toast('저장되지 않은 글이 있습니다. 먼저 사본을 보관해 주세요.');return false;}}presenceStop?.();presenceStop=null;edit=null;dirty=false;return true;}
 function clearLocalBuffers(){for(const k of W.session.keys())if(k.startsWith('woonbi-buffer:'))W.session.removeItem(k);for(const v of urls.values())URL.revokeObjectURL(v);urls.clear();}
 function refreshHeader(){
- const reading=['public','archive','examples','reader'].includes(view);document.body.classList.toggle('reading-view',reading);main.className=reading?'newsroom-main':'desk-main';document.querySelectorAll('.desk-only').forEach(e=>e.hidden=reading);document.querySelectorAll('.reader-only').forEach(e=>e.hidden=!reading);
+ const reading=['public','archive','examples','ideas','reader'].includes(view);document.body.classList.toggle('reading-view',reading);main.className=reading?'newsroom-main':'desk-main';document.querySelectorAll('.desk-only').forEach(e=>e.hidden=reading);document.querySelectorAll('.reader-only').forEach(e=>e.hidden=!reading);
 
  const account=$('#account');account.replaceChildren();$('#navArticles').textContent=C.staff(user)?'기사 계획':'내 기사';$('#navDashboard').hidden=!C.teacher(user);$('#navPhotos').hidden=!C.teacher(user);$('#navBook').hidden=!C.teacher(user);$('#navMembers').hidden=!C.teacher(user);
  if(store.mode==='demo'){
@@ -39,7 +39,7 @@ function refreshHeader(){
 }
 function listen(){unsubscribe?.();unsubscribe=store.subscribe(()=>{if(!edit&&['articles','public','members','dashboard','photos'].includes(view))renderCurrent().catch(showError);else if(edit){const indicator=$('#remoteNotice');if(indicator)indicator.hidden=false;}});}
 async function navigate(next){if(!(await leaveEditor()))return;view=next;refreshHeader();await renderCurrent();window.scrollTo({top:0,behavior:'instant'});}
-async function renderCurrent(){if(view==='archive')return newsroom.archiveHome();if(view==='examples')return newsroom.examples();if(view==='public')return renderPublic();if(!user)return renderLogin();if(!user.active)return renderPending();if(view==='dashboard')return renderDashboard();if(view==='photos')return renderPhotoDesk();if(view==='book')return renderBook();if(view==='members')return renderMembers();return renderArticles();}
+async function renderCurrent(){if(view==='archive')return newsroom.archiveHome();if(view==='examples')return newsroom.examples();if(view==='ideas')return newsroom.ideas();if(view==='public')return renderPublic();if(!user)return renderLogin();if(!user.active)return renderPending();if(view==='dashboard')return renderDashboard();if(view==='photos')return renderPhotoDesk();if(view==='book')return renderBook();if(view==='members')return renderMembers();return renderArticles();}
 function renderLogin(){main.replaceChildren(h('div',{class:'panel'},h('h1',{},'웅비 편집실'),h('p',{},'Google 계정으로 로그인하고 담당교사의 승인 후 배정된 기사를 작성합니다.'),button('Google로 로그인',()=>store.login(),'primary')));}
 function renderPending(){main.replaceChildren(h('div',{class:'panel'},h('h1',{},'참여 승인을 기다리고 있습니다'),h('p',{},'담당교사가 계정을 승인하고 기사를 배정하면 이곳에 내 기사가 나타납니다.'),button('승인 상태 확인',async()=>{location.reload();})));}
 function articleState(a){return a.status==='draft'&&!a.body.trim()?'작성 전':C.STATUS[a.status];}
@@ -113,6 +113,21 @@ async function assignDialog(){const members=(await store.listMembers()).filter(m
  if(!members.length)form.append(h('p',{class:'warning'},'참여자 화면에서 학생 계정을 먼저 승인해 주세요.'));
  const submit=button('기사 만들기',async()=>{if(!form.reportValidity())return;const data=new FormData(form),a=await store.createArticle({title:String(data.get('title')),category:String(data.get('category')),dueDate:String(data.get('dueDate')),minPhotos:Number(data.get('minPhotos')),assigneeIds:data.getAll('assignee')});dialog.close();toast('기사 배정을 저장했습니다.');await openEditor(a.id);},'primary');dialogOpen('새 기사 배정',form,[submit]);}
 function renderPreflight(){const host=$('#v4Preflight');if(!host||!edit)return;const a={...edit,...readEditor()},items=W.editorial.preflight(a);host.replaceChildren(h('h3',{},'편집 체크'),h('p',{class:'small'},'자동 검사는 사실 검증을 대신하지 않습니다.'),...items.map(x=>h('p',{class:'check-'+x.severity},x.text)));if(!items.length)host.append(h('p',{},'형식 확인 완료 · 사실·출처는 사람이 확인하세요.'));}
+function renderAiGuard(){
+ const host=$('#aiEditorPanel');if(!host||!edit||!W.aiEditor)return;
+ const a={...edit,...readEditor()},report=W.aiEditor.score(a),band=report.score>=82?'good':report.score>=65?'mid':'warn';
+ const head=h('div',{class:'ai-panel-head'},h('div',{},h('span',{class:'eyebrow'},'AI EDITORIAL GUARD'),h('h3',{},'AI 편집 도우미')),h('strong',{class:'ai-score '+band},report.score));
+ const note=h('p',{class:'small muted'},'원고를 외부 서비스로 보내지 않고 이 브라우저에서만 점검합니다. 문장을 대신 써주지 않습니다.');
+ const stats=h('div',{class:'ai-stats'},h('span',{},'문단 '+report.stats.paragraphs),h('span',{},'문장 '+report.stats.sentences),h('span',{},'수치 '+report.stats.numbers),h('span',{},'출처 '+report.stats.refs),h('span',{},'인용 '+report.stats.quotes));
+ const strengths=h('div',{class:'ai-strengths'},h('b',{},'살릴 점'),...(report.strengths.length?report.strengths:['아직 구체적인 강점 신호가 적습니다.']).map(x=>h('span',{},x)));
+ const flags=h('div',{class:'ai-flags'});
+ for(const x of report.flags.slice(0,7))flags.append(h('article',{class:'ai-flag '+x.level},h('b',{},x.title),h('p',{},x.detail)));
+ const qBtn=button('취재 질문 6개',()=>dialogOpen('AI 편집 도우미 · 취재 질문',h('ol',{class:'ai-dialog-list'},W.aiEditor.questions(a).map(x=>h('li',{},x)))),'text');
+ const hBtn=button('제목 프레임 4개',()=>dialogOpen('AI 편집 도우미 · 제목 설계',h('div',{},h('p',{class:'small muted'},'완성 제목을 대신 쓰지 않고, 기자가 사실과 장면을 넣어 완성할 프레임만 보여줍니다.'),h('ul',{class:'ai-dialog-list'},W.aiEditor.headlinePrompts(a).map(x=>h('li',{},x))))),'text');
+ const ideaBtn=button('외부 취재 사례 보기',()=>navigate('ideas'),'text');
+ host.replaceChildren(head,note,stats,strengths,flags,h('div',{class:'ai-actions'},qBtn,hBtn,ideaBtn));
+}
+
 function photoPlanPanel(a,writable){
  const plan=W.legacyPlanFor?.(a.id);if(!plan?.photos?.length)return null;
  const wrap=h('section',{class:'photo-plan'},h('div',{class:'photo-plan-head'},h('div',{},h('span',{class:'eyebrow'},'ORIGINAL PHOTO PLAN'),h('h3',{},'원래 사진 계획')),h('span',{class:'small muted'},plan.photos.length+'개 슬롯')));
@@ -156,7 +171,7 @@ async function openEditor(id){
  const pub=button('웹진에 발행',async()=>{if(!edit.webConsent)throw new Error('웹 공개 동의가 확인되지 않았습니다. 수정 요청 후 다시 승인해 주세요.');if(!confirm('승인된 이 원고와 사진을 외부에서 읽을 수 있게 공개할까요?'))return;await store.publish(edit.id,edit.revision);toast('웹진 공개본을 저장했습니다.');});pub.disabled=!edit.webConsent;side.firstChild.append(pub);
  side.firstChild.append(button('웹 공개 회수',async()=>{if(confirm('공개 웹진에서 이 기사를 내릴까요? 원고와 인쇄 확정본은 유지됩니다.')){await store.unpublish(edit.id);toast('공개를 회수했습니다.');}},'danger'));
  side.firstChild.append(h('p',{class:'small muted'},`웹 공개 동의 ${edit.webConsent?'확인':'미확인'} · 책 수록 ${edit.printConsent?'확인':'미확인'}`));}
- side.append(h('div',{class:'panel',id:'v4Preflight','aria-live':'polite'}));
+ side.append(h('div',{class:'panel',id:'v4Preflight','aria-live':'polite'}));side.append(h('div',{class:'panel ai-editor-panel',id:'aiEditorPanel','aria-live':'polite'}));
  side.append(h('div',{class:'panel'},h('h3',{},'기록과 미리보기'),button('기사 미리보기',async()=>{const a={...edit,...readEditor()};const content=await renderArticle(a);dialogOpen('발행 전 미리보기',content);}),button('수정 이력 보기',historyDialog),button('내 원고 사본 받기',()=>textDownload(JSON.stringify({...edit,...readEditor()},null,2),'woonbi-article-backup.json'))));
  const file=h('input',{type:'file',multiple:true,accept:'image/jpeg,image/png,image/webp',hidden:true,id:'photoInput'});file.addEventListener('change',()=>uploadFiles(file.files).catch(showError));
  const drop=h('div',{class:'photo-dropzone',role:'button',tabindex:writable?0:-1,'aria-disabled':String(!writable)},h('strong',{},'사진을 여기로 끌어오거나 눌러 선택'),h('span',{},'JPG · PNG · WebP / 장당 25MB / 웹용 WebP 자동 생성'));
@@ -169,7 +184,7 @@ async function openEditor(id){
  const presence=h('div',{class:'presence-line',id:'presenceLine',hidden:true});main.insertBefore(presence,main.children[1]);
  if(writable&&typeof store.watchEditors==='function'){presence.hidden=false;presence.textContent='공동 편집 상태 확인 중…';presenceStop=store.watchEditors(edit.id,rows=>{presence.replaceChildren();if(!rows.length){presence.textContent='현재 이 원고를 다른 편집자가 열어두고 있지 않습니다.';return;}presence.append(h('strong',{},'함께 열어둔 사람 '),document.createTextNode(rows.map(x=>x.displayName).join(' · ')+' · 저장 시 버전 충돌을 확인합니다.'));});}
  const buf=W.session.getItem(bufferKey());if(buf&&writable){const saved=JSON.parse(buf);main.prepend(h('div',{class:'notice recovery'},h('p',{},'이 탭에 서버 저장을 마치지 못한 원고가 있습니다.'),button('임시 원고 복구',()=>{title.value=saved.patch.title;body.value=saved.patch.body;deck.value=saved.patch.deck;byline.value=saved.patch.byline;edit.photos=saved.patch.photos;edit.revision=saved.revision;changed();renderPhotoGrid();}),button('임시 사본 받기',()=>textDownload(JSON.stringify(saved,null,2),'woonbi-recovery.json'))));}
- await renderPhotoGrid();renderPreflight();window.scrollTo(0,0);
+ await renderPhotoGrid();renderPreflight();renderAiGuard();window.scrollTo(0,0);
 }
 async function reviewDialog(target){const a=edit,form=h('div');if(target==='changes')form.append(h('label',{},'수정할 내용',h('textarea',{id:'feedbackInput',rows:5,maxlength:2500,placeholder:'어떤 부분을 보완하면 좋을지 적어 주세요.'})));
  else form.append(h('p',{},'내용 승인은 공개 발행과 다릅니다. 동의를 확인한 매체만 선택합니다.'),h('label',{class:'check'},h('input',{type:'checkbox',id:'factConsent'}),'초안의 사실·인용·실제 필자와 사진 출처를 확인했습니다.'),h('label',{class:'check'},h('input',{type:'checkbox',id:'webConsent'}),'학생·사진 등 웹 공개 동의 범위를 확인했습니다.'),h('label',{class:'check'},h('input',{type:'checkbox',id:'printConsent'}),'종이 교지 수록 동의 범위를 확인했습니다.'));
@@ -397,7 +412,7 @@ window.addEventListener('online',()=>{if(dirty)save().catch(()=>{});});window.ad
 (async()=>{try{const cfg=window.WOONBI_CONFIG||{};if(!['demo','firebase'].includes(cfg.mode))throw new Error('운영 모드를 명시해야 합니다.');store=cfg.mode==='demo'?new W.DemoStore():new W.FirebaseStore(cfg);try{await store.init();}catch(e){if(cfg.mode==='demo'&&['SecurityError','InvalidStateError','UnknownError'].includes(e.name)){store.channel?.close();store=new W.MemoryStore();await store.init();}else throw e;}user=store.user;
  newsroom=W.createNewsroom({h,button,main,store:()=>store,user:()=>user,openEditor,navigate,renderArticle,imageNode,dialogOpen,toast,leaveEditor,setView:v=>{view=v;refreshHeader();}});
  $('#modeBanner').textContent=store.mode==='demo'?(store.persistence==='memory'?'편집 미리보기 · 원고는 미발행 | 이 탭 임시 저장 · 실제 로그인·서버 연결 전':'편집 미리보기 · 원고는 미발행 | 이 기기에 저장 · 실제 Google 로그인 연결 전'):'웅비 편집실 · 승인된 계정만 원고를 작성할 수 있습니다.';$('#modeBanner').classList.toggle('live',store.mode==='firebase');
- store.onAuthChange=async()=>{user=store.user;clearLocalBuffers();listen();refreshHeader();await navigate(user?'articles':'public');};store.onError=showError;listen();refreshHeader();if(new URLSearchParams(location.search).get('student')==='login'&&!user)view='articles';await renderCurrent();if(new URLSearchParams(location.search).get('student')==='login'){view='articles';refreshHeader();await renderCurrent();}
+ store.onAuthChange=async()=>{user=store.user;clearLocalBuffers();listen();refreshHeader();await navigate(user?'articles':'public');};store.onError=showError;listen();const params=new URLSearchParams(location.search),requestedView=params.get('view');if(['public','archive','examples','ideas'].includes(requestedView))view=requestedView;if(params.get('student')==='login'&&!user)view='articles';refreshHeader();await renderCurrent();if(params.get('student')==='login'){view='articles';refreshHeader();await renderCurrent();}
  // Dev inspection helpers expose no additional live authorization. Firebase rules remain the boundary.
  if(store.mode==='demo')W.demo={store,getCurrent:()=>edit,newsroom};
  if(location.hash.startsWith('#read/')){const id=decodeURIComponent(location.hash.slice(6));await newsroom.read(id,id.startsWith('reference-'));}

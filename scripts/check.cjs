@@ -41,6 +41,23 @@ if(fs.existsSync(referencePath)){
   const restoredAssets=fs.readdirSync('web/assets/restored').filter(f=>/\.webp$/i.test(f));
   if(restoredAssets.length!==4)throw new Error('Expected 4 restored WebP assets, found '+restoredAssets.length);
   if(!index.includes('editorial-polish.css'))throw new Error('Editorial polish stylesheet is not loaded.');
+  const criteria200='docs/woonbi-200-improvements-20260925.md';
+  if(!fs.existsSync(criteria200))throw new Error('200-perspective improvement criteria missing.');
+  const criteriaText=fs.readFileSync(criteria200,'utf8');
+  const criteriaCount=(criteriaText.match(/^\d+\. \[기준\]/gm)||[]).length;
+  if(criteriaCount!==200)throw new Error('Expected 200 improvement criteria, found '+criteriaCount);
+  for(const f of ['web/js/reference-hub.js','web/js/ai-editor.js'])if(!fs.existsSync(f))throw new Error('Missing '+f);
+  if(!index.includes('js/reference-hub.js')||!index.includes('js/ai-editor.js'))throw new Error('Reporting hub / AI guard must be loaded by index.');
+  if(!index.includes('data-nav="ideas"'))throw new Error('Reader navigation must expose reporting ideas.');
+  const refRuntime={window:{Woonbi:{}}};refRuntime.window.window=refRuntime.window;vm.createContext(refRuntime);
+  vm.runInContext(fs.readFileSync('web/js/reference-hub.js','utf8'),refRuntime,{filename:'reference-hub.js'});
+  const hub=refRuntime.window.Woonbi.referenceHub||[];
+  if(hub.length<18)throw new Error('Expected at least 18 reporting references, found '+hub.length);
+  for(const item of hub){
+    if(!/^https:\/\//.test(item.source||''))throw new Error('Reporting reference must use HTTPS: '+item.id);
+    if(!item.title||!item.publisher||!item.why||!Array.isArray(item.try)||item.try.length<1)throw new Error('Incomplete reporting reference: '+item.id);
+  }
+  if(!fs.readFileSync('package.json','utf8').includes('tests/ai-editor.test.cjs'))throw new Error('AI editor regression test must remain in npm test.');
   const review='docs/woonbi-v06r-300-role-review-20260924.md';
   if(!fs.existsSync(review))throw new Error('300-role review document missing.');
   const reviewText=fs.readFileSync(review,'utf8');
@@ -87,4 +104,4 @@ if(fs.existsSync(referencePath)){
   if(!newsroomText.includes("filter(a=>!String(a?.id||'').startsWith('sample-article-'))"))throw new Error('Live newsroom must exclude generic sample-article documents.');
   if(!newsroomText.includes("a.id==='reference-EX01'"))throw new Error('Reference EX01 must remain the visual fallback lead.');
 }
-console.log('JS syntax, JSON, school API wiring, 40 reference articles, runtime 120 photo slots, exact 10 v0.5 photos, 4 restored WebP assets, and editorial polish: PASS');
+console.log('JS syntax, JSON, school API wiring, 200 improvement criteria, reporting hub, local AI guard, 40 reference articles, runtime 120 photo slots, exact 10 v0.5 photos, 4 restored WebP assets, and editorial polish: PASS');

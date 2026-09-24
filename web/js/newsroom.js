@@ -22,6 +22,14 @@ W.createNewsroom=function(api){
   function headlineRail(items){if(!items?.length)return null;const rail=h('section',{class:'n-headline-rail','aria-label':'오늘의 주요 기사'});rail.append(h('div',{class:'n-rail-label'},'TODAY’S HEADLINES · 오늘의 주요 기사'));for(const [i,a] of items.slice(0,4).entries())rail.append(h('article',{},h('span',{class:'n-rail-no'},String(i+1).padStart(2,'0')),h('div',{},h('span',{class:'n-section-label'},smallLabel(a)),h('h3',{},headlink(a)))));return rail;}
  function mediaShowcase(){const items=lastYear().showcase||[];if(!items.length)return null;const grid=h('div',{class:'n-lastyear-grid'});for(const x of items)grid.append(h('figure',{class:'n-lastyear-item'},h('img',{src:x.src,alt:x.caption,loading:'lazy',decoding:'async',width:x.width,height:x.height}),h('figcaption',{},h('b',{},x.caption),h('span',{},'포항고 웅비 지난 호 · 현재 기사 현장 아님'))));return h('section',{class:'n-lastyear-section','aria-label':'지난 호 예시 자료사진'},sectionHead('사진으로 보는 지난 호','포항고의 지난 장면을 현재 기사와 구분해 다시 봅니다.'),grid);}
  function packageShowcase(){const items=restored().showcase||[];if(!items.length)return null;const grid=h('div',{class:'n-restored-grid'});for(const x of items)grid.append(h('figure',{class:'n-restored-item'},h('img',{src:x.src,alt:x.caption,loading:'lazy',decoding:'async',width:x.width,height:x.height}),h('figcaption',{},h('b',{},x.caption),h('span',{},x.note||'복원 자료'))));return h('details',{class:'n-package-restore'},h('summary',{},'편집부 복원 자료 4장 보기'),h('section',{class:'n-restored-section'},grid));}
+ function reportingTeaser(){
+  const source=W.referenceHub||[],preferred=['dis-club-policy','nspa-ai','yonsei-infographic'],items=preferred.map(id=>source.find(x=>x.id===id)).filter(Boolean);
+  if(!items.length)return null;
+  const list=h('div',{class:'n-reporting-teaser-list'});
+  for(const x of items)list.append(h('article',{},h('span',{class:'n-section-label'},x.publisher),h('h3',{},x.title),h('p',{},x.why),h('small',{},'우리 취재: '+(x.try?.[0]||''))));
+  return h('section',{class:'n-reporting-teaser'},sectionHead('다른 학생언론에서 가져온 취재 힌트','원문을 베끼지 않고 취재 방식만 참고합니다.',button('취재 아이디어 더 보기 →',()=>navigate('ideas'),'text')),list);
+ }
+
  function headlink(a){return h('a',{href:'#read/'+encodeURIComponent(a.id),onclick:e=>{e.preventDefault();read(a.id,isReference(a)).catch(toastError);}},a.headline||a.title);}
  function toastError(e){toast(e.message||'기사를 열지 못했습니다.');}
  function meta(a){return h('div',{class:'n-meta'},h('span',{},a.assigneeNames?.length?'취재·수정 '+a.assigneeNames.join(' · '):a.byline||'편집실'),h('span',{},E.readingMinutes(a.body)+'분 읽기'),h('span',{class:'n-status'},label(a)));}
@@ -67,6 +75,7 @@ W.createNewsroom=function(api){
    if(!items.length)continue;const grid=h('section',{class:cls});main.append(sectionHead(title,sub),grid);for(const a of items){const c=await card(a,true);if(token!==generation)return;grid.append(c);}
   }
   const packageBlock=packageShowcase();if(packageBlock)main.append(packageBlock);
+   const reportingBlock=reportingTeaser();if(reportingBlock)main.append(reportingBlock);
    if(archive().pages?.length){main.append(h('section',{class:'n-archive-promo'},h('div',{},h('span',{class:'n-section-label'},'ARCHIVE / 지난 호'),h('h2',{},'지난해의 학교를\n다시 펼치다.'),h('p',{},'2025년 학교 기록 · 표지 발간 표기는 2026년. 원본 지면을 별도로 보관합니다.'),button('지난 호 읽기 →',()=>navigate('archive'),'ink-button')),h('button',{class:'n-archive-cover',onclick:()=>navigate('archive'),'aria-label':'지난 호 표지 열기'},h('img',{src:asset('archive-cover'),alt:'웅비 VOL.41 원본 표지',loading:'lazy'}))));}
   const shown=new Set([lead.id,...sides.map(a=>a.id),...research.slice(0,4).map(a=>a.id),...feature.slice(0,3).map(a=>a.id)]),other=rows.filter(a=>!shown.has(a.id));
   const moreGrid=h('section',{class:'n-more-grid'});for(const a of other.slice(0,8)){const c=await card(a,true);if(token!==generation)return;moreGrid.append(c);}main.append(sectionHead('더 읽을 기사',other.length+'편'),moreGrid);
@@ -98,6 +107,26 @@ W.createNewsroom=function(api){
  function reset(){category='all';query='';sortMode='plan';}
  window.addEventListener('scroll',()=>{const p=document.getElementById('readProgress'),a=document.getElementById('newsArticle');if(p&&a){const r=a.getBoundingClientRect();p.value=Math.max(0,Math.min(100,(-r.top/(r.height-innerHeight))*100||0));}},{passive:true});
  async function examples(){cleanPage();const examples=data().examples||[];main.append(h('header',{class:'n-page-heading'},h('span',{class:'n-section-label'},'REFERENCE DESK'),h('h1',{},'예시 원고 서가'),h('p',{},'복원·예시 원고 '+examples.length+'편. 과거 사례와 올해 편집본을 구분해 보관합니다.')));const list=h('div',{class:'n-example-list'});for(const a of examples)list.append(h('article',{},h('div',{},h('span',{class:'n-section-label'},a.archiveLabel||'참고 원고'),h('h2',{},h('a',{href:'#read/'+a.id,onclick:e=>{e.preventDefault();read(a.id,true);}},a.headline||a.title)),h('p',{},C.paragraphs(a.body)[0]?.slice(0,160)||'')),button('원고 읽기 →',()=>read(a.id,true),'text')));if(!list.children.length)list.append(h('p',{class:'empty'},'승인된 참고 원고를 연결하면 표시됩니다.'));main.append(list);}
+ async function ideas(){
+  cleanPage();const all=W.referenceHub||[],tags=[...new Set(all.flatMap(x=>x.tags||[]))].sort((a,b)=>a.localeCompare(b,'ko'));let q='',tag='all';
+  const head=h('header',{class:'n-page-heading idea-heading'},h('span',{class:'n-section-label'},'REPORTING LAB'),h('h1',{},'취재 아이디어'),h('p',{},'다른 학교 학생언론·대학언론·지역 자료에서 “어떻게 취재했는지”만 참고합니다. 원문을 복사하지 말고, 포항고의 사람·장소·숫자로 다시 취재하세요.'));
+  const search=h('input',{type:'search',placeholder:'예: 인터뷰 · AI · 포항 · 동아리','aria-label':'취재 아이디어 검색'}),select=h('select',{'aria-label':'취재 아이디어 주제'},h('option',{value:'all'},'모든 주제'),tags.map(t=>h('option',{value:t},t))),count=h('span',{class:'small muted'}),grid=h('section',{class:'idea-grid','aria-live':'polite'});
+  const toolbar=h('div',{class:'idea-toolbar'},search,select,count);
+  function paint(){
+   const nq=E.normalize(q),rows=all.filter(x=>(tag==='all'||(x.tags||[]).includes(tag))&&(!nq||E.normalize([x.title,x.publisher,x.kind,x.why,(x.tags||[]).join(' '),(x.try||[]).join(' ')].join(' ')).includes(nq)));
+   count.textContent=rows.length+'개 사례';grid.replaceChildren();
+   for(const [i,x] of rows.entries()){
+    const url=safeUrl(x.source),tagsNode=h('div',{class:'idea-tags'},(x.tags||[]).map(t=>h('span',{},t))),tryList=h('ul',{class:'idea-try'},(x.try||[]).map(t=>h('li',{},t)));
+    const art=h('article',{class:'idea-card'},h('div',{class:'idea-no'},String(i+1).padStart(2,'0')),h('div',{class:'idea-kind'},x.kind),h('h2',{},x.title),h('p',{class:'idea-publisher'},x.publisher),h('p',{class:'idea-why'},x.why),tryList,tagsNode);
+    if(url)art.append(h('a',{class:'idea-source',href:url,target:'_blank',rel:'noopener noreferrer'},'출처 원문 보기 ↗'));
+    grid.append(art);
+   }
+   if(!rows.length)grid.append(h('p',{class:'empty'},'조건에 맞는 사례가 없습니다.'));
+  }
+  search.addEventListener('input',()=>{q=search.value;paint();});select.addEventListener('change',()=>{tag=select.value;paint();});
+  const ethics=h('aside',{class:'idea-ethics'},h('b',{},'웅비 참고 원칙'),h('p',{},'제목·취재 방식·공개 링크를 참고하되 문장을 베끼지 않습니다. 외부 사실은 원출처로 다시 확인하고, 사진·SNS 임베드는 권리와 공개 동의를 확인합니다.'));
+  main.replaceChildren(head,toolbar,ethics,grid);paint();
+ }
  async function archiveHome(){cleanPage();const ar=archive(),e=data().edition;if(!e||!ar.pages?.length){main.append(h('div',{class:'empty'},'공개 승인을 받은 지난 호를 연결하면 표시됩니다.'));return;}
   main.append(h('section',{class:'n-issue-head'},h('img',{src:asset('archive-cover'),alt:'지난 호 원본 표지'}),h('div',{},h('span',{class:'n-section-label'},'WOONBI ARCHIVE · '+e.issue),h('h1',{},'지난 호\n2025 학교 기록'),h('p',{},'원본은 그대로, 올해 기사와는 별도로.'),h('p',{class:'small muted'},'표지: VOL.41 | 2026 · 원본 '+ar.pages.length+'쪽'),button('원본 지면 펼치기 →',()=>openPage(1),'ink-button'),!W.STANDALONE?h('a',{class:'text',href:e.pdf,download:'웅비-VOL41-원본.pdf'},'원본 PDF'):null)));
   main.append(h('div',{class:'n-provenance-note'},e.note||''),sectionHead('지난 호 목차','기사 제목을 누르면 원본 지면으로 이동합니다.'));
@@ -109,6 +138,6 @@ W.createNewsroom=function(api){
   function paint(){ix=Math.max(0,Math.min(pages.length-1,ix));pic.src=file(pages[ix].src);pic.alt='웅비 지난 호 원본 '+(ix+1)+'쪽';num.value=ix+1;label.textContent='PDF 순서 '+(ix+1)+' / '+pages.length+'쪽';prev.disabled=ix===0;next.disabled=ix===pages.length-1;}paint();dialogOpen('지난 호 · 원본 지면',box);const d=document.getElementById('dialog');d.classList.add('archive-dialog');const key=e=>{if(e.target.tagName==='SELECT')return;if(e.key==='ArrowRight'){e.preventDefault();ix++;paint();}if(e.key==='ArrowLeft'){e.preventDefault();ix--;paint();}};d.addEventListener('keydown',key);d.addEventListener('close',()=>{d.classList.remove('archive-dialog');d.removeEventListener('keydown',key);},{once:true});
  }
  function editorialNotes(a){const x=h('details',{class:'n-editor-source'},h('summary',{},a.contentOrigin==='restored'?'복원 원고 · 취재 메모':'작성 초안 · 취재 메모'),h('p',{},'원래 배정 제목: '+(a.sourceTitle||a.title)),h('p',{},'현재 초안의 필자명은 학생의 서명이 아닙니다. 취재 후 최종 필자명을 확인하세요.'),h('ul',{},(a.reportingQuestions||[]).map(t=>h('li',{},t))));if(a.sourceBackup)x.append(h('small',{},'복원: '+a.sourceBackup));return x;}
- return {home,read,examples,archiveHome,openPage,editorialNotes,asset,reset};
+ return {home,read,examples,ideas,archiveHome,openPage,editorialNotes,asset,reset};
 };})();
 
