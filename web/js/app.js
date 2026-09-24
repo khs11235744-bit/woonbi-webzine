@@ -367,8 +367,8 @@ async function renderMembers(){
  if(store.mode==='demo'&&W.plan2026)return renderPlanMembers();
  if(!C.teacher(user))return renderPending();
  const members=await store.listMembers(),articles=await store.listArticles(),rows=h('div',{class:'panel'}),pending=members.filter(m=>!m.active),activeStudents=members.filter(m=>m.active&&['student','editor'].includes(m.role));
- const loginUrl=location.origin+'/?student=login';
- const onboarding=h('section',{class:'member-onboarding'},h('div',{},h('span',{class:'eyebrow'},'GOOGLE ACCOUNT ONBOARDING'),h('h2',{},'학생 계정 연결'),h('p',{class:'small muted'},'학생이 아래 주소에서 Google 로그인하면 승인 대기로 나타납니다. 승인 뒤 이름이 같은 기존 기사 배정을 실제 계정과 연결할 수 있습니다.')),h('div',{class:'member-onboarding-actions'},h('code',{},loginUrl),button('로그인 주소 복사',()=>copyText(loginUrl),'text')));
+ const loginUrl=location.origin+'/?student=login',studentGuide='[웅비 웹진 기사 작성 안내]\n1. 아래 주소를 열어 Google 계정으로 로그인하세요.\n'+loginUrl+'\n2. 첫 로그인 뒤에는 “승인 대기”로 표시됩니다.\n3. 담당교사가 승인하면 기존에 배정된 자기 기사만 열어 작성할 수 있습니다.\n4. 기사 원고와 사진은 승인 전까지 공개되지 않습니다.';
+ const onboarding=h('section',{class:'member-onboarding'},h('div',{},h('span',{class:'eyebrow'},'GOOGLE ACCOUNT ONBOARDING'),h('h2',{},'학생 계정 연결'),h('p',{class:'small muted'},'학생이 아래 주소에서 Google 로그인하면 승인 대기로 나타납니다. 승인 뒤 이름이 같은 기존 기사 배정을 실제 계정과 연결할 수 있습니다.')),h('div',{class:'member-onboarding-actions'},h('code',{},loginUrl),button('로그인 주소 복사',()=>copyText(loginUrl),'text'),button('학생 안내문 복사',()=>copyText(studentGuide),'text')));
  const summary=h('div',{class:'member-summary'},h('span',{},'승인 대기 '+pending.length),h('span',{},'학생·편집장 '+activeStudents.length),h('span',{},'교사 '+members.filter(m=>m.role==='teacher').length));
  main.replaceChildren(h('div',{class:'heading-row'},h('div',{},h('div',{class:'eyebrow'},'MEMBERS'),h('h1',{},'참여자 승인'),h('p',{class:'intro'},'Google 로그인은 본인 확인입니다. 기사 접근 권한은 별도로 승인합니다.'))),onboarding,summary,rows);
  for(const m of members){
@@ -397,7 +397,7 @@ window.addEventListener('online',()=>{if(dirty)save().catch(()=>{});});window.ad
 (async()=>{try{const cfg=window.WOONBI_CONFIG||{};if(!['demo','firebase'].includes(cfg.mode))throw new Error('운영 모드를 명시해야 합니다.');store=cfg.mode==='demo'?new W.DemoStore():new W.FirebaseStore(cfg);try{await store.init();}catch(e){if(cfg.mode==='demo'&&['SecurityError','InvalidStateError','UnknownError'].includes(e.name)){store.channel?.close();store=new W.MemoryStore();await store.init();}else throw e;}user=store.user;
  newsroom=W.createNewsroom({h,button,main,store:()=>store,user:()=>user,openEditor,navigate,renderArticle,imageNode,dialogOpen,toast,leaveEditor,setView:v=>{view=v;refreshHeader();}});
  $('#modeBanner').textContent=store.mode==='demo'?(store.persistence==='memory'?'편집 미리보기 · 원고는 미발행 | 이 탭 임시 저장 · 실제 로그인·서버 연결 전':'편집 미리보기 · 원고는 미발행 | 이 기기에 저장 · 실제 Google 로그인 연결 전'):'웅비 편집실 · 승인된 계정만 원고를 작성할 수 있습니다.';$('#modeBanner').classList.toggle('live',store.mode==='firebase');
- store.onAuthChange=async()=>{user=store.user;clearLocalBuffers();listen();refreshHeader();await navigate(user?'articles':'public');};store.onError=showError;listen();refreshHeader();await renderCurrent();if(new URLSearchParams(location.search).get('student')==='login'){view='articles';refreshHeader();await renderCurrent();}
+ store.onAuthChange=async()=>{user=store.user;clearLocalBuffers();listen();refreshHeader();await navigate(user?'articles':'public');};store.onError=showError;listen();refreshHeader();if(new URLSearchParams(location.search).get('student')==='login'&&!user)view='articles';await renderCurrent();if(new URLSearchParams(location.search).get('student')==='login'){view='articles';refreshHeader();await renderCurrent();}
  // Dev inspection helpers expose no additional live authorization. Firebase rules remain the boundary.
  if(store.mode==='demo')W.demo={store,getCurrent:()=>edit,newsroom};
  if(location.hash.startsWith('#read/')){const id=decodeURIComponent(location.hash.slice(6));await newsroom.read(id,id.startsWith('reference-'));}
