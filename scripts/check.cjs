@@ -1,4 +1,4 @@
-const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),crypto=require('node:crypto');
+const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),crypto=require('node:crypto'),vm=require('node:vm');
 for(const f of fs.readdirSync('web/js').filter(f=>f.endsWith('.js')))cp.execFileSync(process.execPath,['--check',path.join('web/js',f)],{stdio:'inherit'});
 cp.execFileSync(process.execPath,['--check','scripts/fetch-school-life.mjs'],{stdio:'inherit'});
 for(const f of ['package.json','firebase.json','firebase/firestore.indexes.json','firebase/cors.example.json'])JSON.parse(fs.readFileSync(f,'utf8'));
@@ -54,5 +54,16 @@ if(fs.existsSync(referencePath)){
     const actual=crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
     if(actual!==expected)throw new Error('v0.5 sample photo checksum mismatch: '+name);
   }
+
+  const runtime={window:{Woonbi:{}}};runtime.window.window=runtime.window;vm.createContext(runtime);
+  for(const f of ['web/js/reference-data.js','web/js/legacy-reference-data.js','web/js/last-year-media.js','web/js/restored-media.js']){
+    vm.runInContext(fs.readFileSync(f,'utf8'),runtime,{filename:f});
+  }
+  const runtimeExamples=runtime.window.Woonbi.newsroomData?.examples||[];
+  const runtimeSlots=runtimeExamples.reduce((n,a)=>n+(a.photos?.length||0),0);
+  const runtimeRefSlots=runtimeExamples.filter(a=>String(a.id).startsWith('reference-EX')).reduce((n,a)=>n+(a.photos?.length||0),0);
+  const runtimeLegacySlots=runtimeExamples.filter(a=>String(a.id).startsWith('legacy-A')).reduce((n,a)=>n+(a.photos?.length||0),0);
+  if(runtimeExamples.length!==40)throw new Error('Expected 40 runtime reference articles, found '+runtimeExamples.length);
+  if(runtimeSlots!==120||runtimeRefSlots!==24||runtimeLegacySlots!==96)throw new Error('Runtime photo plan mismatch: total='+runtimeSlots+', reference='+runtimeRefSlots+', legacy='+runtimeLegacySlots);
 }
-console.log('JS syntax, JSON, 40 reference articles, 120 legacy slots, exact 10 v0.5 photos, 4 restored WebP assets, and editorial polish: PASS');
+console.log('JS syntax, JSON, 40 reference articles, runtime 120 photo slots, exact 10 v0.5 photos, 4 restored WebP assets, and editorial polish: PASS');

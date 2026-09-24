@@ -41,7 +41,9 @@ function photo(a,key,i){
 }
 function apply(rows){
  return (rows||[]).map((a,index)=>{
-  // Preserve article-specific photo plans. Last-year media only fills examples that have no photo plan at all.
+  // Only the 12 finished reference examples receive last-year media.
+  // Legacy A01-A28 must keep their original 96-slot photo plan exactly, including zero-slot articles.
+  if(!String(a.id||'').startsWith('reference-EX'))return a;
   if(Array.isArray(a.photos)&&a.photos.length)return a;
   const key=pick(a,index),second=order[(order.indexOf(key)+3+(index%3))%order.length];
   return {...a,photos:[photo(a,key,0),photo(a,second,1)]};
