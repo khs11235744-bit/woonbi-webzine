@@ -283,8 +283,12 @@ function photoTokens(value){
 function scorePhotoArticle(row,a){
  const fileTokens=new Set(photoTokens(row.path+' '+row.name)),articleTokens=photoTokens([a.title,a.sourceTitle,a.category,a.byline,...(a.assigneeNames||[])].join(' '));
  let score=0,hits=[];for(const t of articleTokens){if(fileTokens.has(t)){const w=(a.assigneeNames||[]).some(n=>photoTokens(n).includes(t))?6:t.length>=4?4:2;score+=w;hits.push(t);}}
- const normPath=String(row.path).normalize('NFC').toLocaleLowerCase('ko');for(const n of a.assigneeNames||[]){const x=String(n).trim().toLocaleLowerCase('ko');if(x&&normPath.includes(x)){score+=8;hits.push(n);}}
- const titleNorm=String(a.title||'').replace(/\s+/g,'').toLocaleLowerCase('ko');if(titleNorm.length>=4&&normPath.replace(/\s+/g,'').includes(titleNorm.slice(0,Math.min(8,titleNorm.length))))score+=10;
+ const norm=s=>String(s||'').normalize('NFC').toLocaleLowerCase('ko'),compact=s=>norm(s).replace(/[^가-힣a-z0-9]+/g,'');
+ const normPath=norm(row.path);for(const n of a.assigneeNames||[]){const x=norm(n).trim();if(x&&normPath.includes(x)){score+=8;hits.push(n);}}
+ const titleNorm=compact(a.title);if(titleNorm.length>=4&&compact(row.path).includes(titleNorm.slice(0,Math.min(8,titleNorm.length))))score+=10;
+ // Korean filenames often remove spaces: "전선없이전기" should still match "전선 없이 전기는 어떻게 이동할까".
+ const articleCompacts=[a.title,a.sourceTitle,a.category,a.byline,...(a.assigneeNames||[])].map(compact).filter(Boolean);
+ for(const ft of fileTokens){if(ft.length<4)continue;const fc=compact(ft);if(fc.length<4)continue;for(const ac of articleCompacts){if(ac.length>=4&&(ac.includes(fc)||fc.includes(ac))){score+=Math.min(10,4+Math.floor(Math.min(fc.length,ac.length)/2));hits.push(ft);break;}}}
  return {score,hits:[...new Set(hits)]};
 }
 async function photoDimensions(file){
