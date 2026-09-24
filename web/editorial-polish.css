@@ -223,3 +223,8 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
  .n-lastyear-item img{height:150px}
  .n-lastyear-item:nth-child(1) img{height:205px}
 }
+
+/* v0.6.4 — quieter archive-photo labels */
+.lastyear-badge{display:inline-flex;align-items:center;border:1px solid #8f9e97;background:#edf1ee;color:#36554a;padding:2px 6px;font:700 9px/1.4 var(--sans);letter-spacing:.015em}
+.lastyear-photo figcaption{justify-content:flex-start;text-align:left;color:#77746c}
+.lastyear-photo img{filter:saturate(.94) contrast(1.02)}
