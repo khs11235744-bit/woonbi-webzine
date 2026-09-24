@@ -1,4 +1,4 @@
-const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process');
+const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),crypto=require('node:crypto');
 for(const f of fs.readdirSync('web/js').filter(f=>f.endsWith('.js')))cp.execFileSync(process.execPath,['--check',path.join('web/js',f)],{stdio:'inherit'});
 cp.execFileSync(process.execPath,['--check','scripts/fetch-school-life.mjs'],{stdio:'inherit'});
 for(const f of ['package.json','firebase.json','firebase/firestore.indexes.json','firebase/cors.example.json'])JSON.parse(fs.readFileSync(f,'utf8'));
@@ -35,5 +35,24 @@ if(fs.existsSync(referencePath)){
   const restoredAssets=fs.readdirSync('web/assets/restored').filter(f=>/\.webp$/i.test(f));
   if(restoredAssets.length!==4)throw new Error('Expected 4 restored WebP assets, found '+restoredAssets.length);
   if(!index.includes('editorial-polish.css'))throw new Error('Editorial polish stylesheet is not loaded.');
+  if(!index.includes('js/last-year-media.js'))throw new Error('Last-year sample media mapping is not loaded.');
+  const lastYearHashes={
+    'school.webp':'63819f3b0ce0e75ca8884ead2db062f0788eaa18526ff5013f49d1e464d78e6a',
+    'sports.webp':'83acaa354fc2dfaed8ba62151a0cd248fa82e8d95db355f7b9d948f0c45b916e',
+    'marathon.webp':'e03f311d57c9c7befb8e3c223e605fbb5f847afa2e13d7777ee22da3ea5c5fd8',
+    'busking.webp':'807210e8c74b18bc7e82bddd011b792facf3e2679618a7cfa17635243149d268',
+    'trip.webp':'84a1f2db6f2af38eb9de7cdb4654a75d1e5d9ee1ebee3612a8ce8fda10f3305a',
+    'camp.webp':'7a0dae7e88428e3b44fac37e9f7edac38d9b71a0bdc3a0431e354175dedfc763',
+    'exchange.webp':'7bb8744ba737fbdd9711b1357e7d1ff220279df6b165b4dad92a4da0e2b70c9c',
+    'library.webp':'8548178cb42db9437f4a6d781ac2bb9b8e7babe1f6c7e960ff56940d300dbc3f',
+    'science.webp':'bfdcfcb3f6b8aefb0a9e296e04c9c3a84ca9d0c3cf7d7a53a3f5e381fdc2b58d',
+    'memories.webp':'098d190d010aa0f107826af99228a5cd07fee21df184324759995cc14cf40026'
+  };
+  for(const [name,expected] of Object.entries(lastYearHashes)){
+    const f='web/assets/media/'+name;
+    if(!fs.existsSync(f))throw new Error('Missing restored v0.5 sample photo '+name);
+    const actual=crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
+    if(actual!==expected)throw new Error('v0.5 sample photo checksum mismatch: '+name);
+  }
 }
-console.log('JS syntax, JSON, 40 reference articles, 120 legacy slots, 4 restored WebP assets, and editorial polish: PASS');
+console.log('JS syntax, JSON, 40 reference articles, 120 legacy slots, exact 10 v0.5 photos, 4 restored WebP assets, and editorial polish: PASS');

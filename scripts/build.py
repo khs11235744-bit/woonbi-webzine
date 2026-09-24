@@ -11,6 +11,7 @@ args=p.parse_args()
 # These may contain school-specific/private editorial material and never ship in live output.
 private_scripts={'js/plan2026.js','js/newsroom-data.js','js/archive-data.js','js/sample-media.js'}
 private_preview_scripts=('js/plan2026.js','js/newsroom-data.js','js/archive-data.js','js/sample-media.js')
+public_sample_media={'school.webp','sports.webp','marathon.webp','busking.webp','trip.webp','camp.webp','exchange.webp','library.webp','science.webp','memories.webp'}
 
 if args.live_config:
  cfg=json.loads(Path(args.live_config).read_text(encoding='utf-8-sig'))
@@ -26,13 +27,15 @@ if args.live_config:
   if path.is_file():
    path.unlink()
 
- # Safe source files and the fictional sample asset are public.
- # Private originals/media/archive material remain excluded.
+ # Safe source files and the explicitly allowlisted v0.5 last-year sample photos are public.
+ # All other private originals/media/archive material remain excluded.
  for src in web.rglob('*'):
   rel=src.relative_to(web).as_posix()
   if not src.is_file() or rel in private_scripts:
    continue
-  if rel.startswith(('assets/media/','assets/archive/','archive/')):
+  if rel.startswith(('assets/archive/','archive/')):
+   continue
+  if rel.startswith('assets/media/') and Path(rel).name not in public_sample_media:
    continue
   out=dest/rel
   out.parent.mkdir(parents=True,exist_ok=True)
