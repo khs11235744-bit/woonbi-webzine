@@ -228,3 +228,9 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
 .lastyear-badge{display:inline-flex;align-items:center;border:1px solid #8f9e97;background:#edf1ee;color:#36554a;padding:2px 6px;font:700 9px/1.4 var(--sans);letter-spacing:.015em}
 .lastyear-photo figcaption{justify-content:flex-start;text-align:left;color:#77746c}
 .lastyear-photo img{filter:saturate(.94) contrast(1.02)}
+
+/* v0.6.5 — extra editorial cover variations */
+.editorial-placeholder.tone-6{background:linear-gradient(145deg,#20313a 0 40%,#59706f 40% 62%,#cab88c 62% 80%,#efe7d1 80%)}
+.editorial-placeholder.tone-7{background:linear-gradient(135deg,#242c35,#3f5265 44%,#8f6b54 44% 65%,#d9cbb4 65%)}
+.editorial-placeholder.tone-6:after{content:"CAMPUS / FIELD · WOONBI"}
+.editorial-placeholder.tone-7:after{content:"IDEAS / ESSAY · WOONBI"}

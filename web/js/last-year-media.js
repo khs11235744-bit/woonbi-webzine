@@ -18,7 +18,8 @@ const order=['school','sports','marathon','busking','trip','camp','exchange','li
 const explicit={
  'reference-EX01':'sports','reference-EX02':'exchange','reference-EX03':'school','reference-EX04':'sports',
  'reference-EX05':'library','reference-EX06':'trip','reference-EX07':'memories','reference-EX08':'memories',
- 'reference-EX09':'school','reference-EX10':'science','reference-EX11':'busking','reference-EX12':'trip'
+ 'reference-EX09':'school','reference-EX10':'science','reference-EX11':'busking','reference-EX12':'trip',
+ 'sample-article-1':'school','sample-article-2':'science','sample-article-3':'library'
 };
 const hints=[
  [/체육|스포츠|농구|운동회|축구|야구|배구/,'sports'],
@@ -39,18 +40,21 @@ function photo(a,key,i){
  const m=media[key],id='last-year-'+String(a.id||'example').replace(/[^a-zA-Z0-9_-]/g,'-')+'-'+i,path='seed/last-year/'+String(a.id||'example')+'/'+id;
  return {id,webPath:path,originalPath:path,sourceAsset:m.path,placeholder:true,lastYearSample:true,credit:'포항고 웅비 지난 호',caption:m.label+' · 현재 기사 현장 아님',alt:'교체용 지난 호 '+key+' 자료사진. 현재 기사 현장이 아닙니다.',after:i===0?-1:0,width:m.width,height:m.height,originalBytes:m.bytes,originalType:'image/webp'};
 }
+function photosFor(a,index=0){
+ const key=pick(a,index),second=order[(order.indexOf(key)+3+(index%3))%order.length];
+ return [photo(a,key,0),photo(a,second,1)];
+}
 function apply(rows){
  return (rows||[]).map((a,index)=>{
   // Only the 12 finished reference examples receive last-year media.
   // Legacy A01-A28 must keep their original 96-slot photo plan exactly, including zero-slot articles.
   if(!String(a.id||'').startsWith('reference-EX'))return a;
   if(Array.isArray(a.photos)&&a.photos.length)return a;
-  const key=pick(a,index),second=order[(order.indexOf(key)+3+(index%3))%order.length];
-  return {...a,photos:[photo(a,key,0),photo(a,second,1)]};
+  return {...a,photos:photosFor(a,index)};
  });
 }
 W.lastYearMedia={
- media,order,apply,
+ media,order,apply,photosFor,
  showcase:order.map(key=>({key,src:media[key].path,caption:media[key].label,width:media[key].width,height:media[key].height}))
 };
 if(W.newsroomData?.examples)W.newsroomData={...W.newsroomData,examples:apply(W.newsroomData.examples)};

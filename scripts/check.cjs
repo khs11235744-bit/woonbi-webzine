@@ -65,5 +65,14 @@ if(fs.existsSync(referencePath)){
   const runtimeLegacySlots=runtimeExamples.filter(a=>String(a.id).startsWith('legacy-A')).reduce((n,a)=>n+(a.photos?.length||0),0);
   if(runtimeExamples.length!==40)throw new Error('Expected 40 runtime reference articles, found '+runtimeExamples.length);
   if(runtimeSlots!==120||runtimeRefSlots!==24||runtimeLegacySlots!==96)throw new Error('Runtime photo plan mismatch: total='+runtimeSlots+', reference='+runtimeRefSlots+', legacy='+runtimeLegacySlots);
+  const ly=runtime.window.Woonbi.lastYearMedia;
+  const ex1=runtimeExamples.find(a=>a.id==='reference-EX01');
+  const lyPhotos=ly?.photosFor?.(ex1,0)||[];
+  if(lyPhotos.length!==2||!lyPhotos[0].sourceAsset?.endsWith('sports.webp')||lyPhotos.some(p=>p.lastYearSample!==true))throw new Error('EX01 must resolve to exact last-year sports media.');
+  const samplePhotos=ly?.photosFor?.({id:'sample-article-1',title:'학교 기록',category:'학교 이야기',planOrder:1},0)||[];
+  if(samplePhotos.length!==2||!samplePhotos[0].sourceAsset?.endsWith('school.webp'))throw new Error('Safe sample lead must resolve to last-year school media.');
+  const newsroomText=fs.readFileSync('web/js/newsroom.js','utf8');
+  if(!newsroomText.includes("filter(a=>!String(a?.id||'').startsWith('sample-article-'))"))throw new Error('Live newsroom must exclude generic sample-article documents.');
+  if(!newsroomText.includes("a.id==='reference-EX01'"))throw new Error('Reference EX01 must remain the visual fallback lead.');
 }
 console.log('JS syntax, JSON, 40 reference articles, runtime 120 photo slots, exact 10 v0.5 photos, 4 restored WebP assets, and editorial polish: PASS');
