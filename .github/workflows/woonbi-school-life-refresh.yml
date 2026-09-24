@@ -44,7 +44,9 @@ jobs:
       - name: Refresh school life data
         env:
           NEIS_API_KEY: ${{ secrets.NEIS_API_KEY }}
-        run: node scripts/fetch-school-life.mjs
+        run: |
+          node scripts/fetch-school-life.mjs
+          node scripts/validate-school-life.cjs
 
       - name: Deploy refreshed Hosting
         env:

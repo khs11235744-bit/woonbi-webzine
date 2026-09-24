@@ -1,7 +1,13 @@
 const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),crypto=require('node:crypto'),vm=require('node:vm');
+const readJson=f=>JSON.parse(fs.readFileSync(f,'utf8').replace(/^\uFEFF/,''));
 for(const f of fs.readdirSync('web/js').filter(f=>f.endsWith('.js')))cp.execFileSync(process.execPath,['--check',path.join('web/js',f)],{stdio:'inherit'});
 cp.execFileSync(process.execPath,['--check','scripts/fetch-school-life.mjs'],{stdio:'inherit'});
-for(const f of ['package.json','firebase.json','firebase/firestore.indexes.json','firebase/cors.example.json'])JSON.parse(fs.readFileSync(f,'utf8'));
+cp.execFileSync(process.execPath,['--check','scripts/validate-school-life.cjs'],{stdio:'inherit'});
+for(const f of ['package.json','firebase.json','firebase/firestore.indexes.json','firebase/cors.example.json'])readJson(f);
+const liveCfg=readJson('deploy/firebase-live-config.json');
+if(liveCfg.schoolLifeEndpoint!=='/school-life.json')throw new Error('schoolLifeEndpoint must remain /school-life.json');
+const schoolLifeUi=fs.readFileSync('web/js/school-life.js','utf8');
+for(const required of ['LIVE SCHOOL DATA','NEIS','포항고 공식 홈페이지','school-life-list'])if(!schoolLifeUi.includes(required))throw new Error('school-life UI regression: '+required);
 
 const referencePath='web/js/reference-data.js';
 if(fs.existsSync(referencePath)){
@@ -28,13 +34,19 @@ if(fs.existsSync(referencePath)){
 
   const referenceAssets=fs.readdirSync('web/assets/reference').filter(f=>/^EX\d{2}-\d+\.svg$/.test(f));
   if(referenceAssets.length!==24)throw new Error('Expected 24 reference SVG assets, found '+referenceAssets.length);
-  const legacy=JSON.parse(fs.readFileSync('web/assets/legacy-plan/index.json','utf8'));
+  const legacy=readJson('web/assets/legacy-plan/index.json');
   if(legacy.count!==96||legacy.items?.length!==96)throw new Error('Expected 96 legacy plan placeholder assets.');
   const restored='web/js/restored-media.js';
   if(!fs.existsSync(restored)||!index.includes('js/restored-media.js'))throw new Error('Restored public media must be loaded.');
   const restoredAssets=fs.readdirSync('web/assets/restored').filter(f=>/\.webp$/i.test(f));
   if(restoredAssets.length!==4)throw new Error('Expected 4 restored WebP assets, found '+restoredAssets.length);
   if(!index.includes('editorial-polish.css'))throw new Error('Editorial polish stylesheet is not loaded.');
+  const review='docs/woonbi-v06r-300-role-review-20260924.md';
+  if(!fs.existsSync(review))throw new Error('300-role review document missing.');
+  const reviewText=fs.readFileSync(review,'utf8');
+  const editorCount=(reviewText.match(/^\d+\. \*\*교지편집자/gm)||[]).length;
+  const devCount=(reviewText.match(/^\d+\. \*\*개발자/gm)||[]).length;
+  if(editorCount!==100||devCount!==200)throw new Error('300-role review count mismatch: '+editorCount+'/'+devCount);
   if(!index.includes('js/last-year-media.js'))throw new Error('Last-year sample media mapping is not loaded.');
   const lastYearHashes={
     'school.webp':'63819f3b0ce0e75ca8884ead2db062f0788eaa18526ff5013f49d1e464d78e6a',
@@ -75,4 +87,4 @@ if(fs.existsSync(referencePath)){
   if(!newsroomText.includes("filter(a=>!String(a?.id||'').startsWith('sample-article-'))"))throw new Error('Live newsroom must exclude generic sample-article documents.');
   if(!newsroomText.includes("a.id==='reference-EX01'"))throw new Error('Reference EX01 must remain the visual fallback lead.');
 }
-console.log('JS syntax, JSON, 40 reference articles, runtime 120 photo slots, exact 10 v0.5 photos, 4 restored WebP assets, and editorial polish: PASS');
+console.log('JS syntax, JSON, school API wiring, 40 reference articles, runtime 120 photo slots, exact 10 v0.5 photos, 4 restored WebP assets, and editorial polish: PASS');

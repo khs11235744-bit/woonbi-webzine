@@ -46,7 +46,7 @@ W.createNewsroom=function(api){
   const sort=h('select',{'aria-label':'기사 정렬',id:'newsSort'},h('option',{value:'plan'},'편집 순서'),h('option',{value:'updated'},'최근 수정'),h('option',{value:'title'},'제목순'));sort.value=sortMode;
   sort.addEventListener('change',()=>{sortMode=sort.value;category=category==='all'?'all-list':category;home();});
   main.append(h('div',{class:'n-toolbar'},tabs,h('label',{class:'n-search'},search),sort));
-  if(storeFn().mode==='demo')main.append(h('div',{class:'n-edition-note'},h('b',{},'2026 편집 미리보기'),h('span',{},'미발행 원고 · 예시 사진은 교체 후 사용합니다.')));else if(rows.some(isReference)){const refCount=rows.filter(isReference).length;main.append(h('div',{class:'n-edition-note'},h('b',{},'편집 미리보기'),h('span',{},'실제 발행 전 예시·복원 원고 '+refCount+'편과 지난 호 자료사진을 함께 보여줍니다.')));}
+  if(storeFn().mode==='demo')main.append(h('div',{class:'n-edition-note'},h('b',{},'2026 편집 미리보기'),h('span',{},'미발행 원고 · 예시 사진은 교체 후 사용합니다.')));else if(rows.some(isReference)){const refCount=rows.filter(isReference).length;main.append(h('div',{class:'n-edition-note'},h('b',{},'2026 준비호'),h('span',{},'실제 발행 전 예시·복원 원고 '+refCount+'편과 지난 호 자료사진을 편집 참고용으로 보여드립니다.')));}
   if(category!=='all'||q){
    main.append(sectionHead(q?'“'+query+'” 검색 결과':categories.find(x=>x[0]===category)?.[1]||'모든 기사',filtered.length+'편',button('조건 초기화',()=>{reset();home();},'text')));
    const grid=h('section',{class:'n-list-grid','aria-live':'polite'});main.append(grid);
