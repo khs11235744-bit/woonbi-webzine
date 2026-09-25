@@ -11,7 +11,7 @@
   "enableStorage": true,
   "schoolLifeEndpoint": "/school-life.json",
   "googleDrive": {
-    "clientId": "",
+    "clientId": "285370921993-7v7uf9ig7ljr47t0426h6fpq91d3kekf.apps.googleusercontent.com",
     "apiKey": "AIzaSyB6cyWVRDUQ2YdeEG39WFYhK612MaU_ghU",
     "appId": "285370921993",
     "backupFolderName": "웅비 사진 원본 백업",

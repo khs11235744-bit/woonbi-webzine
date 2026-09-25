@@ -120,7 +120,10 @@ async function connectViaGIS(kind,loginHint=''){
  state[kind]=row;return row;
 }
 async function connect(kind,loginHint=''){
- const fb=window.WOONBI_CONFIG?.firebase||{};
+ const c=cfg(),fb=window.WOONBI_CONFIG?.firebase||{};
+ // Picker follows Google's official GIS token-client flow when a Web OAuth client is configured.
+ // The main Woonbi Firebase login remains untouched.
+ if(kind==='picker'&&c.clientId)return connectViaGIS(kind,loginHint);
  if(fb.apiKey&&fb.authDomain&&fb.appId)return connectViaFirebase(kind,loginHint);
  return connectViaGIS(kind,loginHint);
 }

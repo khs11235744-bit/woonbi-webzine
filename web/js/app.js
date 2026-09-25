@@ -306,17 +306,7 @@ async function renderDashboard(){
 function photoTokens(value){
  return [...new Set((String(value||'').normalize('NFC').toLocaleLowerCase('ko').match(/[가-힣a-z0-9]{2,}/g)||[]).filter(x=>!/^(img|image|photo|사진|촬영|kakao|screen|screenshot|dcim|camera|jpeg|jpg|png|webp|dsc|pxl|mvimg|download)$/.test(x)))];
 }
-function scorePhotoArticle(row,a){
- const fileTokens=new Set(photoTokens(row.path+' '+row.name)),articleTokens=photoTokens([a.title,a.sourceTitle,a.category,a.byline,...(a.assigneeNames||[])].join(' '));
- let score=0,hits=[];for(const t of articleTokens){if(fileTokens.has(t)){const w=(a.assigneeNames||[]).some(n=>photoTokens(n).includes(t))?6:t.length>=4?4:2;score+=w;hits.push(t);}}
- const norm=s=>String(s||'').normalize('NFC').toLocaleLowerCase('ko'),compact=s=>norm(s).replace(/[^가-힣a-z0-9]+/g,'');
- const normPath=norm(row.path);for(const n of a.assigneeNames||[]){const x=norm(n).trim();if(x&&normPath.includes(x)){score+=8;hits.push(n);}}
- const titleNorm=compact(a.title);if(titleNorm.length>=4&&compact(row.path).includes(titleNorm.slice(0,Math.min(8,titleNorm.length))))score+=10;
- // Korean filenames often remove spaces: "전선없이전기" should still match "전선 없이 전기는 어떻게 이동할까".
- const articleCompacts=[a.title,a.sourceTitle,a.category,a.byline,...(a.assigneeNames||[])].map(compact).filter(Boolean);
- for(const ft of fileTokens){if(ft.length<4)continue;const fc=compact(ft);if(fc.length<4)continue;for(const ac of articleCompacts){if(ac.length>=4&&(ac.includes(fc)||fc.includes(ac))){score+=Math.min(10,4+Math.floor(Math.min(fc.length,ac.length)/2));hits.push(ft);break;}}}
- return {score,hits:[...new Set(hits)]};
-}
+const scorePhotoArticle=(row,a)=>WoonbiPhotoLibrary.scoreArticle(row,a);
 async function photoDimensions(file){
  try{const bmp=await createImageBitmap(file);const out={width:bmp.width,height:bmp.height};bmp.close();return out;}catch{return {width:0,height:0};}
 }
@@ -332,17 +322,7 @@ async function photoDHash(file){
 }
 function photoHashDistance(a,b){if(!a||!b||a.length!==b.length)return 99;let n=0;for(let i=0;i<a.length;i++){let x=parseInt(a[i],16)^parseInt(b[i],16);while(x){n+=x&1;x>>=1;}}return n;}
 function scanPreview(row){const key='scan:'+row.key;if(urls.has(key))return urls.get(key);const u=URL.createObjectURL(row.file);urls.set(key,u);return u;}
-function photoLibraryMeta(row,articles){
- const raw=String(row.path+' '+row.name).normalize('NFC'),compact=raw.toLocaleLowerCase('ko').replace(/s+/g,'');
- const dm=raw.match(/(20d{2})[._-]?(d{1,2})[._-]?(d{1,2})/),fallback=row.lastModified?new Date(row.lastModified):null;
- const date=dm?dm[1]+'-'+String(dm[2]).padStart(2,'0')+'-'+String(dm[3]).padStart(2,'0'):(fallback&&!Number.isNaN(fallback.getTime())?fallback.toISOString().slice(0,10):'날짜 미상');
- const defs=[['체육대회',['체육대회','체육','운동회']],['축제·공연',['축제','공연','버스킹','무대']],['수학여행·기행',['수학여행','기행','답사','여행']],['마라톤',['마라톤']],['교류',['교류','exchange']],['과학·탐구',['과학','탐구','실험','r&e','rne']],['도서관·독서',['도서관','독서','책']],['벚꽃·학교풍경',['벚꽃','풍경','교정']],['동아리',['동아리','club']],['수업·행사',['공개수업','수업','특강','골든벨']]];
- const events=defs.filter(([,keys])=>keys.some(k=>compact.includes(k.replace(/s+/g,'')))).map(([label])=>label);
- const article=articles.find(a=>a.id===row.articleId)||null,people=[];
- for(const a of articles)for(const n of (a.assigneeNames||[])){const x=String(n||'').trim();if(x&&compact.includes(x.replace(/s+/g,'').toLocaleLowerCase('ko'))&&!people.includes(x))people.push(x);}
- if(article)for(const n of (article.assigneeNames||[])){const x=String(n||'').trim();if(x&&!people.includes(x))people.push(x);}
- return {date,events:events.slice(0,3),article:article?.title||'',people:people.slice(0,5)};
-}
+const photoLibraryMeta=(row,articles)=>WoonbiPhotoLibrary.libraryMeta(row,articles);
 async function scanPhotoFolder(files,articles,onProgress){
  const scanLimit=Math.max(100,Math.min(5000,Number(window.WOONBI_CONFIG?.media?.scanLimit)||2000)),list=[...files].filter(f=>/^image\/(jpeg|png|webp)$/i.test(f.type)||/\.(jpe?g|png|webp)$/i.test(f.name)).slice(0,scanLimit),rows=[],exact=new Map();
  for(let i=0;i<list.length;i++){const file=list[i],path=file.webkitRelativePath||file.name,dims=await photoDimensions(file),hash=await photoExactHash(file),dhash=await photoDHash(file),avgColor=await photoAverageColor(file),row={key:'f'+i,file,name:file.name,path,size:file.size,lastModified:file.lastModified,width:dims.width,height:dims.height,hash,dhash,avgColor,duplicateOf:'',nearDuplicateOf:'',articleId:'',score:0,hits:[],selected:false};
@@ -377,8 +357,8 @@ function drivePhotoPanel(articles){
  });
 }
 function photoScanPanel(articles){
- const wrap=h('section',{class:'photo-folder-panel'}),input=h('input',{type:'file',multiple:true,accept:'image/jpeg,image/png,image/webp',webkitdirectory:true,hidden:true}),progress=h('span',{class:'small muted'},''),summary=h('div',{class:'photo-scan-summary'});
- const head=h('div',{class:'dashboard-section-head'},h('div',{},h('span',{class:'eyebrow'},'PHOTO LIBRARY + LOCAL SCAN'),h('h2',{},'사진 자료실 자동 정리'),h('p',{class:'small muted'},'날짜·행사·추천 기사·담당자 기준으로 묶고, 완전·유사 중복을 제거한 뒤 필요한 사진만 기사에 연결합니다.')),h('div',{class:'actions'},button('사진 폴더 선택',()=>input.click(),'primary'),progress));
+ const wrap=h('section',{class:'photo-folder-panel'}),input=h('input',{id:'woonbi-local-photo-input',type:'file',multiple:true,accept:'image/jpeg,image/png,image/webp',webkitdirectory:true,hidden:true}),progress=h('span',{class:'small muted'},''),summary=h('div',{class:'photo-scan-summary'});
+ const head=h('div',{class:'dashboard-section-head'},h('div',{},h('span',{class:'eyebrow'},'PHOTO LIBRARY + LOCAL SCAN'),h('h2',{},'사진 자료실 자동 정리'),h('p',{class:'small muted'},'Google 로그인이 막혀도 여기서는 바로 작업할 수 있습니다. PC의 사진 폴더를 고르면 날짜·행사·추천 기사·담당자 분류와 중복 검사를 시작합니다.')),h('div',{class:'actions'},button('로그인 없이 사진 폴더 가져오기',()=>input.click(),'primary'),progress));
  wrap.append(head,input,summary);
  const topEntries=m=>[...m.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,12);
  function groupMap(rows,extract){

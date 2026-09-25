@@ -88,3 +88,18 @@ test('Picker surfaces actionable errors instead of silent blank states',()=>{
   assert.match(src,/Workspace 정책/);
   assert.match(src,/Action\.ERROR/);
 });
+
+
+test('Picker prefers official GIS token client when Web OAuth client exists',()=>{
+  const src=fs.readFileSync('web/js/drive-bridge.js','utf8');
+  assert.match(src,/kind==='picker'&&c\.clientId/);
+  assert.match(src,/return connectViaGIS\(kind,loginHint\)/);
+  assert.match(src,/initTokenClient/);
+});
+
+
+test('local folder fallback stays available when Google login is skipped',()=>{
+  const app=fs.readFileSync('web/js/app.js','utf8');
+  assert.match(app,/로그인 없이 사진 폴더 가져오기/);
+  assert.match(app,/woonbi-local-photo-input/);
+});
