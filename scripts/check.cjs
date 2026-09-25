@@ -16,6 +16,8 @@ if(fs.existsSync(referencePath)){
   if(ids.length!==12)throw new Error('Expected 12 public Woonbi reference articles, found '+ids.length);
   const index=fs.readFileSync('web/index.html','utf8');
   if(!index.includes('js/drive-bridge.js'))throw new Error('Google Drive media bridge must be loaded by web/index.html');
+  if(!index.includes('js/editorial-layout.js'))throw new Error('Editorial treatment module must be loaded by web/index.html');
+  if(!fs.readFileSync('package.json','utf8').includes('tests/editorial-layout.test.cjs'))throw new Error('Editorial treatment regression test must remain in npm test.');
   const driveBridgeText=fs.readFileSync('web/js/drive-bridge.js','utf8');
   for(const required of ['drive.readonly','drive.file','scanSourceFolder','backupRows','appProperties'])if(!driveBridgeText.includes(required))throw new Error('Drive bridge regression: '+required);
   if(!fs.readFileSync('package.json','utf8').includes('tests/drive-bridge.test.cjs'))throw new Error('Drive bridge regression test must remain in npm test.');

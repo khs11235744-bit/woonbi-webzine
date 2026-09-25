@@ -2,7 +2,7 @@
 (function(){'use strict';const W=window.Woonbi=window.Woonbi||{};
 W.createNewsroom=function(api){
  const {h,button,main,store:storeFn,user:userFn,openEditor,navigate,renderArticle,imageNode,dialogOpen,toast}=api;
- const C=W.core,E=W.editorial;let category='all',query='',sortMode='plan',generation=0;
+ const C=W.core,E=W.editorial,L=W.editorialLayout||{};let category='all',query='',sortMode='plan',generation=0;
  const data=()=>W.newsroomData||{},archive=()=>W.archiveData||{},restored=()=>W.restoredMedia||{},lastYear=()=>W.lastYearMedia||{};
  const asset=k=>{const p=archive().media?.[k]||'';return W.embeddedAssets?.[p]||p;};
  const file=p=>W.embeddedAssets?.[p]||p;
@@ -13,6 +13,8 @@ W.createNewsroom=function(api){
  const excerpt=a=>(a.deck||C.paragraphs(a.body)[0]||'').slice(0,145);
  const visualTone=a=>{const seed=String(a.id||a.title||'웅비');let n=0;for(let i=0;i<seed.length;i++)n=(n*31+seed.charCodeAt(i))>>>0;return 'tone-'+(n%8);};
  const visualKind=a=>a.planKind==='research'?'kind-research':a.category==='학교 사람들'?'kind-people':a.category==='특집'?'kind-feature':a.category==='학생 글'?'kind-essay':'kind-school';
+ const storyType=a=>L.treatment?.(a)||'news';
+ const storyPlan=a=>L.plan?.(a)||{type:storyType(a),template:'news-1p',label:'SCHOOL NEWS'};
  const categories=[['all','전체'],['school','학교 소식'],['feature','특집·인터뷰'],['research','학생 탐구'],['saved','내 보관함']];
  const bookmarkKey=()=>`woonbi-bookmarks:${userFn()?.uid||'reader'}`;
  function bookmarks(){try{return new Set(JSON.parse(W.session.getItem(bookmarkKey())||'[]'));}catch{return new Set();}}
@@ -61,9 +63,9 @@ W.createNewsroom=function(api){
    const p=displayPhoto(a,usedSources);if(p){const img=await imageNode(p);if(img.tagName==='IMG'){img.loading=priority?'eager':'lazy';if(priority)img.setAttribute('fetchpriority','high');img.decoding='async';if(p.focus)img.style.objectPosition=p.focus;}return h('figure',{class:'n-photo'+(p.restored?' restored-photo':p.lastYearSample?' lastyear-photo':'' )},img,h('figcaption',{},p.restored?h('span',{class:'restored-badge'},'복원 자료'):p.lastYearSample?h('span',{class:'lastyear-badge'},'지난 호 자료사진'):E.sample(p)?h('span',{class:'sample-badge'},'교체용 예시 · 실제 현장 아님'):null,p.caption||'기사 사진'));}
    const title=(a.headline||a.title||'웅비').replace(/^\[.*?\]\s*/,'');return h('div',{class:'v4-empty-image editorial-placeholder '+visualTone(a)+' '+visualKind(a)},h('span',{class:'cover-kicker'},smallLabel(a)),h('strong',{},title.slice(0,34)),h('small',{},'사진 취재 준비 중'),h('i',{class:'cover-folio'},'雄飛 / '+String(a.planOrder||'—').padStart(2,'0')));
   }
- async function card(a,withPhoto=true,usedSources=null){const art=h('article',{class:'n-card','data-read-card':a.id});
+ async function card(a,withPhoto=true,usedSources=null){const plan=storyPlan(a),art=h('article',{class:'n-card treatment-'+plan.type,'data-treatment':plan.type,'data-magazine-template':plan.template,'data-read-card':a.id});
   if(withPhoto)art.append(h('a',{class:'n-card-image',href:'#read/'+a.id,'aria-label':a.title+' 기사 읽기',onclick:e=>{e.preventDefault();read(a.id,isReference(a)).catch(toastError);}},await articlePhoto(a,false,usedSources)));
-  art.append(h('span',{class:'n-section-label'},smallLabel(a)),h('h3',{},headlink(a)),h('p',{class:'n-excerpt'},excerpt(a)),meta(a));return art;
+  art.append(h('div',{class:'n-card-kicker'},h('span',{class:'n-section-label'},smallLabel(a)),h('span',{class:'n-format-label'},plan.label||'')),h('h3',{},headlink(a)),h('p',{class:'n-excerpt'},excerpt(a)),meta(a));return art;
  }
  async function home(){
   cleanPage();const token=generation,rows=E.sort(await articles(),sortMode),q=E.normalize(query);
@@ -85,7 +87,7 @@ W.createNewsroom=function(api){
   if(!rows.length){main.append(h('section',{class:'empty'},h('h1',{},'웅비의 다음 이야기를 준비합니다.'),h('p',{},'승인 후 발행한 기사만 이곳에 표시합니다.'),button('편집실',()=>navigate('articles'),'ink-button')));return;}
   const ids=data().leadIds||[],publishedRows=rows.filter(a=>a.publishedAt&&!isReference(a)),configured=rows.find(a=>a.id===ids[0]),fallback=rows.find(a=>a.id==='reference-EX01')||rows.find(isReference)||rows[0],lead=publishedRows[0]||(configured&&!String(configured.id).startsWith('sample-article-')?configured:fallback),rest=rows.filter(a=>a.id!==lead.id);
   const preferredSideIds=publishedRows.length?publishedRows.slice(1,3).map(a=>a.id):['reference-EX02','reference-EX05'],sides=[...preferredSideIds.map(id=>rest.find(a=>a.id===id)).filter(Boolean),...ids.slice(1).map(id=>rest.find(a=>a.id===id)).filter(Boolean),...rest].filter((a,i,ar)=>ar.findIndex(b=>b.id===a.id)===i).slice(0,2);
-  const usedCoverPhotos=new Set(),leadArt=h('article',{class:'n-lead','data-lead':lead.id},h('div',{class:'n-section-label'},'이번 호의 시선 · '+smallLabel(lead)),h('h1',{},headlink(lead)),h('p',{class:'n-lead-deck'},excerpt(lead)),meta(lead));
+  const usedCoverPhotos=new Set(),leadPlan=storyPlan(lead),leadArt=h('article',{class:'n-lead treatment-'+leadPlan.type,'data-treatment':leadPlan.type,'data-magazine-template':leadPlan.template,'data-lead':lead.id},h('div',{class:'n-section-label'},'이번 호의 시선 · '+smallLabel(lead)),h('h1',{},headlink(lead)),h('p',{class:'n-lead-deck'},excerpt(lead)),meta(lead));
   leadArt.append(h('a',{class:'n-lead-image',href:'#read/'+lead.id,onclick:e=>{e.preventDefault();read(lead.id,isReference(lead));}},await articlePhoto(lead,true,usedCoverPhotos)));
   const side=h('aside',{class:'n-side'},h('div',{class:'n-side-title'},'함께 읽는 학교 소식'));
   for(const [i,a] of sides.entries()){const c=await card(a,true,usedCoverPhotos);if(i===1)c.classList.add('n-side-text');side.append(c);}
@@ -114,7 +116,7 @@ W.createNewsroom=function(api){
   const back=()=>{document.title='웅비 · 포항고 웹진';navigate(reference?'examples':'public');};
   const keep=button(bookmarks().has(id)?'보관됨':'보관하기',()=>{const ids=bookmarks();ids.has(id)?ids.delete(id):ids.add(id);W.session.setItem(bookmarkKey(),JSON.stringify([...ids]));keep.textContent=ids.has(id)?'보관됨':'보관하기';keep.setAttribute('aria-pressed',ids.has(id));toast('이 탭의 보관함을 변경했습니다.');},'text');keep.setAttribute('aria-pressed',bookmarks().has(id));
   const controls=h('div',{class:'n-reader-controls'},button('← 목록으로',back,'text'),h('div',{class:'n-reading-tools'},keep,button('글자 작게',()=>{document.body.classList.remove('large-reading');W.session.setItem('woonbi-reader-size','normal');},'text'),button('글자 크게',()=>{document.body.classList.add('large-reading');W.session.setItem('woonbi-reader-size','large');},'text')));
-  const article=h('article',{class:'n-longread',id:'newsArticle'},h('header',{class:'n-story-head'},h('div',{class:'n-section-label'},reference?a.archiveLabel:smallLabel(a)),h('h1',{},a.headline||a.title),h('p',{class:'n-story-deck'},a.deck||''),meta(a)));
+  const articlePlan=storyPlan(a),article=h('article',{class:'n-longread treatment-'+articlePlan.type,'data-treatment':articlePlan.type,'data-magazine-template':articlePlan.template,id:'newsArticle'},h('header',{class:'n-story-head'},h('div',{class:'n-section-label'},reference?a.archiveLabel:smallLabel(a)),h('h1',{},a.headline||a.title),h('p',{class:'n-story-deck'},a.deck||''),meta(a)));
   if(isDraft)article.append(h('aside',{class:'n-draft-notice'},reference?'복원한 예시 원고입니다. 연도와 인용을 확인한 뒤 참고하세요.':'미발행 '+label(a)+'입니다. 취재·필자·사진을 확인한 뒤 발행합니다.'));
   const rendered=await renderArticle({...a,photos:effectivePhotos(a),category:a.category||'예시 원고'}),copy=rendered.querySelector('.read-copy');copy.classList.add('n-story-copy');article.append(copy);
   const toc=h('aside',{class:'n-read-aside'},h('h3',{},'이 글에서'));

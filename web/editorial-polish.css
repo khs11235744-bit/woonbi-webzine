@@ -629,7 +629,7 @@ body{background:var(--paper)}
 .n-section-head{align-items:flex-end}
 .n-section-head h2{font-size:30px;line-height:1.05}
 .n-section-head p{max-width:430px;line-height:1.55}
-.n-section-head:before{content:attr(data-section-no);font:400 11px/1 Georgia,serif;color:var(--accent)}
+.n-section-head[data-section-no]:before{content:attr(data-section-no);font:400 11px/1 Georgia,serif;color:var(--accent)}
 .n-card h3{line-height:1.32}
 .n-card .n-excerpt{line-height:1.7}
 .n-card:nth-child(3n+2){padding-top:22px}
@@ -651,4 +651,88 @@ body{background:var(--paper)}
  .n-card:nth-child(n),.n-feature-grid .n-card:nth-child(n){margin-top:0;padding-top:7px}
  .n-more-list article:nth-child(n){padding-inline:0;border-left:0}
  .n-story-copy blockquote{margin:2em 0;font-size:1.35em}
+}
+
+
+/* Content-specific editorial grammar. The article decides the layout, not a universal card component. */
+.n-card-kicker{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-top:8px}
+.n-format-label{font:500 8px/1.2 Georgia,'Times New Roman',serif;letter-spacing:.14em;color:#8b877d;white-space:nowrap}
+.n-card-image{display:block}
+.n-card-image .n-photo{height:100%}
+
+/* PHOTO ESSAY — image leads, copy follows. */
+.n-card.treatment-photo{border-bottom:0}
+.n-card.treatment-photo .n-card-image img{aspect-ratio:1.34;object-fit:cover}
+.n-card.treatment-photo h3{font-size:27px;line-height:1.18;margin-top:10px}
+.n-card.treatment-photo .n-excerpt{max-width:34em}
+.n-feature-grid .treatment-photo{grid-column:span 2}
+.n-feature-grid .treatment-photo .n-card-image img{aspect-ratio:1.75}
+
+/* PEOPLE — portrait proportion and a quieter typographic column. */
+.n-card.treatment-portrait .n-card-image img{aspect-ratio:4/5;object-fit:cover}
+.n-card.treatment-portrait h3{font-family:var(--serif);font-size:25px;line-height:1.24}
+.n-card.treatment-portrait .n-format-label{color:var(--accent)}
+
+/* INQUIRY — evidence-forward and numbered like a research notebook. */
+.n-card.treatment-research{border-top:3px double var(--ink);padding-top:10px}
+.n-card.treatment-research .n-card-image img{aspect-ratio:4/3;object-fit:cover}
+.n-card.treatment-research h3{font-family:var(--sans);font-size:22px;font-weight:820;line-height:1.28}
+.n-card.treatment-research .n-section-label{color:#5d6e78}
+.n-research-grid .treatment-research:first-child h3{font-size:30px}
+
+/* ESSAY — type is primary; the image behaves like an illustration, not a thumbnail card. */
+.n-card.treatment-essay{display:grid;grid-template-columns:minmax(0,1fr) minmax(90px,.34fr);grid-template-areas:
+ 'kicker image' 'title image' 'excerpt image' 'meta image';column-gap:20px;align-content:start}
+.n-card.treatment-essay .n-card-image{grid-area:image;align-self:start}
+.n-card.treatment-essay .n-card-image img{aspect-ratio:3/4;object-fit:cover}
+.n-card.treatment-essay .n-card-kicker{grid-area:kicker}
+.n-card.treatment-essay h3{grid-area:title;font:700 28px/1.25 var(--serif)}
+.n-card.treatment-essay .n-excerpt{grid-area:excerpt}
+.n-card.treatment-essay .n-meta{grid-area:meta}
+
+/* FEATURE — wide and declarative, suitable for a future 4-page spread. */
+.n-card.treatment-feature .n-card-image img{aspect-ratio:16/9;object-fit:cover}
+.n-card.treatment-feature h3{font-size:29px;line-height:1.16}
+.n-card.treatment-feature .n-format-label{color:var(--accent);font-weight:700}
+
+/* SCHOOL NEWS — denser than feature stories. */
+.n-card.treatment-news h3{font-size:20px;line-height:1.32}
+.n-card.treatment-news .n-excerpt{font-size:11.5px}
+
+/* Long reads inherit the same editorial identity and map directly to print templates later. */
+.n-longread.treatment-feature .n-story-head h1,
+.n-longread.treatment-photo .n-story-head h1{font-size:clamp(46px,5.4vw,72px);line-height:1.06;max-width:900px}
+.n-longread.treatment-feature .n-story-deck,
+.n-longread.treatment-photo .n-story-deck{max-width:720px;font-size:18px}
+.n-longread.treatment-photo .n-story-copy{max-width:780px}
+.n-longread.treatment-photo .n-story-copy figure{width:min(1050px,calc(100vw - 36px));max-width:none;margin-left:50%;transform:translateX(-50%)}
+.n-longread.treatment-portrait .n-story-head{display:grid;grid-template-columns:100px minmax(0,1fr);column-gap:22px}
+.n-longread.treatment-portrait .n-story-head>.n-section-label{grid-column:1}
+.n-longread.treatment-portrait .n-story-head>h1,
+.n-longread.treatment-portrait .n-story-head>.n-story-deck,
+.n-longread.treatment-portrait .n-story-head>.n-meta{grid-column:2}
+.n-longread.treatment-research .n-story-copy{counter-reset:research-section}
+.n-longread.treatment-research .n-story-copy h3{counter-increment:research-section;border-top:1px solid var(--ink);padding-top:12px}
+.n-longread.treatment-research .n-story-copy h3:before{content:counter(research-section,decimal-leading-zero) ' / ';font:500 11px/1 Georgia,serif;color:var(--accent);letter-spacing:.08em}
+.n-longread.treatment-essay .n-story-head{max-width:720px;margin-inline:auto}
+.n-longread.treatment-essay .n-story-head h1{font:700 clamp(40px,5vw,62px)/1.16 var(--serif)}
+.n-longread.treatment-essay .n-story-copy{max-width:620px;font-size:18.5px;line-height:2.08}
+
+/* Homepage lead also declares a treatment without turning into another rounded hero component. */
+.n-lead.treatment-photo .n-lead-image .n-photo img{filter:saturate(.96) contrast(1.04)}
+.n-lead.treatment-feature>h1,.n-lead.treatment-photo>h1{font-size:clamp(44px,4.2vw,62px)}
+
+@media(max-width:900px){
+ .n-feature-grid .treatment-photo{grid-column:auto}
+ .n-card.treatment-essay{display:block}
+ .n-card.treatment-essay .n-card-image img{aspect-ratio:16/10}
+ .n-longread.treatment-portrait .n-story-head{display:block}
+ .n-longread.treatment-photo .n-story-copy figure{width:auto;max-width:100%;margin-left:0;transform:none}
+}
+@media(max-width:620px){
+ .n-card.treatment-photo h3,.n-card.treatment-feature h3,.n-card.treatment-portrait h3,
+ .n-card.treatment-research h3,.n-card.treatment-essay h3{font-size:23px}
+ .n-format-label{font-size:7px}
+ .n-longread.treatment-feature .n-story-head h1,.n-longread.treatment-photo .n-story-head h1,
+ .n-longread.treatment-essay .n-story-head h1{font-size:36px;line-height:1.18}
 }
