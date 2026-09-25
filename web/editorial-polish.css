@@ -557,3 +557,28 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
 @media (max-width:1039px){
   .n-side-text .n-card-image{display:block}
 }
+
+
+/* v0.6 mobile nav: keep section labels horizontal and let the strip scroll. */
+@media (max-width:620px){
+  .section-nav{
+    justify-content:flex-start;
+    gap:0;
+    overflow-x:auto;
+    overflow-y:hidden;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+    scroll-snap-type:x proximity;
+  }
+  .section-nav::-webkit-scrollbar{display:none}
+  .section-nav button,
+  .section-nav .school-live-link{
+    flex:0 0 auto;
+    white-space:nowrap;
+    word-break:keep-all;
+    min-width:max-content;
+    padding-inline:13px;
+    scroll-snap-align:start;
+  }
+  .section-nav button:first-child{padding-left:0}
+}
