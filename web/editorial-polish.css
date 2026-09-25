@@ -369,3 +369,94 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
  .school-life-title h2{font-size:19px}
  .school-life-summary{-webkit-line-clamp:3}
 }
+
+/* v0.6.8 — Q123: stronger first-page folio + category-specific editorial covers */
+.n-front-folio{
+ display:grid;grid-template-columns:minmax(220px,1.6fr) repeat(4,minmax(86px,.62fr)) minmax(230px,1.4fr);
+ align-items:stretch;border-top:3px double var(--ink);border-bottom:1px solid var(--ink);
+ margin:0 0 18px;background:rgba(255,255,255,.16)
+}
+.n-front-folio>div{min-width:0;padding:11px 12px;border-right:1px solid var(--line)}
+.n-front-folio>div:last-child{border-right:0}
+.n-folio-main{display:flex;flex-direction:column;justify-content:center;gap:3px;padding-left:0!important}
+.n-folio-main .n-folio-kicker{font:800 8px/1.3 var(--sans);letter-spacing:.16em;color:var(--accent)}
+.n-folio-main b{font:700 14px/1.4 var(--serif);letter-spacing:-.02em}
+.n-folio-stat{display:flex;flex-direction:column;justify-content:center;gap:2px}
+.n-folio-stat span,.n-folio-lead span{font-size:8px;letter-spacing:.05em;color:var(--muted)}
+.n-folio-stat strong{font:500 21px/1.1 Georgia,serif;color:var(--navy)}
+.n-folio-lead{display:flex;flex-direction:column;justify-content:center;gap:3px}
+.n-folio-lead b{font:700 12px/1.45 var(--serif);letter-spacing:-.02em;text-wrap:balance}
+
+/* Every photo-less story gets a category grammar as well as its deterministic tone. */
+.editorial-placeholder{isolation:isolate}
+.editorial-placeholder .cover-folio{
+ position:absolute;right:17px;bottom:14px;z-index:2;font:700 8px/1 var(--sans);font-style:normal;letter-spacing:.14em;
+ color:rgba(255,255,255,.72)
+}
+.editorial-placeholder .cover-kicker{position:relative;z-index:2}
+.editorial-placeholder.kind-school:before{content:"校";right:7px;top:-9px;font-size:104px;color:rgba(255,255,255,.085)}
+.editorial-placeholder.kind-school{background:
+ linear-gradient(155deg,rgba(17,58,80,.98),rgba(34,75,92,.88) 55%,rgba(204,179,130,.86))}
+.editorial-placeholder.kind-people:before{content:"人";right:10px;top:-7px;font-size:105px;color:rgba(255,255,255,.09)}
+.editorial-placeholder.kind-people{background:
+ radial-gradient(circle at 76% 30%,rgba(235,211,178,.34) 0 14%,transparent 14.5%),
+ linear-gradient(150deg,#392f35,#6c4d54 55%,#c58a6a)}
+.editorial-placeholder.kind-research:before{content:"R";right:15px;top:8px;font:800 82px/1 var(--sans);color:rgba(255,255,255,.08)}
+.editorial-placeholder.kind-research{background:
+ repeating-linear-gradient(0deg,rgba(255,255,255,.04) 0 1px,transparent 1px 26px),
+ repeating-linear-gradient(90deg,rgba(255,255,255,.04) 0 1px,transparent 1px 26px),
+ linear-gradient(145deg,#1c3745,#385d64 55%,#b6a26e)}
+.editorial-placeholder.kind-feature:before{content:"特";right:7px;top:-8px;font-size:102px;color:rgba(255,255,255,.09)}
+.editorial-placeholder.kind-feature{background:
+ linear-gradient(135deg,transparent 0 56%,rgba(255,255,255,.08) 56% 62%,transparent 62%),
+ linear-gradient(140deg,#4b2926,#9a4f39 55%,#d3a36e)}
+.editorial-placeholder.kind-essay:before{content:"文";right:7px;top:-8px;font-size:102px;color:rgba(255,255,255,.085)}
+.editorial-placeholder.kind-essay{background:
+ linear-gradient(90deg,rgba(255,255,255,.055) 0 1px,transparent 1px 33%),
+ linear-gradient(160deg,#2f3234,#60645d 55%,#c3b596)}
+.editorial-placeholder.kind-research:after{content:"RESEARCH / DATA / QUESTION"}
+.editorial-placeholder.kind-people:after{content:"PEOPLE / INTERVIEW / VOICE"}
+.editorial-placeholder.kind-school:after{content:"CAMPUS / SCHOOL / RECORD"}
+.editorial-placeholder.kind-feature:after{content:"FEATURE / SPECIAL / SCENE"}
+.editorial-placeholder.kind-essay:after{content:"ESSAY / COLUMN / VIEW"}
+
+/* More-read zone works like the lower half of a magazine cover. */
+@media(min-width:1040px){
+ .n-more-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:26px 24px}
+ .n-more-grid .n-card:nth-child(1){grid-column:span 2;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(220px,.8fr);column-gap:22px;align-items:start}
+ .n-more-grid .n-card:nth-child(1) .n-card-image{grid-row:1/6}
+ .n-more-grid .n-card:nth-child(1) .n-photo img,
+ .n-more-grid .n-card:nth-child(1) .editorial-placeholder{aspect-ratio:4/3;min-height:260px}
+ .n-more-grid .n-card:nth-child(1) h3{font-size:24px}
+ .n-more-grid .n-card:nth-child(5){grid-column:span 2}
+}
+
+/* Last-year photo desk reads as an editorial photo contact sheet rather than a gallery widget. */
+.n-lastyear-section{border-top:3px double var(--ink);padding-top:2px}
+.n-lastyear-grid{counter-reset:lastyear}
+.n-lastyear-item{counter-increment:lastyear}
+.n-lastyear-item:before{
+ content:counter(lastyear,decimal-leading-zero);position:absolute;left:8px;top:7px;z-index:2;
+ font:700 9px/1 var(--sans);color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.5)
+}
+.n-lastyear-item:nth-child(3n+2) img{filter:saturate(.86) contrast(1.06)}
+.n-lastyear-item:nth-child(4n) img{filter:saturate(.96) contrast(1.02) brightness(.96)}
+
+@media(max-width:1039px){
+ .n-front-folio{grid-template-columns:1.5fr repeat(2,.55fr) 1.2fr}
+ .n-front-folio .n-folio-stat:nth-of-type(4),.n-front-folio .n-folio-stat:nth-of-type(5){display:none}
+}
+@media(max-width:700px){
+ .n-front-folio{grid-template-columns:1fr 1fr;margin-bottom:14px}
+ .n-front-folio>div{border-bottom:1px solid var(--line)}
+ .n-folio-main,.n-folio-lead{grid-column:1/-1}
+ .n-folio-main{padding-left:10px!important}
+ .n-folio-stat:nth-of-type(n+4){display:none}
+ .n-folio-lead{border-bottom:0!important}
+}
+@media(max-width:520px){
+ .n-front-folio{font-size:11px}
+ .n-folio-main b{font-size:13px}
+ .n-folio-stat strong{font-size:18px}
+ .editorial-placeholder .cover-folio{right:12px;bottom:10px;font-size:7px}
+}

@@ -12,6 +12,7 @@ W.createNewsroom=function(api){
  const smallLabel=a=>a.planKind==='research'?'학생 탐구':a.category||'학교 이야기';
  const excerpt=a=>(a.deck||C.paragraphs(a.body)[0]||'').slice(0,145);
  const visualTone=a=>{const seed=String(a.id||a.title||'웅비');let n=0;for(let i=0;i<seed.length;i++)n=(n*31+seed.charCodeAt(i))>>>0;return 'tone-'+(n%8);};
+ const visualKind=a=>a.planKind==='research'?'kind-research':a.category==='학교 사람들'?'kind-people':a.category==='특집'?'kind-feature':a.category==='학생 글'?'kind-essay':'kind-school';
  const categories=[['all','전체'],['school','학교 소식'],['feature','특집·인터뷰'],['research','학생 탐구'],['saved','내 보관함']];
  const bookmarkKey=()=>`woonbi-bookmarks:${userFn()?.uid||'reader'}`;
  function bookmarks(){try{return new Set(JSON.parse(W.session.getItem(bookmarkKey())||'[]'));}catch{return new Set();}}
@@ -19,7 +20,14 @@ W.createNewsroom=function(api){
  function staticPhoto(k,alt){const src=asset(k);return src?h('figure',{class:'n-photo'},h('img',{src,alt,loading:'lazy',decoding:'async'}),h('figcaption',{},'지난 호 자료사진')):null;}
  function restoredPhotos(a){return restored().byArticle?.[a.id]||[];}
  function effectivePhotos(a){const existing=a?.photos||[];if(existing.length&&!existing.every(E.sample))return existing;if(existing.some(p=>p.lastYearSample===true))return existing;const recovered=restoredPhotos(a);if(recovered.length&&!existing.length)return recovered;const canUseLastYear=isReference(a)||String(a?.id||'').startsWith('sample-article-')||a?.sample===true;const seeded=canUseLastYear?lastYear().photosFor?.(a,Math.max(0,Number(a?.planOrder||1)-1)):null;if(seeded?.length)return seeded;if(recovered.length)return recovered;return existing;}
-  function headlineRail(items){if(!items?.length)return null;const rail=h('section',{class:'n-headline-rail','aria-label':'오늘의 주요 기사'});rail.append(h('div',{class:'n-rail-label'},'TODAY’S HEADLINES · 오늘의 주요 기사'));for(const [i,a] of items.slice(0,4).entries())rail.append(h('article',{},h('span',{class:'n-rail-no'},String(i+1).padStart(2,'0')),h('div',{},h('span',{class:'n-section-label'},smallLabel(a)),h('h3',{},headlink(a)))));return rail;}
+  function frontFolio(rows,lead){
+  const research=rows.filter(a=>a.planKind==='research').length,people=rows.filter(a=>a.category==='학교 사람들').length,feature=rows.filter(a=>a.category==='특집').length,photos=lastYear().showcase?.length||0;
+  const box=h('section',{class:'n-front-folio','aria-label':'이번 호 구성'},h('div',{class:'n-folio-main'},h('span',{class:'n-folio-kicker'},'WOONBI · VOL.42 / 2026'),h('b',{},'준비호 · '+rows.length+' STORIES')));
+  for(const [label,value] of [['학생 탐구',research],['학교 사람들',people],['특집',feature],['지난 호 사진',photos]])box.append(h('div',{class:'n-folio-stat'},h('span',{},label),h('strong',{},value)));
+  box.append(h('div',{class:'n-folio-lead'},h('span',{},'TOP STORY'),h('b',{},(lead.headline||lead.title).replace(/^\[.*?\]\s*/,'').slice(0,36))));
+  return box;
+ }
+ function headlineRail(items){if(!items?.length)return null;const rail=h('section',{class:'n-headline-rail','aria-label':'오늘의 주요 기사'});rail.append(h('div',{class:'n-rail-label'},'TODAY’S HEADLINES · 오늘의 주요 기사'));for(const [i,a] of items.slice(0,4).entries())rail.append(h('article',{},h('span',{class:'n-rail-no'},String(i+1).padStart(2,'0')),h('div',{},h('span',{class:'n-section-label'},smallLabel(a)),h('h3',{},headlink(a)))));return rail;}
  function mediaShowcase(){const items=lastYear().showcase||[];if(!items.length)return null;const grid=h('div',{class:'n-lastyear-grid'});for(const x of items)grid.append(h('figure',{class:'n-lastyear-item'},h('img',{src:x.src,alt:x.caption,loading:'lazy',decoding:'async',width:x.width,height:x.height}),h('figcaption',{},h('b',{},x.caption),h('span',{},'포항고 웅비 지난 호 · 현재 기사 현장 아님'))));return h('section',{class:'n-lastyear-section','aria-label':'지난 호 예시 자료사진'},sectionHead('사진으로 보는 지난 호','포항고의 지난 장면을 현재 기사와 구분해 다시 봅니다.'),grid);}
  function packageShowcase(){const items=restored().showcase||[];if(!items.length)return null;const grid=h('div',{class:'n-restored-grid'});for(const x of items)grid.append(h('figure',{class:'n-restored-item'},h('img',{src:x.src,alt:x.caption,loading:'lazy',decoding:'async',width:x.width,height:x.height}),h('figcaption',{},h('b',{},x.caption),h('span',{},x.note||'복원 자료'))));return h('details',{class:'n-package-restore'},h('summary',{},'편집부 복원 자료 4장 보기'),h('section',{class:'n-restored-section'},grid));}
  function reportingTeaser(){
@@ -37,8 +45,8 @@ W.createNewsroom=function(api){
  function cleanPage(){generation++;document.body.classList.add('reading-view');main.className='newsroom-main';main.replaceChildren();document.getElementById('readProgress')?.remove();}
  function sectionHead(title,sub,action){return h('div',{class:'n-section-head'},h('div',{},h('h2',{},title),sub?h('p',{},sub):null),action);}
  async function articlePhoto(a,priority=false){
-   const p=effectivePhotos(a)[0];if(p){const img=await imageNode(p);if(img.tagName==='IMG'){img.loading=priority?'eager':'lazy';if(priority)img.setAttribute('fetchpriority','high');img.decoding='async';}return h('figure',{class:'n-photo'+(p.restored?' restored-photo':p.lastYearSample?' lastyear-photo':'' )},img,h('figcaption',{},p.restored?h('span',{class:'restored-badge'},'복원 자료'):p.lastYearSample?h('span',{class:'lastyear-badge'},'지난 호 자료사진'):E.sample(p)?h('span',{class:'sample-badge'},'교체용 예시 · 실제 현장 아님'):null,p.caption||'기사 사진'));}
-   const title=(a.headline||a.title||'웅비').replace(/^\[.*?\]\s*/,'');return h('div',{class:'v4-empty-image editorial-placeholder '+visualTone(a)},h('span',{},smallLabel(a)),h('strong',{},title.slice(0,34)),h('small',{},'사진 취재 준비 중'));
+   const p=effectivePhotos(a)[0];if(p){const img=await imageNode(p);if(img.tagName==='IMG'){img.loading=priority?'eager':'lazy';if(priority)img.setAttribute('fetchpriority','high');img.decoding='async';if(p.focus)img.style.objectPosition=p.focus;}return h('figure',{class:'n-photo'+(p.restored?' restored-photo':p.lastYearSample?' lastyear-photo':'' )},img,h('figcaption',{},p.restored?h('span',{class:'restored-badge'},'복원 자료'):p.lastYearSample?h('span',{class:'lastyear-badge'},'지난 호 자료사진'):E.sample(p)?h('span',{class:'sample-badge'},'교체용 예시 · 실제 현장 아님'):null,p.caption||'기사 사진'));}
+   const title=(a.headline||a.title||'웅비').replace(/^\[.*?\]\s*/,'');return h('div',{class:'v4-empty-image editorial-placeholder '+visualTone(a)+' '+visualKind(a)},h('span',{class:'cover-kicker'},smallLabel(a)),h('strong',{},title.slice(0,34)),h('small',{},'사진 취재 준비 중'),h('i',{class:'cover-folio'},'雄飛 / '+String(a.planOrder||'—').padStart(2,'0')));
   }
  async function card(a,withPhoto=true){const art=h('article',{class:'n-card','data-read-card':a.id});
   if(withPhoto)art.append(h('a',{class:'n-card-image',href:'#read/'+a.id,'aria-label':a.title+' 기사 읽기',onclick:e=>{e.preventDefault();read(a.id,isReference(a)).catch(toastError);}},await articlePhoto(a)));
@@ -69,7 +77,7 @@ W.createNewsroom=function(api){
   const side=h('aside',{class:'n-side'},h('div',{class:'n-side-title'},'함께 읽는 학교 소식'));
   for(const a of sides)side.append(await card(a,true));
   side.append(h('div',{class:'n-desk-link'},h('b',{},'취재한 이야기를 더해주세요.'),button('내 기사 이어 쓰기 ↗',()=>navigate('articles'),'text')));
-  if(token!==generation)return;main.append(h('section',{class:'n-front'},leadArt,side));const rail=headlineRail(rest.filter(a=>!sides.some(s=>s.id===a.id)).slice(0,4));if(rail)main.append(rail);const restoredBlock=mediaShowcase();if(restoredBlock)main.append(restoredBlock);
+  if(token!==generation)return;main.append(frontFolio(rows,lead),h('section',{class:'n-front'},leadArt,side));const rail=headlineRail(rest.filter(a=>!sides.some(s=>s.id===a.id)).slice(0,4));if(rail)main.append(rail);const restoredBlock=mediaShowcase();if(restoredBlock)main.append(restoredBlock);
   const research=rows.filter(a=>a.planKind==='research'),feature=rows.filter(a=>['학교 사람들','특집'].includes(a.category)&&!sides.some(s=>s.id===a.id)&&a.id!==lead.id);
   for(const [title,sub,items,cls] of [['학생이 묻습니다','일상의 의문에서 시작한 탐구',research.slice(0,4),'n-research-grid'],['학교 안의 사람들','인터뷰와 교류, 이어 쓰는 이야기',feature.slice(0,3),'n-feature-grid']]){
    if(!items.length)continue;const grid=h('section',{class:cls});main.append(sectionHead(title,sub),grid);for(const a of items){const c=await card(a,true);if(token!==generation)return;grid.append(c);}
