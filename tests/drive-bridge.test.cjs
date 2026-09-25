@@ -71,3 +71,20 @@ test('Drive bridge keeps a pinned school photo folder for one-button import',()=
   assert.match(src,/학교 사진 불러오기/);
   assert.match(src,/woonbi\.drive\.pinnedSourceFolderId/);
 });
+
+
+test('Picker explicitly binds current origin and auto-analyzes picked photos',()=>{
+  const src=fs.readFileSync('web/js/drive-bridge.js','utf8');
+  assert.match(src,/\.setOrigin\(location\.origin\)/);
+  assert.match(src,/NAV_HIDDEN/);
+  assert.match(src,/await sendRowsToWoonbi\(rows\)/);
+  assert.match(src,/docs\.google\.com\/\*/);
+});
+
+test('Picker surfaces actionable errors instead of silent blank states',()=>{
+  const src=fs.readFileSync('web/js/drive-bridge.js','utf8');
+  assert.match(src,/pickerErrorMessage/);
+  assert.match(src,/API Key 설정을 확인/);
+  assert.match(src,/Workspace 정책/);
+  assert.match(src,/Action\.ERROR/);
+});

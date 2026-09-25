@@ -36,3 +36,11 @@ test('print handoff persists cover choice and layout style',()=>{
  assert.match(app,/01_잡지조판계획\.json/);
  assert.match(app,/layout\.json/);
 });
+
+
+test('footer keeps Korean navigation labels intact at tablet and desktop widths',()=>{
+ assert.match(css,/\.site-footer nav \.text,/);
+ assert.match(css,/white-space:nowrap/);
+ assert.match(css,/min-width:max-content/);
+ assert.match(css,/min-width:621px\) and \(max-width:1000px/);
+});

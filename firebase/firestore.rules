@@ -6,9 +6,10 @@ service cloud.firestore {
   // Turning it off immediately restores stored member roles without redeploying rules.
   function memberExists(){return signed() && exists(/databases/$(database)/documents/members/$(request.auth.uid));}
   function memberData(){return get(/databases/$(database)/documents/members/$(request.auth.uid)).data;}
-  function baseActive(){return memberExists() && memberData().active == true;}
-  function baseTeacher(){return baseActive() && memberData().role == 'teacher';}
-  function baseStaff(){return baseActive() && memberData().role in ['teacher','editor'];}
+  function schoolTeacher(){return signed() && request.auth.token.email is string && request.auth.token.email.matches('.*@phhs[.]kr$');}
+  function baseActive(){return schoolTeacher() || (memberExists() && memberData().active == true);}
+  function baseTeacher(){return schoolTeacher() || (baseActive() && memberExists() && memberData().role == 'teacher');}
+  function baseStaff(){return schoolTeacher() || (baseActive() && memberExists() && memberData().role in ['teacher','editor']);}
   function openAdmin(){return signed() && (!exists(/databases/$(database)/documents/settings/access) || get(/databases/$(database)/documents/settings/access).data.openAdmin == true);}
   function active(){return signed() && (openAdmin() || baseActive());}
   function teacher(){return signed() && (openAdmin() || baseTeacher());}

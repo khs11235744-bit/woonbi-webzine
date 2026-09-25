@@ -4,9 +4,10 @@ service firebase.storage {
   function signed(){return request.auth!=null && request.auth.token.email_verified==true;}
   function memberExists(){return signed() && firestore.exists(/databases/(default)/documents/members/$(request.auth.uid));}
   function memberData(){return firestore.get(/databases/(default)/documents/members/$(request.auth.uid)).data;}
-  function baseActive(){return memberExists() && memberData().active==true;}
-  function baseTeacher(){return baseActive() && memberData().role=='teacher';}
-  function baseStaff(){return baseActive() && memberData().role in ['teacher','editor'];}
+  function schoolTeacher(){return signed() && request.auth.token.email is string && request.auth.token.email.matches('.*@phhs[.]kr$');}
+  function baseActive(){return schoolTeacher() || (memberExists() && memberData().active==true);}
+  function baseTeacher(){return schoolTeacher() || (baseActive() && memberExists() && memberData().role=='teacher');}
+  function baseStaff(){return schoolTeacher() || (baseActive() && memberExists() && memberData().role in ['teacher','editor']);}
   function openAdmin(){return signed() && (!firestore.exists(/databases/(default)/documents/settings/access) || firestore.get(/databases/(default)/documents/settings/access).data.openAdmin==true);}
   function active(){return signed() && (openAdmin() || baseActive());}
   function staff(){return signed() && (openAdmin() || baseStaff());}

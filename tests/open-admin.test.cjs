@@ -10,7 +10,7 @@ test('live config explicitly enables temporary open admin',()=>{
 test('client promotes signed-in profile to teacher while runtime openAdmin is active',()=>{
  const src=fs.readFileSync('web/js/firebase-store.js','utf8');
  assert.match(src,/this\.openAdmin=await this\.getAccessMode\(\)/);
- assert.match(src,/this\.user=this\.openAdmin\?\{\.\.\.profile,baseRole,role:'teacher',active:true,openAdmin:true\}/);
+ assert.ok(src.includes("this.user=this.openAdmin?{...profile,baseRole,role:'teacher',active:true,openAdmin:true,schoolTeacher}"));
  assert.match(src,/login_hint:u\.email/);
 });
 
@@ -39,4 +39,15 @@ test('runtime Firestore access switch exists and defaults open before first lock
  const store=fs.readFileSync('web/js/firebase-store.js','utf8');
  assert.match(store,/async setOpenAdmin/);
  assert.match(store,/교사 계정만 관리자 모드를 다시 열 수 있습니다/);
+});
+
+
+test('phhs school accounts remain teacher-capable after OPEN ADMIN is locked',()=>{
+ const fire=fs.readFileSync('firebase/firestore.rules','utf8');
+ const store=fs.readFileSync('firebase/storage.rules','utf8');
+ const client=fs.readFileSync('web/js/firebase-store.js','utf8');
+ assert.match(fire,/function schoolTeacher\(\)/);
+ assert.ok(fire.includes("@phhs[.]kr$"));
+ assert.match(store,/function schoolTeacher\(\)/);
+ assert.ok(client.includes("/@phhs\\.kr$/i"));
 });

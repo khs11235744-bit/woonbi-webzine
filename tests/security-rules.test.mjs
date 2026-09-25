@@ -16,10 +16,10 @@ import {
 const projectId='woonbi-rules-test';
 let env;
 
-function auth(uid,role='student'){
+function auth(uid,role='student',email=uid+'@example.test'){
   return env.authenticatedContext(uid,{
     email_verified:true,
-    email:uid+'@example.test',
+    email,
     role,
   });
 }
@@ -279,10 +279,12 @@ test('public storage is teacher-write and becomes anonymous-readable only after 
 });
 
 
-test('runtime access switch: any open-admin account can lock, only stored teacher can reopen',async()=>{
+test('runtime access switch: any open-admin account can lock; stored teacher or phhs account can reopen',async()=>{
   const student=auth('student-a').firestore();
   const teacher=auth('teacher','teacher').firestore();
+  const school=auth('school-admin','student','school-admin@phhs.kr').firestore();
   await assertSucceeds(setDoc(doc(student,'settings','access'),{openAdmin:false,updatedAt:serverTimestamp(),updatedBy:'student-a'}));
   await assertFails(setDoc(doc(student,'settings','access'),{openAdmin:true,updatedAt:serverTimestamp(),updatedBy:'student-a'}));
+  await assertSucceeds(setDoc(doc(school,'settings','access'),{openAdmin:true,updatedAt:serverTimestamp(),updatedBy:'school-admin'}));
   await assertSucceeds(setDoc(doc(teacher,'settings','access'),{openAdmin:true,updatedAt:serverTimestamp(),updatedBy:'teacher'}));
 });

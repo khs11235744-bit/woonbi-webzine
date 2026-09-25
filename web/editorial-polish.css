@@ -943,3 +943,42 @@ body{background:var(--paper)}
  .drive-quickstart{grid-template-columns:1fr}
  .drive-photo-controls{grid-template-columns:1fr}
 }
+
+
+/* DevCraft visual verification: footer navigation must never fracture Korean labels. */
+.site-footer nav{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  align-items:center;
+  gap:2px 18px;
+  min-width:0;
+}
+.site-footer nav .text,
+.site-footer nav a{
+  flex:0 0 auto;
+  width:auto;
+  min-width:max-content;
+  white-space:nowrap;
+  word-break:keep-all;
+}
+@media (min-width:1001px){
+  .site-footer{
+    grid-template-columns:minmax(120px,.65fr) minmax(320px,1.65fr) minmax(420px,1.35fr);
+    align-items:start;
+  }
+}
+@media (min-width:621px) and (max-width:1000px){
+  .site-footer{
+    grid-template-columns:minmax(120px,.7fr) minmax(0,2fr);
+    grid-template-areas:"brand copy" "nav nav";
+    align-items:start;
+  }
+  .site-footer>.footer-brand{grid-area:brand}
+  .site-footer>p{grid-area:copy}
+  .site-footer>nav{grid-area:nav;justify-content:flex-start;border-top:1px solid var(--line);padding-top:10px}
+}
+
+@media (max-width:620px){
+  .site-footer nav{justify-content:flex-start;gap:2px 14px}
+}
