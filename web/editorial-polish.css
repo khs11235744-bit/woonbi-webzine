@@ -736,3 +736,78 @@ body{background:var(--paper)}
  .n-longread.treatment-feature .n-story-head h1,.n-longread.treatment-photo .n-story-head h1,
  .n-longread.treatment-essay .n-story-head h1{font-size:36px;line-height:1.18}
 }
+
+
+/* Opening spread: the homepage behaves like the first pages of an issue, not a SaaS dashboard. */
+.n-opening-spread{
+  margin:4px 0 54px;
+  border-top:4px solid var(--ink);
+  border-bottom:1px solid var(--ink);
+  padding-top:0;
+}
+.n-opening-spread .n-front-folio{
+  margin:0;
+  border-top:0;
+  border-bottom:1px solid var(--ink);
+}
+.n-opening-spread .n-front{
+  padding:28px 0 32px;
+}
+.n-opening-spread .n-headline-rail{
+  margin:0;
+  border-top:3px double var(--ink);
+}
+.n-section-head[data-section-no]{
+  display:grid;
+  grid-template-columns:52px minmax(0,1fr) auto;
+  align-items:end;
+}
+.n-section-head[data-section-no]:before{
+  align-self:start;
+  padding-top:4px;
+  font-size:12px;
+  letter-spacing:.08em;
+}
+.n-section-head[data-section-no]>div:first-of-type{grid-column:2}
+.n-section-head[data-section-no]>*:last-child:not(:first-child){grid-column:3}
+
+/* Print-edition planner. This is a structural preview, not faux desktop-publishing chrome. */
+.magazine-plan-panel{
+  margin:28px 0 0;
+  border-top:4px solid var(--ink);
+  border-bottom:1px solid var(--ink);
+  padding:18px 0 24px;
+}
+.magazine-plan-head{display:flex;justify-content:space-between;gap:22px;align-items:flex-end;margin-bottom:14px}
+.magazine-plan-head h2{font:800 27px/1.12 var(--serif);letter-spacing:-.035em}
+.magazine-plan-head p{max-width:560px;font-size:11px;color:var(--muted)}
+.magazine-spread-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 18px}
+.magazine-spread-card{
+  position:relative;min-height:210px;border:1px solid var(--ink);background:#faf7ef;padding:14px 16px 18px;
+  display:grid;grid-template-rows:auto 1fr auto;overflow:hidden;
+}
+.magazine-spread-card:before{content:attr(data-pages) 'P';position:absolute;right:10px;top:7px;font:700 9px/1 var(--sans);letter-spacing:.08em;color:var(--accent)}
+.magazine-spread-card .spread-kicker{font:600 8px/1.2 var(--sans);letter-spacing:.15em;color:var(--muted)}
+.magazine-spread-card h3{align-self:end;max-width:90%;font:800 26px/1.05 var(--serif);letter-spacing:-.04em}
+.magazine-spread-card small{display:flex;justify-content:space-between;gap:12px;border-top:1px solid var(--line);padding-top:8px;margin-top:14px}
+.magazine-spread-card.type-photo{grid-column:span 2;min-height:270px;background:linear-gradient(90deg,#141414 0 54%,#f4f0e7 54%);color:#f5f0e7}
+.magazine-spread-card.type-photo h3{max-width:48%;font-size:38px}
+.magazine-spread-card.type-photo small{max-width:48%;border-color:#6e6b65}
+.magazine-spread-card.type-feature{grid-column:span 2;min-height:245px}
+.magazine-spread-card.type-feature h3{font-size:36px;max-width:75%}
+.magazine-spread-card.type-portrait:after{content:'';position:absolute;right:18px;bottom:18px;width:31%;height:62%;border:1px solid var(--line);background:#e4ddd0}
+.magazine-spread-card.type-research{background:#f0eee7}
+.magazine-spread-card.type-research h3{font-family:var(--sans);font-size:23px}
+.magazine-spread-card.type-essay h3{font-size:30px;max-width:74%}
+.magazine-spread-card.type-news{min-height:165px}
+.magazine-spread-card.type-news h3{font-family:var(--sans);font-size:20px;line-height:1.18}
+.magazine-plan-summary{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:14px;font-size:10px;color:var(--muted)}
+.magazine-plan-summary strong{font-size:14px;color:var(--ink)}
+@media(max-width:760px){
+  .n-section-head[data-section-no]{grid-template-columns:34px minmax(0,1fr)}
+  .n-section-head[data-section-no]>*:last-child:not(:first-child){grid-column:2}
+  .magazine-spread-grid{grid-template-columns:1fr}
+  .magazine-spread-card.type-photo,.magazine-spread-card.type-feature{grid-column:auto}
+  .magazine-spread-card.type-photo{background:#171714;color:#f4f0e7}
+  .magazine-spread-card.type-photo h3,.magazine-spread-card.type-photo small{max-width:100%}
+}
