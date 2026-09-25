@@ -409,18 +409,33 @@ async function renderMembers(){
   rows.append(row);
  }
 }
+function magazinePreflight(a,p){
+ const warnings=[],photos=a.photos||[];
+ if(p.type==='photo'&&photos.length<4)warnings.push('사진특집 권장 4장 이상');
+ if(p.type==='portrait'&&photos.length<1)warnings.push('인물사진 필요');
+ if(p.pages>=4&&photos.length<2)warnings.push('4p 지면 사진 부족');
+ if(String(a.title||'').length>34)warnings.push('표제 길이 재검토');
+ for(const ph of photos){if(!ph.alt)warnings.push('대체설명 누락');if(Number(ph.width)&&Number(ph.width)<1600)warnings.push('인쇄 해상도 확인');}
+ return [...new Set(warnings)];
+}
 function magazinePlanNode(items,title='웅비 · 2026 편집본'){
  const rows=(items||[]).filter(Boolean),plans=rows.map((a,i)=>({a,i,p:W.editorialLayout?.plan?.(a)||{type:'news',template:'news-1p',pages:1,label:'SCHOOL NEWS'}}));
- const total=plans.reduce((n,x)=>n+(Number(x.p.pages)||1),0),counts={};for(const x of plans)counts[x.p.type]=(counts[x.p.type]||0)+1;
+ const contentPages=plans.reduce((n,x)=>n+(Number(x.p.pages)||1),0),printPages=contentPages+4,padded=Math.ceil(printPages/4)*4,counts={};for(const x of plans)counts[x.p.type]=(counts[x.p.type]||0)+1;
+ let cursor=1;for(const x of plans){x.start=cursor;x.end=cursor+(Number(x.p.pages)||1)-1;cursor=x.end+1;x.warnings=magazinePreflight(x.a,x.p);}
  const grid=h('div',{class:'magazine-spread-grid'});
- for(const {a,i,p} of plans)grid.append(h('article',{class:'magazine-spread-card type-'+p.type,'data-pages':String(p.pages||1),'data-template':p.template},
+ grid.append(h('article',{class:'magazine-spread-card type-cover','data-pages':'COVER'},h('span',{class:'spread-kicker'},'COVER · 雄飛 VOL.42'),h('h3',{},title),h('small',{},h('span',{},'표지 후보 · 대표기사/대표사진'),h('span',{},'front cover'))));
+ grid.append(h('article',{class:'magazine-spread-card type-contents','data-pages':'TOC'},h('span',{class:'spread-kicker'},'CONTENTS · EDITORIAL NOTE'),h('h3',{},'목차와 이번 호의 문장'),h('small',{},h('span',{},rows.length+' stories'),h('span',{},'inside front'))));
+ for(const {a,i,p,start,end,warnings} of plans)grid.append(h('article',{class:'magazine-spread-card type-'+p.type+(warnings.length?' has-warning':''),'data-pages':String(p.pages||1),'data-template':p.template},
    h('span',{class:'spread-kicker'},String(i+1).padStart(2,'0')+' · '+(p.label||p.type).toUpperCase()),
    h('h3',{},a.title),
-   h('small',{},h('span',{},p.template),h('span',{},(a.photos?.length||0)+' photos · '+(p.pages||1)+'p'))));
- const summary=h('div',{class:'magazine-plan-summary'},h('span',{},'예상 ',h('strong',{},total),'쪽'),h('span',{},'기사 ',h('strong',{},rows.length),'편'));
+   warnings.length?h('p',{class:'spread-warning'},warnings.join(' · ')):null,
+   h('small',{},h('span',{},p.template+' · p.'+(start===end?start:start+'–'+end)),h('span',{},(a.photos?.length||0)+' photos · '+(p.pages||1)+'p'))));
+ const summary=h('div',{class:'magazine-plan-summary'},h('span',{},'본문 ',h('strong',{},contentPages),'쪽'),h('span',{},'표지·목차 포함 ',h('strong',{},printPages),'쪽'),h('span',{},'4배수 인쇄 권장 ',h('strong',{},padded),'쪽'),h('span',{},'기사 ',h('strong',{},rows.length),'편'));
  for(const [k,v] of Object.entries(counts))summary.append(h('span',{},k+' ',h('strong',{},v)));
- return h('section',{class:'magazine-plan-panel'},h('div',{class:'magazine-plan-head'},h('div',{},h('span',{class:'eyebrow'},'AUTO LAYOUT PREVIEW'),h('h2',{},title)),h('p',{},'웹 기사 장르·본문 길이·사진 수를 잡지 1p·2p·4p 템플릿으로 변환한 구조 미리보기입니다. 실제 인쇄 전에는 사진 해상도와 도련·재단을 다시 검사합니다.')),grid,summary);
+ const warnCount=plans.reduce((n,x)=>n+x.warnings.length,0);summary.append(h('span',{class:warnCount?'preflight-warn':''},'preflight ',h('strong',{},warnCount)));
+ return h('section',{class:'magazine-plan-panel'},h('div',{class:'magazine-plan-head'},h('div',{},h('span',{class:'eyebrow'},'AUTO LAYOUT PREVIEW'),h('h2',{},title)),h('p',{},'표지·목차·기사 지면을 자동 배치하고 1p·2p·4p 구조, 예상 페이지, 사진 부족과 인쇄 해상도 위험을 미리 표시합니다.')),grid,summary);
 }
+
 async function renderBook(){if(!C.teacher(user))return renderPending();const articles=(await store.listArticles()).filter(a=>a.status==='approved'&&a.printConsent),all=new Map(articles.map(a=>[a.id,a]));issueSelection=issueSelection.filter(id=>all.has(id));const title=h('input',{id:'issueTitle',value:'웅비 · 2026 편집본',maxlength:150}),pick=h('div'),order=h('ol',{class:'book-order'}),archives=h('div'),livePlan=h('div');
  title.addEventListener('input',()=>livePlan.replaceChildren(magazinePlanNode(issueSelection.map(id=>all.get(id)),title.value)));
  const head=h('div',{class:'heading-row'},h('div',{},h('div',{class:'eyebrow'},'PRINT EDITION'),h('h1',{},'한 번 쓴 원고, 한 권의 교지'),h('p',{class:'intro'},'책 수록 동의를 확인한 승인 기사만 묶습니다. 확정본은 이후 웹 원고 수정과 분리해 보관합니다.')));
