@@ -18,6 +18,8 @@ if(fs.existsSync(referencePath)){
   if(!index.includes('js/drive-bridge.js'))throw new Error('Google Drive media bridge must be loaded by web/index.html');
   if(!index.includes('js/editorial-layout.js'))throw new Error('Editorial treatment module must be loaded by web/index.html');
   if(!fs.readFileSync('package.json','utf8').includes('tests/editorial-layout.test.cjs'))throw new Error('Editorial treatment regression test must remain in npm test.');
+  const appText=fs.readFileSync('web/js/app.js','utf8');
+  if(!appText.includes('01_잡지조판계획.json')||!appText.includes('dataset.magazineTemplate'))throw new Error('Magazine-ready layout handoff must remain wired.');
   const driveBridgeText=fs.readFileSync('web/js/drive-bridge.js','utf8');
   for(const required of ['drive.readonly','drive.file','scanSourceFolder','backupRows','appProperties'])if(!driveBridgeText.includes(required))throw new Error('Drive bridge regression: '+required);
   if(!fs.readFileSync('package.json','utf8').includes('tests/drive-bridge.test.cjs'))throw new Error('Drive bridge regression test must remain in npm test.');
