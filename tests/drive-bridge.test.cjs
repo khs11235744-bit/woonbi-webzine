@@ -34,3 +34,21 @@ test('Incremental backup skips unchanged originals and detects changed originals
   assert.equal(t.sameRevision(noMd5,{appProperties:{woonbiSourceModified:noMd5.modifiedTime,woonbiSourceSize:'123'}}),true);
   assert.equal(t.sameRevision({...noMd5,size:124},{appProperties:{woonbiSourceModified:noMd5.modifiedTime,woonbiSourceSize:'123'}}),false);
 });
+
+
+test('Drive bridge reuses Firebase web key and project number for Picker',()=>{
+  const context={window:{Woonbi:{},WOONBI_CONFIG:{firebase:{apiKey:'firebase-key',messagingSenderId:'285370921993'},googleDrive:{}}},console};
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync('web/js/drive-bridge.js','utf8'),context);
+  const t=context.window.Woonbi.driveBridge._test,c=t.cfg();
+  assert.equal(c.apiKey,'firebase-key');
+  assert.equal(c.appId,'285370921993');
+  assert.equal(t.configured(),true);
+});
+
+test('Drive bridge contains direct multi-select image Picker path',()=>{
+  const src=fs.readFileSync('web/js/drive-bridge.js','utf8');
+  assert.match(src,/MULTISELECT_ENABLED/);
+  assert.match(src,/image\/jpeg,image\/png,image\/webp/);
+  assert.match(src,/Google Picker로 사진 고르기/);
+});

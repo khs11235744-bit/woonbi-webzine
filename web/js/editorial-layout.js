@@ -6,7 +6,7 @@ function treatment(a={}){
  const t=textOf(a),category=String(a.category||''),kind=String(a.planKind||'');
  if(category==='사진과 기록'||/사진|장면|풍경|벚꽃|운동장|축제|공연|마라톤|체육/.test(t))return'photo';
  if(category==='학교 사람들'||/인터뷰|선생|교사|졸업생|사람|한마디|대화/.test(t))return'portrait';
- if(kind==='research'||/탐구|실험|설문|데이터|분석|왜 |어떻게|성적표|인공지능|과학/.test(t))return'research';
+ if(kind==='research'||category.includes('탐구')||/탐구|실험|설문|데이터|분석|왜 |어떻게|성적표|인공지능|과학|리더|처벌|교화|전선|전기|교실의 빛/.test(t))return'research';
  if(category==='학생 글'||/에세이|수필|기억|편지|(^|\s)시(\s|$)|소설|감상|비평/.test(t))return'essay';
  if(category==='특집'||/특집|기획|다시 만드는|뜨거웠던 하루|명절|교류/.test(t))return'feature';
  return'news';

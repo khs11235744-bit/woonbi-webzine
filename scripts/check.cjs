@@ -112,4 +112,5 @@ if(fs.existsSync(referencePath)){
   if(!newsroomText.includes("filter(a=>!String(a?.id||'').startsWith('sample-article-'))"))throw new Error('Live newsroom must exclude generic sample-article documents.');
   if(!newsroomText.includes("a.id==='reference-EX01'"))throw new Error('Reference EX01 must remain the visual fallback lead.');
 }
+cp.execFileSync(process.execPath,['scripts/audit-editorial-ui.cjs'],{stdio:'inherit'});
 console.log('JS syntax, JSON, school API wiring, 200 improvement criteria, reporting hub, local AI guard, 40 reference articles, runtime 120 photo slots, exact 10 v0.5 photos, 4 restored WebP assets, and editorial polish: PASS');

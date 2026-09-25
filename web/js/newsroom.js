@@ -74,7 +74,7 @@ W.createNewsroom=function(api){
   const tabs=h('div',{class:'n-topic-tabs',role:'group','aria-label':'기사 분야'},categories.map(([k,t])=>{const b=button(t,()=>{category=k;home();},category===k?'selected':'');b.setAttribute('aria-pressed',category===k);return b;}));
   const search=h('input',{id:'newsSearch',type:'search',placeholder:'기사·주제·기자 검색',value:query,'aria-label':'웹진 기사 검색'});let wait;
   search.addEventListener('input',()=>{query=search.value;clearTimeout(wait);wait=setTimeout(()=>{home().then(()=>document.getElementById('newsSearch')?.focus());},250);});
-  const sort=h('select',{'aria-label':'기사 정렬',id:'newsSort'},h('option',{value:'plan'},'편집 순서'),h('option',{value:'updated'},'최근 수정'),h('option',{value:'title'},'제목순'));sort.value=sortMode;
+  const sort=h('select',{'aria-label':'기사 정렬',id:'newsSort'},h('option',{value:'plan'},'편집 순서'),h('option',{value:'updated'},'최근 수정'),h('option',{value:'title'},'제목순'));sort.value=sortMode;sort.hidden=category==='all'&&!q;
   sort.addEventListener('change',()=>{sortMode=sort.value;category=category==='all'?'all-list':category;home();});
   main.append(h('div',{class:'n-toolbar'},tabs,h('label',{class:'n-search'},search),sort));
   if(storeFn().mode==='demo')main.append(h('div',{class:'n-edition-note'},h('b',{},'2026 편집 미리보기'),h('span',{},'미발행 원고 · 예시 사진은 교체 후 사용합니다.')));else if(rows.some(isReference)){const refCount=rows.filter(isReference).length;main.append(h('div',{class:'n-edition-note'},h('b',{},'2026 준비호'),h('span',{},'실제 발행 전 예시·복원 원고 '+refCount+'편과 지난 호 자료사진을 편집 참고용으로 보여드립니다.')));}

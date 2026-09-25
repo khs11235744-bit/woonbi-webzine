@@ -22,6 +22,18 @@ class FirebaseStore{
  async login(){await this.A.signInWithPopup(this.auth,this.provider());}
  async loginRedirect(){return this.A.signInWithRedirect(this.auth,this.provider());}
  async logout(){await this.A.signOut(this.auth);this.user=null;}
+ async driveAccess(kind='picker'){
+  const u=this.auth.currentUser;if(!u)throw C.error('auth','먼저 Google 계정으로 웅비에 로그인해 주세요.');
+  const p=new this.A.GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});
+  const scope=kind==='folder'?'https://www.googleapis.com/auth/drive.readonly':'https://www.googleapis.com/auth/drive.file';
+  p.addScope(scope);
+  const result=await this.A.reauthenticateWithPopup(u,p),cred=this.A.GoogleAuthProvider.credentialFromResult(result);
+  if(!cred?.accessToken)throw C.error('auth','Google Drive 접근 토큰을 받지 못했습니다.');
+  return {accessToken:cred.accessToken,email:result.user.email||'',name:result.user.displayName||'',expiresAt:Date.now()+3500*1000,scope};
+ }
+ async drivePickerAccess(){return this.driveAccess('picker');}
+ async driveFolderAccess(){return this.driveAccess('folder');}
+ async driveBackupAccess(){return this.driveAccess('backup');}
  async listMembers(){const F=this.F;if(!C.teacher(this.user))return this.user?[this.user]:[];const s=await F.getDocs(F.query(F.collection(this.db,'members'),F.limit(250)));return s.docs.map(d=>({uid:d.id,...d.data()}));}
  async setMember(uid,role,active){if(!C.teacher(this.user)||!['student','editor','pending'].includes(role))throw C.error('permission','계정 권한을 확인해 주세요.');await this.F.updateDoc(this.F.doc(this.db,'members',uid),{role,active});}
  async updateAssignment(id,expected,patch){

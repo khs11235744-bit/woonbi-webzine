@@ -1,6 +1,6 @@
 # 웅비 Google Drive 미디어 브리지
 
-상태: 2026-09-25 구현 완료(코드) / 실제 학교·개인 Google 계정 OAuth 실서비스 검증 대기.
+상태: 2026-09-25 Google Drive API + Google Picker API 프로젝트 활성화 완료. Firebase Google 로그인 재인증을 이용한 Picker(선택 파일) 경로 구현 완료. 실제 학교 계정의 최초 동의 팝업과 공유폴더 정책은 사용자 세션에서 최종 확인 필요.
 
 ## 목적
 
@@ -24,7 +24,9 @@
 
 ## 운영 설정
 
-운영용 `WOONBI_CONFIG`에 다음 공개형 웹 설정만 추가한다.
+운영본은 Firebase 웹 API Key와 project number(messagingSenderId)를 Google Picker의 developer key/App ID로 재사용한다. 따라서 동일 Firebase 프로젝트에서는 Picker용 별도 공개 키 입력이 없어도 된다. 별도 OAuth Client ID는 다른 Google 계정을 독립적으로 연결하는 고급 경로에서만 필요하다.
+
+운영용 `WOONBI_CONFIG`에서 별도 프로젝트를 쓸 경우 다음 공개형 웹 설정을 추가할 수 있다.
 
 ```js
 googleDrive: {
@@ -88,3 +90,17 @@ Google Cloud에서 Drive API와 Google Picker API를 활성화하고, OAuth 웹 
 - Firebase Storage 공개 전 교사 승인·사진 공개 동의 절차가 유지되는지
 
 실제 계정 검증 전에는 ‘학교 Drive 자동연동 운영 완료’로 판정하지 않는다.
+
+
+## 현재 로그인만으로 쓰는 경로
+
+- 일반 웅비 로그인: 누구나 Google 계정으로 로그인하며 첫 로그인 즉시 학생 계정으로 활성화된다.
+- 사진 정리의 **Google Picker로 사진 고르기**: 현재 로그인 계정을 재인증하면서 `drive.file`만 추가 요청한다.
+- 이 경로는 Picker에서 사용자가 직접 고른 사진만 웅비가 읽을 수 있다.
+- **폴더 전체 읽기**는 재귀 폴더 스캔 때문에 `drive.readonly`를 별도로 요청한다. 이 권한은 Google 정책상 제한 범위이므로 공개 서비스 확대 전 검증 절차를 다시 확인한다.
+- 개인 백업을 현재 로그인 계정 안에서 할 때는 `drive.file`을 사용한다.
+- 학교 계정과 완전히 다른 개인 Google 계정으로 백업하려면 별도의 웹 OAuth Client ID를 운영 설정에 추가하는 경로를 유지한다.
+
+## Google Cloud 상태
+
+2026-09-25 기준 `woonbi-webzine-2026` 프로젝트에서 Google Drive API와 Google Picker API를 활성화했다. 웅비 운영 도메인은 Firebase Authentication 승인 도메인에 포함되어 있다.
