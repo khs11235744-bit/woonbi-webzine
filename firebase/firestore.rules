@@ -2,12 +2,18 @@ rules_version = '2';
 service cloud.firestore {
  match /databases/{database}/documents {
   function signed(){ return request.auth != null && request.auth.token.email_verified == true; }
-  // TEMP OPEN ADMIN: any verified Google login is treated as active staff/admin.
-  // Set deploy config openAdmin=false and restore member-role checks before public launch.
-  function active(){return signed();}
-  function teacher(){return signed();}
-  function staff(){return signed();}
-  function canRead(a){return signed() && a is map;}
+  // Runtime access switch. openAdmin=true lets any verified Google login use admin tools.
+  // Turning it off immediately restores stored member roles without redeploying rules.
+  function memberExists(){return signed() && exists(/databases/$(database)/documents/members/$(request.auth.uid));}
+  function memberData(){return get(/databases/$(database)/documents/members/$(request.auth.uid)).data;}
+  function baseActive(){return memberExists() && memberData().active == true;}
+  function baseTeacher(){return baseActive() && memberData().role == 'teacher';}
+  function baseStaff(){return baseActive() && memberData().role in ['teacher','editor'];}
+  function openAdmin(){return signed() && (!exists(/databases/$(database)/documents/settings/access) || get(/databases/$(database)/documents/settings/access).data.openAdmin == true);}
+  function active(){return signed() && (openAdmin() || baseActive());}
+  function teacher(){return signed() && (openAdmin() || baseTeacher());}
+  function staff(){return signed() && (openAdmin() || baseStaff());}
+  function canRead(a){return signed() && a is map && (openAdmin() || baseStaff() || (baseActive() && request.auth.uid in a.assigneeIds));}
   function editable(a){return canRead(a) && a.status in ['draft','changes'];}
   function article(id){return get(/databases/$(database)/documents/articles/$(id)).data;}
   // Validate every element; Firestore Rules has no list map/loop.
@@ -57,6 +63,20 @@ service cloud.firestore {
     a.updatedBy == request.auth.uid && a.serverWrittenAt == request.time;
   }
   function historyWritten(id,a){return getAfter(/databases/$(database)/documents/articles/$(id)/revisions/$(string(a.revision))).data.snapshot == a;}
+  match /settings/access {
+   allow get: if signed();
+   allow list: if false;
+   // While OPEN ADMIN is on, any current admin can lock it. Only stored teachers can reopen it.
+   allow create: if openAdmin() && request.resource.data.openAdmin == false &&
+      request.resource.data.keys().hasOnly(['openAdmin','updatedAt','updatedBy']) &&
+      request.resource.data.updatedAt == request.time && request.resource.data.updatedBy == request.auth.uid;
+   allow update: if (baseTeacher() || (openAdmin() && request.resource.data.openAdmin == false)) &&
+      request.resource.data.keys().hasOnly(['openAdmin','updatedAt','updatedBy']) &&
+      request.resource.data.openAdmin is bool &&
+      request.resource.data.updatedAt == request.time &&
+      request.resource.data.updatedBy == request.auth.uid;
+   allow delete: if false;
+  }
   match /members/{uid} {
    allow get: if signed() && (uid == request.auth.uid || teacher());
    allow list: if teacher();

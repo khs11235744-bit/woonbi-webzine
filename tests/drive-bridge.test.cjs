@@ -63,3 +63,11 @@ test('Drive bridge uses isolated Firebase Auth sessions for school and personal 
   assert.match(src,/drive\.file/);
   assert.match(src,/connectViaFirebase/);
 });
+
+
+test('Drive bridge keeps a pinned school photo folder for one-button import',()=>{
+  const src=fs.readFileSync('web/js/drive-bridge.js','utf8');
+  assert.match(src,/pinnedSourceFolderId/);
+  assert.match(src,/학교 사진 불러오기/);
+  assert.match(src,/woonbi\.drive\.pinnedSourceFolderId/);
+});

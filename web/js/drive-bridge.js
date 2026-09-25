@@ -12,7 +12,7 @@ const SUPPORTED=new Set(['image/jpeg','image/png','image/webp']);
 const FIREBASE_SDK='https://www.gstatic.com/firebasejs/12.17.1/';
 const driveAuths={};
 const state={
- source:null,target:null,sourceFolderId:'',sourceFolderName:'',targetFolderId:'',targetFolderName:'',
+ source:null,target:null,sourceFolderId:'',sourceFolderName:'',pinnedSourceFolderId:'',pinnedSourceFolderName:'',targetFolderId:'',targetFolderName:'',
  rows:[],selected:new Set(),busy:false,lastScanAt:''
 };
 
@@ -45,12 +45,16 @@ function storageSet(k,v){try{v?localStorage.setItem(k,v):localStorage.removeItem
 function rememberFolders(){
  storageSet('woonbi.drive.sourceFolderId',state.sourceFolderId);
  storageSet('woonbi.drive.sourceFolderName',state.sourceFolderName);
+ storageSet('woonbi.drive.pinnedSourceFolderId',state.pinnedSourceFolderId);
+ storageSet('woonbi.drive.pinnedSourceFolderName',state.pinnedSourceFolderName);
  storageSet('woonbi.drive.targetFolderId',state.targetFolderId);
  storageSet('woonbi.drive.targetFolderName',state.targetFolderName);
 }
 function restoreFolders(){
  state.sourceFolderId=state.sourceFolderId||storageGet('woonbi.drive.sourceFolderId');
  state.sourceFolderName=state.sourceFolderName||storageGet('woonbi.drive.sourceFolderName');
+ state.pinnedSourceFolderId=state.pinnedSourceFolderId||storageGet('woonbi.drive.pinnedSourceFolderId');
+ state.pinnedSourceFolderName=state.pinnedSourceFolderName||storageGet('woonbi.drive.pinnedSourceFolderName');
  state.targetFolderId=state.targetFolderId||storageGet('woonbi.drive.targetFolderId');
  state.targetFolderName=state.targetFolderName||storageGet('woonbi.drive.targetFolderName');
 }
@@ -84,21 +88,21 @@ async function userInfo(token){
  if(!r.ok)return {};
  return r.json();
 }
-async function connectViaFirebase(kind){
+async function connectViaFirebase(kind,loginHint=''){
  const fb=window.WOONBI_CONFIG?.firebase||{};
  if(!fb.apiKey||!fb.authDomain||!fb.appId)throw new Error('Firebase Google 로그인 설정이 필요합니다.');
  const [appSdk,A]=await Promise.all([import(FIREBASE_SDK+'firebase-app.js'),import(FIREBASE_SDK+'firebase-auth.js')]);
  const appName='woonbi-drive-'+kind;
  let app;try{app=appSdk.getApp(appName);}catch{app=appSdk.initializeApp(fb,appName);}
  const auth=A.getAuth(app);auth.languageCode='ko';await A.setPersistence(auth,A.inMemoryPersistence);
- const provider=new A.GoogleAuthProvider();provider.setCustomParameters({prompt:'select_account'});
+ const provider=new A.GoogleAuthProvider();provider.setCustomParameters({prompt:'consent',...(loginHint?{login_hint:loginHint}:{})});
  provider.addScope(kind==='source'?'https://www.googleapis.com/auth/drive.readonly':'https://www.googleapis.com/auth/drive.file');
  const result=await A.signInWithPopup(auth,provider),cred=A.GoogleAuthProvider.credentialFromResult(result);
  const token=cred?.accessToken;if(!token)throw new Error('Google Drive 권한 토큰을 받지 못했습니다.');
  const info=await userInfo(token),row={accessToken:token,email:info.email||result.user?.email||'',name:info.name||result.user?.displayName||'',expiresAt:Date.now()+3500*1000};
  driveAuths[kind]=auth;state[kind]=row;return row;
 }
-async function connectViaGIS(kind){
+async function connectViaGIS(kind,loginHint=''){
  const c=cfg();if(!c.clientId)throw new Error('Firebase Google 로그인 또는 별도 OAuth Client ID 설정이 필요합니다.');
  await ensureGIS();
  const scope=kind==='source'
@@ -106,7 +110,7 @@ async function connectViaGIS(kind){
   :'openid email profile https://www.googleapis.com/auth/drive.file';
  const response=await new Promise((resolve,reject)=>{
   const client=window.google.accounts.oauth2.initTokenClient({
-   client_id:c.clientId,scope,
+   client_id:c.clientId,scope,hint:loginHint||undefined,
    callback:r=>r?.error?reject(new Error('Google 계정 연결 실패: '+r.error)):resolve(r),
    error_callback:e=>reject(new Error('Google 계정 연결 창을 완료하지 못했습니다: '+(e?.type||'unknown')))
   });
@@ -115,10 +119,10 @@ async function connectViaGIS(kind){
  const info=await userInfo(response.access_token),row={accessToken:response.access_token,email:info.email||'',name:info.name||'',expiresAt:Date.now()+Number(response.expires_in||3600)*1000};
  state[kind]=row;return row;
 }
-async function connect(kind){
+async function connect(kind,loginHint=''){
  const fb=window.WOONBI_CONFIG?.firebase||{};
- if(fb.apiKey&&fb.authDomain&&fb.appId)return connectViaFirebase(kind);
- return connectViaGIS(kind);
+ if(fb.apiKey&&fb.authDomain&&fb.appId)return connectViaFirebase(kind,loginHint);
+ return connectViaGIS(kind,loginHint);
 }
 function requireAccount(kind){
  const a=state[kind];
@@ -324,11 +328,27 @@ function panel(ui){
 
  function busy(v,msg=''){state.busy=v;progress.textContent=msg;}
  function selectedRows(){return state.rows.filter(r=>state.selected.has(r.id));}
+ function pinCurrentSource(){
+  const id=extractFolderId(sourceUrl.value)||state.sourceFolderId;if(!id)return toast('먼저 학교 공유폴더를 선택하거나 링크를 붙여넣어 주세요.');
+  state.pinnedSourceFolderId=id;state.pinnedSourceFolderName=state.sourceFolderName||'학교 기본 사진함';rememberFolders();toast('이 폴더를 기본 학교 사진함으로 저장했습니다.');draw();
+ }
+ function unpinSource(){state.pinnedSourceFolderId='';state.pinnedSourceFolderName='';rememberFolders();toast('기본 학교 사진함 지정을 해제했습니다.');draw();}
+ async function scanPinnedSource(){
+  const id=state.pinnedSourceFolderId;if(!id)return openCurrentPicker();
+  busy(true,'기본 학교 사진함 불러오는 중…');
+  try{
+   if(!tokenValid(state.source)||!String(state.source.scope||'').includes('drive.readonly'))state.source=typeof getDriveFolderToken==='function'?await getDriveFolderToken():await connect('source');
+   const out=await scanSourceFolder(id,s=>busy(true,'학교 사진함 · 폴더 '+s.folders+'개 · 사진 '+s.files+'장'));
+   sourceUrl.value='https://drive.google.com/drive/folders/'+out.root.id;state.pinnedSourceFolderName=out.root.name;rememberFolders();
+   toast('기본 학교 사진함에서 '+out.rows.length+'장을 불러왔습니다.');draw();onRefresh?.();
+  }finally{busy(false,'');}
+ }
  async function openCurrentPicker(){
   busy(true,'현재 Google 계정으로 Picker 권한 확인 중…');
   try{
-   if(typeof getDrivePickerToken==='function')state.source=await getDrivePickerToken();
-   else if(!tokenValid(state.source))await connect('source');
+   // Use an isolated Firebase Auth session for Drive consent. This avoids reauth popup stalls
+   // on Workspace accounts while keeping the main Woonbi login session untouched.
+   state.source=await connect('picker',signedInEmail||'');
    draw();
    const rows=await pickImages();
    if(rows.length){toast('Google Picker에서 '+rows.length+'장을 선택했습니다. 아래에서 웅비 정리기로 보내세요.');draw();}
@@ -388,7 +408,7 @@ function panel(ui){
   h('div',{class:'actions'},
    button('현재 계정으로 Picker 열기',async()=>{try{await openCurrentPicker();}catch(e){toast(e.message||String(e));}},'primary'),
    button('폴더 전체 읽기 권한',async()=>{try{busy(true,'학교 Drive 전체 읽기 권한 연결 중…');state.source=typeof getDriveFolderToken==='function'?await getDriveFolderToken():await connect('source');toast('폴더 전체 읽기 권한을 연결했습니다.');draw();}catch(e){toast(e.message||String(e));}finally{busy(false,'');}},'text'),
-   button('Drive에서 폴더 선택',async()=>{try{const d=await pickFolder('source');if(d){sourceUrl.value='https://drive.google.com/drive/folders/'+d.id;toast('학교 사진 폴더를 선택했습니다.');draw();}}catch(e){toast(e.message||String(e));}},'text'))
+   button('Drive에서 폴더 선택',async()=>{try{const d=await pickFolder('source');if(d){sourceUrl.value='https://drive.google.com/drive/folders/'+d.id;state.sourceFolderId=d.id;state.sourceFolderName=d.name||'학교 사진';state.pinnedSourceFolderId=d.id;state.pinnedSourceFolderName=d.name||'학교 사진';rememberFolders();toast('학교 사진 폴더를 선택하고 기본 사진함으로 저장했습니다.');draw();}}catch(e){toast(e.message||String(e));}},'text'))
  );
  const targetActions=h('div',{class:'drive-account-card'},
   h('div',{},h('span',{class:'eyebrow'},'BACKUP · APP FILES ONLY'),h('h3',{},'개인 5TB Drive'),h('p',{class:'small muted'},'웅비가 만든 백업 폴더·파일만 관리합니다.'),targetStatus),
@@ -396,6 +416,7 @@ function panel(ui){
    button('백업 폴더 선택',async()=>{try{const d=await pickFolder('target');if(d){toast('개인 Drive 백업 폴더를 선택했습니다: '+d.name);draw();}}catch(e){toast(e.message||String(e));}},'text'))
  );
  const sourceControls=h('div',{class:'drive-photo-controls'},sourceUrl,mode,
+  button(state.pinnedSourceFolderId?'기본 사진함 변경':'이 폴더 기본으로 저장',pinCurrentSource,'text'),
   button('공유폴더 새 탭으로 열기',()=>{const id=extractFolderId(sourceUrl.value);if(!id)return toast('공유폴더 링크를 먼저 붙여넣어 주세요.');window.open('https://drive.google.com/drive/folders/'+id,'_blank','noopener');},'text'),
   button('학교 폴더 읽기',async()=>{
    const id=extractFolderId(sourceUrl.value);if(!id)return toast('Google Drive 폴더 링크 또는 폴더 ID를 확인해 주세요.');
@@ -405,10 +426,12 @@ function panel(ui){
   },'primary')
  );
  const quick=h('section',{class:'drive-quickstart'},
-  h('div',{},h('span',{class:'eyebrow'},'가장 쉬운 방법'),h('h3',{},'공유된 학교 사진을 3단계로 가져오기')),
-  h('ol',{},h('li',{},'현재 웅비 로그인 계정 확인: ',h('b',{},signedInEmail||'Google 로그인 필요')),h('li',{},'“현재 계정으로 Picker 열기”를 눌러 공유된 사진을 여러 장 선택'),h('li',{},'사진 목록에서 “선택 사진 웅비 정리기로”를 눌러 중복검사·기사추천 실행')),
-  button('1. 현재 계정으로 Picker 열기',async()=>{try{await openCurrentPicker();}catch(e){toast(e.message||String(e));}},'primary'));
- wrap.append(h('div',{class:'dashboard-section-head'},h('div',{},h('span',{class:'eyebrow'},'WOONBI MEDIA BRIDGE'),h('h2',{},'학교 Drive → 개인 원본 백업 → 웅비'),h('p',{class:'small muted'},'원본 저장과 웹 공개를 분리합니다. 기본 경로는 현재 로그인 계정의 Google Picker입니다. 폴더 전체 읽기는 필요할 때만 별도 권한을 요청합니다.'))),quick,configNotice,h('div',{class:'drive-account-grid'},sourceActions,targetActions),sourceControls,progress,summary);
+  h('div',{},h('span',{class:'eyebrow'},'가장 쉬운 방법'),h('h3',{},state.pinnedSourceFolderId?'기본 학교 사진함 한 번에 불러오기':'공유된 학교 사진을 3단계로 가져오기'),state.pinnedSourceFolderId?h('p',{class:'small muted'},'기본 사진함 · '+(state.pinnedSourceFolderName||'저장된 공유폴더')):null),
+  h('ol',{},h('li',{},'현재 웅비 로그인 계정: ',h('b',{},signedInEmail||'Google 로그인 필요')),h('li',{},state.pinnedSourceFolderId?'“학교 사진 불러오기”를 누르면 저장된 공유폴더를 바로 읽습니다.':'처음 한 번만 Picker 또는 Drive 폴더 선택으로 학교 사진함을 지정합니다.'),h('li',{},'사진 목록에서 필요한 사진을 골라 중복검사·기사추천으로 보냅니다.')),
+  h('div',{class:'actions'},state.pinnedSourceFolderId?button('학교 사진 불러오기',async()=>{try{await scanPinnedSource();}catch(e){toast(e.message||String(e));}},'primary'):button('현재 계정으로 Picker 열기',async()=>{try{await openCurrentPicker();}catch(e){toast(e.message||String(e));}},'primary'),state.pinnedSourceFolderId?button('기본 사진함 해제',unpinSource,'text'):null));
+ wrap.append(h('div',{class:'dashboard-section-head'},h('div',{},h('span',{class:'eyebrow'},'WOONBI MEDIA BRIDGE'),h('h2',{},'학교 Drive → 개인 원본 백업 → 웅비'),h('p',{class:'small muted'},'원본 저장과 웹 공개를 분리합니다. 기본 경로는 현재 로그인 계정의 Google Picker입니다. 폴더 전체 읽기는 필요할 때만 별도 권한을 요청합니다.'))),quick);
+ if(configNotice)wrap.append(configNotice);
+ wrap.append(h('div',{class:'drive-account-grid'},sourceActions,targetActions),sourceControls,progress,summary);
  draw();return wrap;
 }
 

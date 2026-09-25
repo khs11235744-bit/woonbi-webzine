@@ -2,7 +2,7 @@
 (function(){
 'use strict';const W=window.Woonbi,C=W.core,SDK='https://www.gstatic.com/firebasejs/12.17.1/';
 class FirebaseStore{
- constructor(config){C.projectGuard(config);this.config=config;this.mode='firebase';this.user=null;this.unsub=null;}
+ constructor(config){C.projectGuard(config);this.config=config;this.mode='firebase';this.user=null;this.unsub=null;this.openAdmin=!!config.openAdmin;}
  async init(){
   [this.appSdk,this.A,this.F,this.S]=await Promise.all(['firebase-app.js','firebase-auth.js','firebase-firestore.js','firebase-storage.js'].map(f=>import(SDK+f)));
   const app=this.appSdk.initializeApp(this.config.firebase,'woonbi-webzine');this.auth=this.A.getAuth(app);this.auth.languageCode='ko';
@@ -13,7 +13,7 @@ class FirebaseStore{
   await new Promise((resolve,reject)=>{let settled=false;this.unsub=this.A.onAuthStateChanged(this.auth,async u=>{
    try{this.user=null;if(u){if(!u.emailVerified)throw C.error('auth','Google 이메일 확인이 필요합니다.');const ref=this.F.doc(this.db,'members',u.uid);let m=await this.F.getDoc(ref);
     if(!m.exists()){await this.F.setDoc(ref,{displayName:(u.displayName||'사용자').slice(0,60),role:'student',active:true,createdAt:this.F.serverTimestamp()});m=await this.F.getDoc(ref);}
-    const profile={uid:u.uid,email:u.email||'',...m.data()};this.user=this.config.openAdmin?{...profile,role:'teacher',active:true,openAdmin:true}:profile;}
+    const profile={uid:u.uid,email:u.email||'',...m.data()},baseRole=profile.role;this.openAdmin=await this.getAccessMode();this.user=this.openAdmin?{...profile,baseRole,role:'teacher',active:true,openAdmin:true}:{...profile,baseRole,openAdmin:false};}
     if(!settled){settled=true;resolve();}else this.onAuthChange?.();
    }catch(e){if(!settled){settled=true;reject(e);}else this.onError?.(e);}
   },reject);});return this;
@@ -22,6 +22,16 @@ class FirebaseStore{
  async login(){await this.A.signInWithPopup(this.auth,this.provider());}
  async loginRedirect(){return this.A.signInWithRedirect(this.auth,this.provider());}
  async logout(){await this.A.signOut(this.auth);this.user=null;}
+ async getAccessMode(){
+  try{const d=await this.F.getDoc(this.F.doc(this.db,'settings','access'));return d.exists()?d.data().openAdmin===true:!!this.config.openAdmin;}catch{return !!this.config.openAdmin;}
+ }
+ async setOpenAdmin(value){
+  const next=!!value;
+  if(next&&this.user?.baseRole!=='teacher')throw C.error('permission','교사 계정만 관리자 모드를 다시 열 수 있습니다.');
+  if(!next&&!this.openAdmin&&this.user?.baseRole!=='teacher')throw C.error('permission','현재 계정으로 변경할 수 없습니다.');
+  await this.F.setDoc(this.F.doc(this.db,'settings','access'),{openAdmin:next,updatedAt:this.F.serverTimestamp(),updatedBy:this.user.uid},{merge:false});
+  this.openAdmin=next;return this.openAdmin;
+ }
  async driveAccess(kind='picker'){
   const u=this.auth.currentUser;if(!u)throw C.error('auth','먼저 Google 계정으로 웅비에 로그인해 주세요.');
   const p=new this.A.GoogleAuthProvider();p.setCustomParameters({prompt:'consent',login_hint:u.email||''});

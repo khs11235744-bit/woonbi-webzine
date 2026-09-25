@@ -49,6 +49,7 @@ async function seed(){
     ]){
       await setDoc(doc(db,'members',uid),{displayName:uid,role,active,createdAt:Timestamp.now()});
     }
+    await setDoc(doc(db,'settings','access'),{openAdmin:true,updatedAt:Timestamp.now(),updatedBy:'teacher'});
     await setDoc(doc(db,'articles','article-a'),article('article-a'));
     await setDoc(doc(db,'articles','article-submitted'),article('article-submitted',['student-a'],{
       status:'submitted',revision:2,updatedBy:'student-a'
@@ -275,4 +276,13 @@ test('public storage is teacher-write and becomes anonymous-readable only after 
   });
   await assertSucceeds(getBytes(ref(anonStorage,p),1024));
   await assertFails(deleteObject(ref(teacherStorage,p)));
+});
+
+
+test('runtime access switch: any open-admin account can lock, only stored teacher can reopen',async()=>{
+  const student=auth('student-a').firestore();
+  const teacher=auth('teacher','teacher').firestore();
+  await assertSucceeds(setDoc(doc(student,'settings','access'),{openAdmin:false,updatedAt:serverTimestamp(),updatedBy:'student-a'}));
+  await assertFails(setDoc(doc(student,'settings','access'),{openAdmin:true,updatedAt:serverTimestamp(),updatedBy:'student-a'}));
+  await assertSucceeds(setDoc(doc(teacher,'settings','access'),{openAdmin:true,updatedAt:serverTimestamp(),updatedBy:'teacher'}));
 });

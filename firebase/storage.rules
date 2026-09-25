@@ -2,10 +2,15 @@ rules_version = '2';
 service firebase.storage {
  match /b/{bucket}/o {
   function signed(){return request.auth!=null && request.auth.token.email_verified==true;}
-  // TEMP OPEN ADMIN: any verified Google login can use editorial storage.
-  function active(){return signed();}
-  function staff(){return signed();}
-  function teacher(){return signed();}
+  function memberExists(){return signed() && firestore.exists(/databases/(default)/documents/members/$(request.auth.uid));}
+  function memberData(){return firestore.get(/databases/(default)/documents/members/$(request.auth.uid)).data;}
+  function baseActive(){return memberExists() && memberData().active==true;}
+  function baseTeacher(){return baseActive() && memberData().role=='teacher';}
+  function baseStaff(){return baseActive() && memberData().role in ['teacher','editor'];}
+  function openAdmin(){return signed() && (!firestore.exists(/databases/(default)/documents/settings/access) || firestore.get(/databases/(default)/documents/settings/access).data.openAdmin==true);}
+  function active(){return signed() && (openAdmin() || baseActive());}
+  function staff(){return signed() && (openAdmin() || baseStaff());}
+  function teacher(){return signed() && (openAdmin() || baseTeacher());}
   function article(id){return firestore.get(/databases/(default)/documents/articles/$(id)).data;}
   function permitted(id){return active() && (staff() || request.auth.uid in article(id).assigneeIds);}
   function photo(){return request.resource.size>0 && request.resource.size<=25*1024*1024 && request.resource.contentType.matches('image/(jpeg|png|webp)');}
