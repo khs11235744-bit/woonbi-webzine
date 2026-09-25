@@ -12,7 +12,7 @@ class FirebaseStore{
   await this.A.getRedirectResult(this.auth);
   await new Promise((resolve,reject)=>{let settled=false;this.unsub=this.A.onAuthStateChanged(this.auth,async u=>{
    try{this.user=null;if(u){if(!u.emailVerified)throw C.error('auth','Google 이메일 확인이 필요합니다.');const ref=this.F.doc(this.db,'members',u.uid);let m=await this.F.getDoc(ref);
-    if(!m.exists()){await this.F.setDoc(ref,{displayName:(u.displayName||'신청자').slice(0,60),role:'pending',active:false,createdAt:this.F.serverTimestamp()});m=await this.F.getDoc(ref);}
+    if(!m.exists()){await this.F.setDoc(ref,{displayName:(u.displayName||'사용자').slice(0,60),role:'student',active:true,createdAt:this.F.serverTimestamp()});m=await this.F.getDoc(ref);}
     this.user={uid:u.uid,...m.data()};}
     if(!settled){settled=true;resolve();}else this.onAuthChange?.();
    }catch(e){if(!settled){settled=true;reject(e);}else this.onError?.(e);}

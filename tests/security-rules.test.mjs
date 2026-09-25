@@ -178,10 +178,10 @@ test('teacher can relink legacy assignment to approved student account',async()=
   await assertSucceeds(getDoc(doc(auth('student-b').firestore(),'articles','article-a')));
   await assertFails(getDoc(doc(auth('student-a').firestore(),'articles','article-a')));
 });
-test('first Google login can self-register only as pending inactive member',async()=>{
+test('first Google login self-registers as active student and cannot self-elevate',async()=>{
   const newcomer=auth('new-student').firestore();
-  await assertSucceeds(setDoc(doc(newcomer,'members','new-student'),{displayName:'신규 학생',role:'pending',active:false,createdAt:serverTimestamp()}));
-  await assertFails(setDoc(doc(newcomer,'members','forged'),{displayName:'위조',role:'student',active:true,createdAt:serverTimestamp()}));
+  await assertSucceeds(setDoc(doc(newcomer,'members','new-student'),{displayName:'신규 학생',role:'student',active:true,createdAt:serverTimestamp()}));
+  await assertFails(setDoc(doc(newcomer,'members','forged'),{displayName:'위조',role:'teacher',active:true,createdAt:serverTimestamp()}));
 });
 test('full editorial flow: student submit -> editor changes -> student resubmit -> teacher approve',async()=>{
   const student=auth('student-a').firestore();

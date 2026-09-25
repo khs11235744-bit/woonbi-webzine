@@ -42,7 +42,7 @@ function refreshHeader(){
 function listen(){unsubscribe?.();unsubscribe=store.subscribe(()=>{if(!edit&&['articles','public','members','dashboard','photos'].includes(view))renderCurrent().catch(showError);else if(edit){const indicator=$('#remoteNotice');if(indicator)indicator.hidden=false;}});}
 async function navigate(next){if(!(await leaveEditor()))return;view=next;refreshHeader();await renderCurrent();window.scrollTo({top:0,behavior:'instant'});}
 async function renderCurrent(){if(view==='archive')return newsroom.archiveHome();if(view==='examples')return newsroom.examples();if(view==='ideas')return newsroom.ideas();if(view==='public')return renderPublic();if(!user)return renderLogin();if(!user.active)return renderPending();if(view==='dashboard')return renderDashboard();if(view==='photos')return renderPhotoDesk();if(view==='book')return renderBook();if(view==='members')return renderMembers();return renderArticles();}
-function renderLogin(){main.replaceChildren(h('div',{class:'panel'},h('h1',{},'웅비 편집실'),h('p',{},'Google 계정으로 로그인하고 담당교사의 승인 후 배정된 기사를 작성합니다.'),button('Google로 로그인',()=>store.login(),'primary')));}
+function renderLogin(){main.replaceChildren(h('div',{class:'panel'},h('h1',{},'웅비 편집실'),h('p',{},'Google 계정만 있으면 바로 로그인할 수 있습니다. 로그인 후 배정된 기사가 있으면 작성하고, 아직 배정이 없으면 읽기·대기 화면을 이용합니다.'),button('Google로 로그인',()=>store.login(),'primary')));}
 function renderPending(){main.replaceChildren(h('div',{class:'panel'},h('h1',{},'참여 승인을 기다리고 있습니다'),h('p',{},'담당교사가 계정을 승인하고 기사를 배정하면 이곳에 내 기사가 나타납니다.'),button('승인 상태 확인',async()=>{location.reload();})));}
 function articleState(a){return a.status==='draft'&&!a.body.trim()?'작성 전':C.STATUS[a.status];}
 function articleNames(a){return (a.assigneeNames||[]).join(' · ')||a.byline||'배정 확인 필요';}
@@ -392,8 +392,8 @@ async function renderMembers(){
  if(store.mode==='demo'&&W.plan2026)return renderPlanMembers();
  if(!C.teacher(user))return renderPending();
  const members=await store.listMembers(),articles=await store.listArticles(),rows=h('div',{class:'panel'}),pending=members.filter(m=>!m.active),activeStudents=members.filter(m=>m.active&&['student','editor'].includes(m.role));
- const loginUrl=location.origin+'/?student=login',studentGuide='[웅비 웹진 기사 작성 안내]\n1. 아래 주소를 열어 Google 계정으로 로그인하세요.\n'+loginUrl+'\n2. 첫 로그인 뒤에는 “승인 대기”로 표시됩니다.\n3. 담당교사가 승인하면 기존에 배정된 자기 기사만 열어 작성할 수 있습니다.\n4. 기사 원고와 사진은 승인 전까지 공개되지 않습니다.';
- const onboarding=h('section',{class:'member-onboarding'},h('div',{},h('span',{class:'eyebrow'},'GOOGLE ACCOUNT ONBOARDING'),h('h2',{},'학생 계정 연결'),h('p',{class:'small muted'},'학생이 아래 주소에서 Google 로그인하면 승인 대기로 나타납니다. 승인 뒤 이름이 같은 기존 기사 배정을 실제 계정과 연결할 수 있습니다.')),h('div',{class:'member-onboarding-actions'},h('code',{},loginUrl),button('로그인 주소 복사',()=>copyText(loginUrl),'text'),button('학생 안내문 복사',()=>copyText(studentGuide),'text')));
+ const loginUrl=location.origin+'/?student=login',studentGuide='[웅비 웹진 기사 작성 안내]\n1. 아래 주소를 열어 Google 계정으로 로그인하세요.\n'+loginUrl+'\n2. 첫 로그인 즉시 학생 계정으로 활성화됩니다.\n3. 담당교사가 기사를 배정하면 자기 기사만 열어 작성할 수 있습니다.\n4. 기사 원고와 사진은 승인 전까지 공개되지 않습니다.';
+ const onboarding=h('section',{class:'member-onboarding'},h('div',{},h('span',{class:'eyebrow'},'GOOGLE ACCOUNT ONBOARDING'),h('h2',{},'학생 계정 연결'),h('p',{class:'small muted'},'Google 계정이 있으면 누구나 로그인할 수 있고 첫 로그인 즉시 학생 계정으로 활성화됩니다. 교사·편집자 권한은 별도로 부여하며, 기존 기사 배정은 이름 또는 계정으로 연결합니다.')),h('div',{class:'member-onboarding-actions'},h('code',{},loginUrl),button('로그인 주소 복사',()=>copyText(loginUrl),'text'),button('학생 안내문 복사',()=>copyText(studentGuide),'text')));
  const summary=h('div',{class:'member-summary'},h('span',{},'승인 대기 '+pending.length),h('span',{},'학생·편집장 '+activeStudents.length),h('span',{},'교사 '+members.filter(m=>m.role==='teacher').length));
  main.replaceChildren(h('div',{class:'heading-row'},h('div',{},h('div',{class:'eyebrow'},'MEMBERS'),h('h1',{},'참여자 승인'),h('p',{class:'intro'},'Google 로그인은 본인 확인입니다. 기사 접근 권한은 별도로 승인합니다.'))),onboarding,summary,rows);
  for(const m of members){

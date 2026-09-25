@@ -63,7 +63,7 @@ service cloud.firestore {
    allow create: if signed() && uid == request.auth.uid &&
       request.resource.data.keys().hasOnly(['displayName','role','active','createdAt']) &&
       request.resource.data.displayName is string && request.resource.data.displayName.size() <= 60 &&
-      request.resource.data.role == 'pending' && request.resource.data.active == false && request.resource.data.createdAt == request.time;
+      request.resource.data.role == 'student' && request.resource.data.active == true && request.resource.data.createdAt == request.time;
    // Creating/promoting teachers is an out-of-band owner operation, never self-service.
    allow update: if teacher() && resource.data.role != 'teacher' &&
       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role','active']) &&
