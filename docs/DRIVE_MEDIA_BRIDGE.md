@@ -103,3 +103,15 @@ Google Cloud에서 Drive API와 Google Picker API를 활성화한다. Picker API
 ## Google Cloud 상태
 
 2026-09-25 기준 `woonbi-webzine-2026` 프로젝트에서 Google Drive API와 Google Picker API를 활성화했다. 웅비 운영 도메인은 Firebase Authentication 승인 도메인에 포함되어 있다.
+
+## 가장 쉬운 학교 계정 사용법
+
+1. `https://woonbi-webzine-2026.web.app/?view=photos`를 연다.
+2. 학교 Google 계정으로 로그인한다. 현재 운영본은 임시 OPEN ADMIN이라 Google 로그인만 성공하면 사진 정리 메뉴가 바로 열린다.
+3. 화면 상단 **현재 계정으로 Picker 열기**를 누른다.
+4. Google 권한 창이 뜨면 현재 로그인한 학교 계정의 Drive 파일 선택 권한을 허용한다.
+5. 공유된 학교 사진을 여러 장 고른다.
+6. 웅비 화면에서 **선택 사진 웅비 정리기로**를 누른다.
+7. 날짜·행사·기사·담당자 자동 분류와 중복검사를 확인한 뒤 기사에 연결한다.
+
+공유폴더 전체를 훑을 필요가 없다면 `폴더 전체 읽기 권한`은 누르지 않는다. Picker 경로가 더 단순하고 권한 범위도 작다.

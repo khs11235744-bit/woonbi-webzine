@@ -4,7 +4,7 @@
   "private": true,
   "description": "Woonbi student newsroom v0.6 with editorial redesign and Firebase pilot workflow",
   "scripts": {
-    "test": "node --test tests/core.test.cjs tests/plan2026.test.cjs tests/newsroom.test.cjs tests/editorial.test.cjs tests/ai-editor.test.cjs tests/drive-bridge.test.cjs tests/editorial-layout.test.cjs",
+    "test": "node --test tests/core.test.cjs tests/plan2026.test.cjs tests/newsroom.test.cjs tests/editorial.test.cjs tests/ai-editor.test.cjs tests/drive-bridge.test.cjs tests/editorial-layout.test.cjs tests/issue-system.test.cjs tests/open-admin.test.cjs",
     "check": "node scripts/check.cjs",
     "start": "python3 -m http.server 8137 --bind 127.0.0.1 --directory web",
     "build": "python3 scripts/build.py",

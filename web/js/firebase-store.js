@@ -13,7 +13,7 @@ class FirebaseStore{
   await new Promise((resolve,reject)=>{let settled=false;this.unsub=this.A.onAuthStateChanged(this.auth,async u=>{
    try{this.user=null;if(u){if(!u.emailVerified)throw C.error('auth','Google 이메일 확인이 필요합니다.');const ref=this.F.doc(this.db,'members',u.uid);let m=await this.F.getDoc(ref);
     if(!m.exists()){await this.F.setDoc(ref,{displayName:(u.displayName||'사용자').slice(0,60),role:'student',active:true,createdAt:this.F.serverTimestamp()});m=await this.F.getDoc(ref);}
-    this.user={uid:u.uid,...m.data()};}
+    const profile={uid:u.uid,email:u.email||'',...m.data()};this.user=this.config.openAdmin?{...profile,role:'teacher',active:true,openAdmin:true}:profile;}
     if(!settled){settled=true;resolve();}else this.onAuthChange?.();
    }catch(e){if(!settled){settled=true;reject(e);}else this.onError?.(e);}
   },reject);});return this;
@@ -24,7 +24,7 @@ class FirebaseStore{
  async logout(){await this.A.signOut(this.auth);this.user=null;}
  async driveAccess(kind='picker'){
   const u=this.auth.currentUser;if(!u)throw C.error('auth','먼저 Google 계정으로 웅비에 로그인해 주세요.');
-  const p=new this.A.GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});
+  const p=new this.A.GoogleAuthProvider();p.setCustomParameters({prompt:'consent',login_hint:u.email||''});
   const scope=kind==='folder'?'https://www.googleapis.com/auth/drive.readonly':'https://www.googleapis.com/auth/drive.file';
   p.addScope(scope);
   const result=await this.A.reauthenticateWithPopup(u,p),cred=this.A.GoogleAuthProvider.credentialFromResult(result);

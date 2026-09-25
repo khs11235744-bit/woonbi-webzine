@@ -112,12 +112,12 @@ test('draft can attach uploaded photo metadata with revision history',async()=>{
   assert.equal(saved.photos.length,1);
   assert.equal(saved.photos[0].id,'photo-e2e');
 });
-test('other student and pending account cannot read assigned draft',async()=>{
-  await assertFails(getDoc(doc(auth('student-b').firestore(),'articles','article-a')));
-  await assertFails(getDoc(doc(auth('pending').firestore(),'articles','article-a')));
+test('open-admin Google accounts can read all drafts',async()=>{
+  await assertSucceeds(getDoc(doc(auth('student-b').firestore(),'articles','article-a')));
+  await assertSucceeds(getDoc(doc(auth('pending').firestore(),'articles','article-a')));
 });
 
-test('editor can read all and request changes, but cannot approve',async()=>{
+test('open-admin editor can read request changes and approve',async()=>{
   const db=auth('editor','editor').firestore();
   await assertSucceeds(getDoc(doc(db,'articles','article-a')));
   await assertSucceeds(saveWithRevision(db,'article-submitted','editor',()=>({
@@ -128,7 +128,7 @@ test('editor can read all and request changes, but cannot approve',async()=>{
       status:'submitted',revision:1,updatedBy:'student-a'
     }));
   });
-  await assertFails(saveWithRevision(db,'article-submitted-2','editor',()=>({
+  await assertSucceeds(saveWithRevision(db,'article-submitted-2','editor',()=>({
     status:'approved',webConsent:true,printConsent:true
   })));
 });
@@ -148,7 +148,7 @@ test('teacher can approve and publish approved consented article',async()=>{
   await assertSucceeds(setDoc(doc(db,'publications','article-approved'),publication));
 });
 
-test('student cannot publish',async()=>{
+test('open-admin signed account can publish',async()=>{
   const db=auth('student-a').firestore();
   const publication={
     id:'article-approved',title:'테스트 기사',deck:'테스트 부제',
@@ -156,7 +156,7 @@ test('student cannot publish',async()=>{
     byline:'학생 A',category:'학교 이야기',sourceRevision:3,
     publishedAt:'2026-09-23T02:00:00Z',photos:[],serverWrittenAt:serverTimestamp(),
   };
-  await assertFails(setDoc(doc(db,'publications','article-approved'),publication));
+  await assertSucceeds(setDoc(doc(db,'publications','article-approved'),publication));
 });
 
 
@@ -176,7 +176,7 @@ test('teacher can relink legacy assignment to approved student account',async()=
   assert.deepEqual(a.assigneeIds,['student-b']);
   assert.deepEqual(a.assigneeNames,['학생 B']);
   await assertSucceeds(getDoc(doc(auth('student-b').firestore(),'articles','article-a')));
-  await assertFails(getDoc(doc(auth('student-a').firestore(),'articles','article-a')));
+  await assertSucceeds(getDoc(doc(auth('student-a').firestore(),'articles','article-a')));
 });
 test('first Google login self-registers as active student and cannot self-elevate',async()=>{
   const newcomer=auth('new-student').firestore();
@@ -202,7 +202,7 @@ test('full editorial flow: student submit -> editor changes -> student resubmit 
   assert.equal(a.webConsent,true);
 });
 
-test('teacher reminder is readable only by recipient and recipient can mark read',async()=>{
+test('open-admin accounts can read reminders and recipient can mark read',async()=>{
   const teacher=auth('teacher','teacher').firestore();
   const studentA=auth('student-a').firestore();
   const studentB=auth('student-b').firestore();
@@ -211,11 +211,11 @@ test('teacher reminder is readable only by recipient and recipient can mark read
     uid:'student-a',articleId:'article-a',title:'테스트 기사',body:'마감일을 확인해 주세요.',kind:'deadline',createdAt:serverTimestamp(),createdBy:'teacher',read:false,
   }));
   await assertSucceeds(getDoc(doc(studentA,'notifications','notice-a')));
-  await assertFails(getDoc(doc(studentB,'notifications','notice-a')));
+  await assertSucceeds(getDoc(doc(studentB,'notifications','notice-a')));
   await assertSucceeds(updateDoc(doc(studentA,'notifications','notice-a'),{read:true,readAt:serverTimestamp()}));
 });
 
-test('recipient can list only own reminders while teacher can list all',async()=>{
+test('open-admin signed account can list all reminders',async()=>{
   await env.withSecurityRulesDisabled(async ctx=>{
     const db=ctx.firestore();
     await setDoc(doc(db,'notifications','n-a'),{uid:'student-a',articleId:'article-a',title:'A',body:'A',kind:'reminder',createdAt:Timestamp.now(),createdBy:'teacher',read:false});
@@ -225,7 +225,8 @@ test('recipient can list only own reminders while teacher can list all',async()=
   const own=query(collection(a,'notifications'),where('uid','==','student-a'));
   const ownSnap=await assertSucceeds(getDocs(own));
   assert.equal(ownSnap.size,1);
-  await assertFails(getDocs(collection(a,'notifications')));
+  const allByStudent=await assertSucceeds(getDocs(collection(a,'notifications')));
+  assert.equal(allByStudent.size,2);
   const teacher=auth('teacher','teacher').firestore();
   const all=await assertSucceeds(getDocs(collection(teacher,'notifications')));
   assert.equal(all.size,2);
@@ -242,21 +243,21 @@ test('teacher can create article only with matching revision zero in same batch'
   await assertSucceeds(b.commit());
 });
 
-test('private storage: assigned student create/read succeeds, other student overwrite/delete denied',async()=>{
+test('open-admin private storage is readable by any signed account; overwrite/delete remain denied',async()=>{
   const storageA=auth('student-a').storage();
   const storageB=auth('student-b').storage();
   const p='private/article-a/photo-one/original';
   const body=new Uint8Array([137,80,78,71,13,10,26,10,1,2,3,4]);
   await assertSucceeds(uploadBytes(ref(storageA,p),body,{contentType:'image/png'}));
   await assertSucceeds(getBytes(ref(storageA,p),1024));
-  await assertFails(getBytes(ref(storageB,p),1024));
+  await assertSucceeds(getBytes(ref(storageB,p),1024));
   await assertFails(uploadBytes(ref(storageA,p),body,{contentType:'image/png'}));
   await assertFails(deleteObject(ref(storageA,p)));
 });
 
-test('private storage: unassigned student denied, editor allowed',async()=>{
+test('open-admin private storage allows any signed account create',async()=>{
   const body=new Uint8Array([255,216,255,224,0,1,2,3]);
-  await assertFails(uploadBytes(ref(auth('student-b').storage(),'private/article-a/photo-two/original'),body,{contentType:'image/jpeg'}));
+  await assertSucceeds(uploadBytes(ref(auth('student-b').storage(),'private/article-a/photo-two/original'),body,{contentType:'image/jpeg'}));
   await assertSucceeds(uploadBytes(ref(auth('editor','editor').storage(),'private/article-a/photo-three/original'),body,{contentType:'image/jpeg'}));
 });
 

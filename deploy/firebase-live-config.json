@@ -1,23 +1,24 @@
 {
-    "mode":  "firebase",
-    "firebase":  {
-                     "apiKey":  "AIzaSyC3Q-uVnPbOk5qM3tcbSTO7sgTutTupk4Y",
-                     "authDomain":  "woonbi-webzine-2026.firebaseapp.com",
-                     "projectId":  "woonbi-webzine-2026",
-                     "storageBucket":  "woonbi-webzine-2026.firebasestorage.app",
-                     "messagingSenderId":  "285370921993",
-                     "appId":  "1:285370921993:web:5e9b50f4f5415d3bfe34d8"
-                 },
-    "enableStorage":  true,
-    "schoolLifeEndpoint":  "/school-life.json",
-    "googleDrive":  {
-                        "clientId":  "",
-                        "apiKey":  "AIzaSyB6cyWVRDUQ2YdeEG39WFYhK612MaU_ghU",
-                        "appId":  "285370921993",
-                        "backupFolderName":  "웅비 사진 원본 백업",
-                        "sourceListLimit":  5000
-                    },
-    "media":  {
-                  "scanLimit":  2000
-              }
+  "mode": "firebase",
+  "firebase": {
+    "apiKey": "AIzaSyC3Q-uVnPbOk5qM3tcbSTO7sgTutTupk4Y",
+    "authDomain": "woonbi-webzine-2026.firebaseapp.com",
+    "projectId": "woonbi-webzine-2026",
+    "storageBucket": "woonbi-webzine-2026.firebasestorage.app",
+    "messagingSenderId": "285370921993",
+    "appId": "1:285370921993:web:5e9b50f4f5415d3bfe34d8"
+  },
+  "enableStorage": true,
+  "schoolLifeEndpoint": "/school-life.json",
+  "googleDrive": {
+    "clientId": "",
+    "apiKey": "AIzaSyB6cyWVRDUQ2YdeEG39WFYhK612MaU_ghU",
+    "appId": "285370921993",
+    "backupFolderName": "웅비 사진 원본 백업",
+    "sourceListLimit": 5000
+  },
+  "media": {
+    "scanLimit": 2000
+  },
+  "openAdmin": true
 }

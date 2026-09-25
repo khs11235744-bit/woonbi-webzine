@@ -50,7 +50,7 @@ test('Drive bridge contains direct multi-select image Picker path',()=>{
   const src=fs.readFileSync('web/js/drive-bridge.js','utf8');
   assert.match(src,/MULTISELECT_ENABLED/);
   assert.match(src,/image\/jpeg,image\/png,image\/webp/);
-  assert.match(src,/Google Picker로 사진 고르기/);
+  assert.match(src,/현재 계정으로 Picker 열기/);
 });
 
 

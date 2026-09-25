@@ -2,10 +2,10 @@ rules_version = '2';
 service firebase.storage {
  match /b/{bucket}/o {
   function signed(){return request.auth!=null && request.auth.token.email_verified==true;}
-  function me(){return firestore.get(/databases/(default)/documents/members/$(request.auth.uid)).data;}
-  function active(){return signed() && me().active==true;}
-  function staff(){return active() && me().role in ['teacher','editor'];}
-  function teacher(){return active() && me().role=='teacher';}
+  // TEMP OPEN ADMIN: any verified Google login can use editorial storage.
+  function active(){return signed();}
+  function staff(){return signed();}
+  function teacher(){return signed();}
   function article(id){return firestore.get(/databases/(default)/documents/articles/$(id)).data;}
   function permitted(id){return active() && (staff() || request.auth.uid in article(id).assigneeIds);}
   function photo(){return request.resource.size>0 && request.resource.size<=25*1024*1024 && request.resource.contentType.matches('image/(jpeg|png|webp)');}

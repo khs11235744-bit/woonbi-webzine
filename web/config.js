@@ -1,6 +1,7 @@
 // Demo by default. This is not a live school service. Never store admin secrets or OAuth access tokens here.
 window.WOONBI_CONFIG = {
   mode:'demo',
+  openAdmin:false,
   firebase:{},
   enableStorage:false,
   schoolLifeEndpoint:'',
