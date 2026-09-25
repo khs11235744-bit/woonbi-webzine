@@ -9,6 +9,8 @@ const DRIVE='https://www.googleapis.com/drive/v3';
 const UPLOAD='https://www.googleapis.com/upload/drive/v3';
 const FOLDER='application/vnd.google-apps.folder';
 const SUPPORTED=new Set(['image/jpeg','image/png','image/webp']);
+const FIREBASE_SDK='https://www.gstatic.com/firebasejs/12.17.1/';
+const driveAuths={};
 const state={
  source:null,target:null,sourceFolderId:'',sourceFolderName:'',targetFolderId:'',targetFolderName:'',
  rows:[],selected:new Set(),busy:false,lastScanAt:''
@@ -82,8 +84,22 @@ async function userInfo(token){
  if(!r.ok)return {};
  return r.json();
 }
-async function connect(kind){
- const c=cfg();if(!c.clientId)throw new Error('Google Drive OAuth Client ID 설정이 필요합니다.');
+async function connectViaFirebase(kind){
+ const fb=window.WOONBI_CONFIG?.firebase||{};
+ if(!fb.apiKey||!fb.authDomain||!fb.appId)throw new Error('Firebase Google 로그인 설정이 필요합니다.');
+ const [appSdk,A]=await Promise.all([import(FIREBASE_SDK+'firebase-app.js'),import(FIREBASE_SDK+'firebase-auth.js')]);
+ const appName='woonbi-drive-'+kind;
+ let app;try{app=appSdk.getApp(appName);}catch{app=appSdk.initializeApp(fb,appName);}
+ const auth=A.getAuth(app);auth.languageCode='ko';await A.setPersistence(auth,A.inMemoryPersistence);
+ const provider=new A.GoogleAuthProvider();provider.setCustomParameters({prompt:'select_account'});
+ provider.addScope(kind==='source'?'https://www.googleapis.com/auth/drive.readonly':'https://www.googleapis.com/auth/drive.file');
+ const result=await A.signInWithPopup(auth,provider),cred=A.GoogleAuthProvider.credentialFromResult(result);
+ const token=cred?.accessToken;if(!token)throw new Error('Google Drive 권한 토큰을 받지 못했습니다.');
+ const info=await userInfo(token),row={accessToken:token,email:info.email||result.user?.email||'',name:info.name||result.user?.displayName||'',expiresAt:Date.now()+3500*1000};
+ driveAuths[kind]=auth;state[kind]=row;return row;
+}
+async function connectViaGIS(kind){
+ const c=cfg();if(!c.clientId)throw new Error('Firebase Google 로그인 또는 별도 OAuth Client ID 설정이 필요합니다.');
  await ensureGIS();
  const scope=kind==='source'
   ?'openid email profile https://www.googleapis.com/auth/drive.readonly'
@@ -96,9 +112,13 @@ async function connect(kind){
   });
   client.requestAccessToken({prompt:'select_account'});
  });
- const info=await userInfo(response.access_token);
- const row={accessToken:response.access_token,email:info.email||'',name:info.name||'',expiresAt:Date.now()+Number(response.expires_in||3600)*1000};
+ const info=await userInfo(response.access_token),row={accessToken:response.access_token,email:info.email||'',name:info.name||'',expiresAt:Date.now()+Number(response.expires_in||3600)*1000};
  state[kind]=row;return row;
+}
+async function connect(kind){
+ const fb=window.WOONBI_CONFIG?.firebase||{};
+ if(fb.apiKey&&fb.authDomain&&fb.appId)return connectViaFirebase(kind);
+ return connectViaGIS(kind);
 }
 function requireAccount(kind){
  const a=state[kind];
@@ -188,7 +208,7 @@ async function pickImages(){
  });
 }
 async function pickFolder(kind){
- const c=cfg();if(!configured())throw new Error('Google Drive Picker 설정(Client ID·API Key·App ID)이 필요합니다.');
+ const c=cfg();if(!configured())throw new Error('Google Drive Picker 설정(API Key·Project Number)이 필요합니다.');
  const a=requireAccount(kind);await ensurePicker();
  return new Promise((resolve,reject)=>{
   const g=window.google.picker;
@@ -352,7 +372,7 @@ function panel(ui){
   summary.append(stats,controls,list);
   if(rows.length>display.length)summary.append(h('p',{class:'small muted'},'화면에는 앞 '+display.length+'장만 표시합니다. 전체 '+rows.length+'장은 백업·선택 통계에 포함됩니다.'));
  }
- const configNotice=!configured()?h('div',{class:'notice warn drive-config-notice'},h('b',{},'Google Drive 연결 설정 필요'),h('span',{},' Google Cloud의 웹 OAuth Client ID·제한된 API Key·프로젝트 번호를 운영 설정에 한 번 등록하면 이 화면에서 학교 계정과 개인 계정을 각각 선택할 수 있습니다. 비밀번호나 Client Secret은 넣지 않습니다.')):null;
+ const configNotice=!configured()?h('div',{class:'notice warn drive-config-notice'},h('b',{},'Google Drive 연결 설정 필요'),h('span',{},' Firebase Google 로그인과 제한된 Picker API Key·Project Number를 사용해 학교 계정과 개인 계정을 각각 선택합니다. 별도 Client Secret은 사용하지 않습니다.')):null;
  const sourceActions=h('div',{class:'drive-account-card'},
   h('div',{},h('span',{class:'eyebrow'},'SOURCE · PICKER FIRST'),h('h3',{},'학교 Drive'),h('p',{class:'small muted'},'기본은 Google Picker로 필요한 사진만 선택합니다. 폴더 전체 재귀 스캔은 별도 읽기 권한이 필요합니다.'),sourceStatus),
   h('div',{class:'actions'},

@@ -18,19 +18,18 @@
 
 - 학교 계정: `drive.readonly`. 학교 원본을 수정·삭제하지 않는다.
 - 개인 백업 계정: `drive.file`. 웅비가 생성하거나 Picker로 선택해 앱에 허용한 백업 영역만 관리한다.
-- OAuth access token: 브라우저 메모리에만 둔다. localStorage, Git, Firestore, 로그에 저장하지 않는다.
+- OAuth access token: Firebase의 별도 in-memory Auth 인스턴스로 계정을 선택하고 브라우저 메모리에만 둔다. localStorage, Git, Firestore, 로그에 저장하지 않는다.
 - Client Secret: 웹 앱에 넣지 않는다.
 - 실제 학생 사진과 학교 원본: Git 저장소에 넣지 않는다.
 
 ## 운영 설정
 
-운영본은 Firebase 웹 API Key와 project number(messagingSenderId)를 Google Picker의 developer key/App ID로 재사용한다. 따라서 동일 Firebase 프로젝트에서는 Picker용 별도 공개 키 입력이 없어도 된다. 별도 OAuth Client ID는 다른 Google 계정을 독립적으로 연결하는 고급 경로에서만 필요하다.
+운영본은 Firebase Google 로그인의 자동 생성 웹 OAuth 클라이언트를 재사용한다. 학교 계정과 개인 계정은 서로 다른 named Firebase Auth 인스턴스(inMemoryPersistence)로 연결하므로 별도 OAuth Client ID나 Client Secret이 필요하지 않다. Google Picker는 제한된 전용 API Key와 project number를 사용한다.
 
 운영용 `WOONBI_CONFIG`에서 별도 프로젝트를 쓸 경우 다음 공개형 웹 설정을 추가할 수 있다.
 
 ```js
 googleDrive: {
-  clientId: 'Google OAuth Web Client ID',
   apiKey: '브라우저 출처와 API가 제한된 API Key',
   appId: 'Google Cloud project number',
   backupFolderName: '웅비 사진 원본 백업',
@@ -41,7 +40,7 @@ media: {
 }
 ```
 
-Google Cloud에서 Drive API와 Google Picker API를 활성화하고, OAuth 웹 클라이언트의 승인된 JavaScript 원본에 실제 웅비 도메인을 등록한다. API Key는 웅비 도메인과 필요한 Google API로 제한한다.
+Google Cloud에서 Drive API와 Google Picker API를 활성화한다. Picker API Key는 웅비 도메인, docs.google.com, Drive/Picker API로 제한한다. Google 계정 권한 승인은 Firebase Google 로그인 팝업에서 수행한다.
 
 ## 관리자 사용 순서
 
@@ -99,7 +98,7 @@ Google Cloud에서 Drive API와 Google Picker API를 활성화하고, OAuth 웹 
 - 이 경로는 Picker에서 사용자가 직접 고른 사진만 웅비가 읽을 수 있다.
 - **폴더 전체 읽기**는 재귀 폴더 스캔 때문에 `drive.readonly`를 별도로 요청한다. 이 권한은 Google 정책상 제한 범위이므로 공개 서비스 확대 전 검증 절차를 다시 확인한다.
 - 개인 백업을 현재 로그인 계정 안에서 할 때는 `drive.file`을 사용한다.
-- 학교 계정과 완전히 다른 개인 Google 계정으로 백업하려면 별도의 웹 OAuth Client ID를 운영 설정에 추가하는 경로를 유지한다.
+- 학교 계정과 개인 Google 계정은 각각 독립된 Firebase Auth 메모리 세션으로 선택할 수 있다. 별도 웹 OAuth Client ID는 호환용 대체 경로로만 유지한다.
 
 ## Google Cloud 상태
 

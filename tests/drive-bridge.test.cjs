@@ -52,3 +52,14 @@ test('Drive bridge contains direct multi-select image Picker path',()=>{
   assert.match(src,/image\/jpeg,image\/png,image\/webp/);
   assert.match(src,/Google Picker로 사진 고르기/);
 });
+
+
+test('Drive bridge uses isolated Firebase Auth sessions for school and personal Drive',()=>{
+  const src=fs.readFileSync('web/js/drive-bridge.js','utf8');
+  assert.match(src,/inMemoryPersistence/);
+  assert.match(src,/woonbi-drive-/);
+  assert.match(src,/GoogleAuthProvider\.credentialFromResult/);
+  assert.match(src,/drive\.readonly/);
+  assert.match(src,/drive\.file/);
+  assert.match(src,/connectViaFirebase/);
+});
