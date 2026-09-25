@@ -12,7 +12,7 @@ const SUPPORTED=new Set(['image/jpeg','image/png','image/webp']);
 const FIREBASE_SDK='https://www.gstatic.com/firebasejs/12.17.1/';
 const driveAuths={};
 const state={
- source:null,target:null,sourceFolderId:'',sourceFolderName:'',pinnedSourceFolderId:'',pinnedSourceFolderName:'',targetFolderId:'',targetFolderName:'',
+ source:null,target:null,sourceFolderId:'',sourceFolderName:'',sourceResourceKey:'',pinnedSourceFolderId:'',pinnedSourceFolderName:'',pinnedSourceResourceKey:'',targetFolderId:'',targetFolderName:'',
  rows:[],selected:new Set(),busy:false,lastScanAt:''
 };
 
@@ -35,6 +35,11 @@ function extractFolderId(v){
  const m=s.match(/\/folders\/([A-Za-z0-9_-]{10,})/i)||s.match(/[?&]id=([A-Za-z0-9_-]{10,})/i);
  return m?.[1]||'';
 }
+function extractResourceKey(v){
+ const s=String(v||'').trim(),m=s.match(/[?&]resourcekey=([^&#]+)/i);
+ if(!m)return '';
+ try{return decodeURIComponent(m[1]);}catch{return m[1];}
+}
 function sameRevision(source,target){
  const p=target?.appProperties||{};
  if(source?.md5Checksum&&p.woonbiSourceMd5)return source.md5Checksum===p.woonbiSourceMd5;
@@ -45,16 +50,20 @@ function storageSet(k,v){try{v?localStorage.setItem(k,v):localStorage.removeItem
 function rememberFolders(){
  storageSet('woonbi.drive.sourceFolderId',state.sourceFolderId);
  storageSet('woonbi.drive.sourceFolderName',state.sourceFolderName);
+ storageSet('woonbi.drive.sourceResourceKey',state.sourceResourceKey);
  storageSet('woonbi.drive.pinnedSourceFolderId',state.pinnedSourceFolderId);
  storageSet('woonbi.drive.pinnedSourceFolderName',state.pinnedSourceFolderName);
+ storageSet('woonbi.drive.pinnedSourceResourceKey',state.pinnedSourceResourceKey);
  storageSet('woonbi.drive.targetFolderId',state.targetFolderId);
  storageSet('woonbi.drive.targetFolderName',state.targetFolderName);
 }
 function restoreFolders(){
  state.sourceFolderId=state.sourceFolderId||storageGet('woonbi.drive.sourceFolderId');
  state.sourceFolderName=state.sourceFolderName||storageGet('woonbi.drive.sourceFolderName');
+ state.sourceResourceKey=state.sourceResourceKey||storageGet('woonbi.drive.sourceResourceKey');
  state.pinnedSourceFolderId=state.pinnedSourceFolderId||storageGet('woonbi.drive.pinnedSourceFolderId');
  state.pinnedSourceFolderName=state.pinnedSourceFolderName||storageGet('woonbi.drive.pinnedSourceFolderName');
+ state.pinnedSourceResourceKey=state.pinnedSourceResourceKey||storageGet('woonbi.drive.pinnedSourceResourceKey');
  state.targetFolderId=state.targetFolderId||storageGet('woonbi.drive.targetFolderId');
  state.targetFolderName=state.targetFolderName||storageGet('woonbi.drive.targetFolderName');
 }
@@ -96,16 +105,17 @@ async function connectViaFirebase(kind,loginHint=''){
  let app;try{app=appSdk.getApp(appName);}catch{app=appSdk.initializeApp(fb,appName);}
  const auth=A.getAuth(app);auth.languageCode='ko';await A.setPersistence(auth,A.inMemoryPersistence);
  const provider=new A.GoogleAuthProvider();provider.setCustomParameters({prompt:'consent',...(loginHint?{login_hint:loginHint}:{})});
- provider.addScope(kind==='source'?'https://www.googleapis.com/auth/drive.readonly':'https://www.googleapis.com/auth/drive.file');
+ const scope=(kind==='source'||kind==='picker')?'https://www.googleapis.com/auth/drive.readonly':'https://www.googleapis.com/auth/drive.file';
+ provider.addScope(scope);
  const result=await A.signInWithPopup(auth,provider),cred=A.GoogleAuthProvider.credentialFromResult(result);
  const token=cred?.accessToken;if(!token)throw new Error('Google Drive 권한 토큰을 받지 못했습니다.');
- const info=await userInfo(token),row={accessToken:token,email:info.email||result.user?.email||'',name:info.name||result.user?.displayName||'',expiresAt:Date.now()+3500*1000};
+ const info=await userInfo(token),row={accessToken:token,email:info.email||result.user?.email||'',name:info.name||result.user?.displayName||'',expiresAt:Date.now()+3500*1000,scope};
  driveAuths[kind]=auth;state[kind]=row;return row;
 }
 async function connectViaGIS(kind,loginHint=''){
  const c=cfg();if(!c.clientId)throw new Error('Firebase Google 로그인 또는 별도 OAuth Client ID 설정이 필요합니다.');
  await ensureGIS();
- const scope=kind==='source'
+ const scope=(kind==='source'||kind==='picker')
   ?'openid email profile https://www.googleapis.com/auth/drive.readonly'
   :'openid email profile https://www.googleapis.com/auth/drive.file';
  const response=await new Promise((resolve,reject)=>{
@@ -116,7 +126,7 @@ async function connectViaGIS(kind,loginHint=''){
   });
   client.requestAccessToken({prompt:'select_account'});
  });
- const info=await userInfo(response.access_token),row={accessToken:response.access_token,email:info.email||'',name:info.name||'',expiresAt:Date.now()+Number(response.expires_in||3600)*1000};
+ const info=await userInfo(response.access_token),row={accessToken:response.access_token,email:info.email||'',name:info.name||'',expiresAt:Date.now()+Number(response.expires_in||3600)*1000,scope};
  state[kind]=row;return row;
 }
 async function connect(kind,loginHint=''){
@@ -141,38 +151,78 @@ async function apiFetch(token,url,options={}){
  }
  return r;
 }
-async function getMeta(token,id){
- const fields='id,name,mimeType,size,modifiedTime,md5Checksum,thumbnailLink,parents,driveId,appProperties,capabilities(canDownload)';
+function resourceHeaders(id,key){return key?{'X-Goog-Drive-Resource-Keys':id+'/'+key}:{};}
+async function getMeta(token,id,resourceKey=''){
+ const fields='id,name,mimeType,size,modifiedTime,md5Checksum,thumbnailLink,parents,driveId,resourceKey,appProperties,capabilities(canDownload)';
  const u=DRIVE+'/files/'+encodeURIComponent(id)+'?supportsAllDrives=true&fields='+encodeURIComponent(fields);
- return (await apiFetch(token,u)).json();
+ return (await apiFetch(token,u,{headers:resourceHeaders(id,resourceKey)})).json();
 }
-async function listChildren(token,parentId){
+async function listChildren(token,parentId,parentResourceKey=''){
  const out=[];let page='';
  do{
   const q="'"+escapeQuery(parentId)+"' in parents and trashed = false";
-  const fields='nextPageToken,files(id,name,mimeType,size,modifiedTime,md5Checksum,thumbnailLink,parents,driveId,appProperties,capabilities(canDownload))';
+  const fields='nextPageToken,files(id,name,mimeType,size,modifiedTime,md5Checksum,thumbnailLink,parents,driveId,resourceKey,appProperties,capabilities(canDownload))';
   const params=new URLSearchParams({q,pageSize:'1000',fields,spaces:'drive',supportsAllDrives:'true',includeItemsFromAllDrives:'true'});
   if(page)params.set('pageToken',page);
-  const data=await (await apiFetch(token,DRIVE+'/files?'+params)).json();
+  const data=await (await apiFetch(token,DRIVE+'/files?'+params,{headers:resourceHeaders(parentId,parentResourceKey)})).json();
   out.push(...(data.files||[]));page=data.nextPageToken||'';
  }while(page);
  return out;
 }
-async function scanSourceFolder(folderId,onProgress){
- const a=requireAccount('source'),root=await getMeta(a.accessToken,folderId);
+async function listSharedFolders(token){
+ const out=[];let page='';
+ do{
+  const q="mimeType = '"+FOLDER+"' and sharedWithMe = true and trashed = false";
+  const fields='nextPageToken,files(id,name,mimeType,modifiedTime,driveId,parents,resourceKey,webViewLink)';
+  const params=new URLSearchParams({q,pageSize:'100',fields,spaces:'drive',corpora:'user',supportsAllDrives:'true',includeItemsFromAllDrives:'true',orderBy:'modifiedTime desc'});
+  if(page)params.set('pageToken',page);
+  const data=await (await apiFetch(token,DRIVE+'/files?'+params)).json();
+  out.push(...(data.files||[]));page=data.nextPageToken||'';
+ }while(page&&out.length<300);
+ return out.slice(0,300);
+}
+async function listSharedDrives(token){
+ const out=[];let page='';
+ do{
+  const params=new URLSearchParams({pageSize:'100',fields:'nextPageToken,drives(id,name,createdTime,hidden)'});
+  if(page)params.set('pageToken',page);
+  const data=await (await apiFetch(token,DRIVE+'/drives?'+params)).json();
+  out.push(...(data.drives||[]).filter(x=>!x.hidden));page=data.nextPageToken||'';
+ }while(page&&out.length<200);
+ return out.slice(0,200);
+}
+async function scanSharedDrive(drive,onProgress){
+ const a=requireAccount('source'),limit=cfg().sourceListLimit,rows=[];let page='',pages=0,truncated=false;
+ do{
+  const q="trashed = false and (mimeType = 'image/jpeg' or mimeType = 'image/png' or mimeType = 'image/webp')";
+  const fields='nextPageToken,files(id,name,mimeType,size,modifiedTime,md5Checksum,thumbnailLink,parents,driveId,capabilities(canDownload))';
+  const params=new URLSearchParams({q,pageSize:'1000',fields,spaces:'drive',corpora:'drive',driveId:drive.id,supportsAllDrives:'true',includeItemsFromAllDrives:'true'});
+  if(page)params.set('pageToken',page);
+  const data=await (await apiFetch(a.accessToken,DRIVE+'/files?'+params)).json();pages++;
+  for(const f of data.files||[]){
+   if(rows.length>=limit){truncated=true;break;}
+   rows.push({id:f.id,name:f.name,mimeType:f.mimeType,size:Number(f.size||0),modifiedTime:f.modifiedTime||'',md5Checksum:f.md5Checksum||'',thumbnailLink:f.thumbnailLink||'',canDownload:f.capabilities?.canDownload!==false,driveId:f.driveId||drive.id,folderParts:[drive.name],path:drive.name+'/'+f.name,supported:SUPPORTED.has(f.mimeType)});
+  }
+  page=truncated?'':(data.nextPageToken||'');onProgress?.({folders:1,files:rows.length,queued:page?1:0,limit,truncated,pages});
+ }while(page);
+ state.sourceFolderId='';state.sourceFolderName=drive.name;state.rows=rows;state.selected=new Set();state.lastScanAt=new Date().toISOString();
+ return {root:{id:drive.id,name:drive.name,mimeType:FOLDER,driveId:drive.id},rows,truncated,folders:1};
+}
+async function scanSourceFolder(folderId,onProgress,resourceKey=''){
+ const a=requireAccount('source'),root=await getMeta(a.accessToken,folderId,resourceKey);
  if(root.mimeType!==FOLDER)throw new Error('선택한 항목이 Drive 폴더가 아닙니다.');
- state.sourceFolderId=root.id;state.sourceFolderName=root.name;rememberFolders();
- const limit=cfg().sourceListLimit,queue=[{id:root.id,parts:[]}],rows=[];let folders=0,truncated=false;
+ state.sourceFolderId=root.id;state.sourceFolderName=root.name;state.sourceResourceKey=root.resourceKey||resourceKey||'';rememberFolders();
+ const limit=cfg().sourceListLimit,queue=[{id:root.id,parts:[],resourceKey:root.resourceKey||resourceKey||''}],rows=[];let folders=0,truncated=false;
  while(queue.length){
-  const node=queue.shift(),children=await listChildren(a.accessToken,node.id);folders++;
+  const node=queue.shift(),children=await listChildren(a.accessToken,node.id,node.resourceKey||'');folders++;
   for(const f of children){
-   if(f.mimeType===FOLDER){queue.push({id:f.id,parts:[...node.parts,f.name]});continue;}
+   if(f.mimeType===FOLDER){queue.push({id:f.id,parts:[...node.parts,f.name],resourceKey:f.resourceKey||''});continue;}
    if(!String(f.mimeType||'').startsWith('image/'))continue;
    if(rows.length>=limit){truncated=true;break;}
    rows.push({
     id:f.id,name:f.name,mimeType:f.mimeType,size:Number(f.size||0),modifiedTime:f.modifiedTime||'',
     md5Checksum:f.md5Checksum||'',thumbnailLink:f.thumbnailLink||'',canDownload:f.capabilities?.canDownload!==false,
-    driveId:f.driveId||'',folderParts:node.parts,path:[...node.parts,f.name].join('/'),
+    driveId:f.driveId||'',resourceKey:f.resourceKey||'',folderParts:node.parts,path:[...node.parts,f.name].join('/'),
     supported:SUPPORTED.has(f.mimeType)
    });
   }
@@ -185,7 +235,7 @@ async function scanSourceFolder(folderId,onProgress){
 async function downloadSource(row){
  const a=requireAccount('source');if(row.canDownload===false)throw new Error(row.name+'은(는) 다운로드가 제한된 파일입니다.');
  const u=DRIVE+'/files/'+encodeURIComponent(row.id)+'?alt=media&supportsAllDrives=true';
- const r=await apiFetch(a.accessToken,u),blob=await r.blob(),type=blob.type||row.mimeType||'application/octet-stream';
+ const r=await apiFetch(a.accessToken,u,{headers:resourceHeaders(row.id,row.resourceKey||'')}),blob=await r.blob(),type=blob.type||row.mimeType||'application/octet-stream';
  const file=new File([blob],row.name,{type,lastModified:row.modifiedTime?Date.parse(row.modifiedTime):Date.now()});
  try{Object.defineProperty(file,'webkitRelativePath',{value:row.path||row.name,configurable:true});}catch{}
  return file;
@@ -200,13 +250,13 @@ async function pickImages(){
  const c=cfg();if(!configured())throw new Error('Google Picker 설정(API Key·Project Number)이 필요합니다.');
  const a=requireAccount('source');await ensurePicker();
  return new Promise((resolve,reject)=>{
-  const g=window.google.picker,view=new g.DocsView(g.ViewId.DOCS).setMimeTypes('image/jpeg,image/png,image/webp').setMode(g.DocsViewMode.LIST);
+  const g=window.google.picker,view=new g.DocsView(g.ViewId.DOCS_IMAGES).setMimeTypes('image/jpeg,image/png,image/webp').setMode(g.DocsViewMode.GRID).setEnableDrives(true);
   const picker=new g.PickerBuilder().setOAuthToken(a.accessToken).setDeveloperKey(c.apiKey).setAppId(c.appId).setOrigin(location.origin)
-   .addView(view).enableFeature(g.Feature.MULTISELECT_ENABLED).enableFeature(g.Feature.NAV_HIDDEN).setTitle('웅비에 가져올 사진 선택')
+   .addView(view).enableFeature(g.Feature.MULTISELECT_ENABLED).setLocale('ko').setTitle('학교 Drive 사진 선택 · 큰 썸네일')
    .setCallback(async data=>{
     if(data.action===g.Action.PICKED){
      try{
-      const rows=[];for(const d of (data.docs||[])){const m=await getMeta(a.accessToken,d.id);rows.push({id:m.id,name:m.name,mimeType:m.mimeType,size:Number(m.size||0),modifiedTime:m.modifiedTime||'',md5Checksum:m.md5Checksum||'',thumbnailLink:m.thumbnailLink||'',canDownload:m.capabilities?.canDownload!==false,driveId:m.driveId||'',folderParts:[],path:m.name,supported:SUPPORTED.has(m.mimeType)});}
+      const rows=[];for(const d of (data.docs||[])){const m=await getMeta(a.accessToken,d.id);rows.push({id:m.id,name:m.name,mimeType:m.mimeType,size:Number(m.size||0),modifiedTime:m.modifiedTime||'',md5Checksum:m.md5Checksum||'',thumbnailLink:m.thumbnailLink||'',canDownload:m.capabilities?.canDownload!==false,driveId:m.driveId||'',resourceKey:m.resourceKey||'',folderParts:[],path:m.name,supported:SUPPORTED.has(m.mimeType)});}
       state.rows=rows;state.selected=new Set(rows.map(r=>r.id));state.lastScanAt=new Date().toISOString();resolve(rows);
      }catch(e){reject(e);}
     }else if(data.action===g.Action.CANCEL)resolve([]);
@@ -321,7 +371,7 @@ function panel(ui){
  const targetStatus=h('span',{class:'drive-account-state'},accountLabel(state.target));
  const sourceUrl=h('input',{type:'url',placeholder:'학교 Google Drive 폴더 링크 또는 폴더 ID','aria-label':'학교 Drive 폴더 링크',value:state.sourceFolderId?('https://drive.google.com/drive/folders/'+state.sourceFolderId):''});
  const progress=h('p',{class:'small muted drive-progress','aria-live':'polite'},'');
- const summary=h('div',{class:'drive-library'});
+ const summary=h('div',{class:'drive-library'}),sharedBrowser=h('div',{class:'drive-shared-browser'});
  const mode=h('select',{'aria-label':'Drive 처리 방식'},
   h('option',{value:'selective'},'선택 사진만 웅비로'),
   h('option',{value:'backup'},'선택 원본 백업 + 웅비로'),
@@ -329,8 +379,41 @@ function panel(ui){
  );
  mode.value=storageGet('woonbi.drive.mode')||'selective';
  mode.addEventListener('change',()=>storageSet('woonbi.drive.mode',mode.value));
+ const photoSearch=h('input',{type:'search',placeholder:'사진 이름·폴더 검색','aria-label':'Drive 사진 검색'}),photoSort=h('select',{'aria-label':'Drive 사진 정렬'},h('option',{value:'recent'},'최근 사진순'),h('option',{value:'name'},'이름순'),h('option',{value:'size'},'큰 파일순'));
+ photoSearch.addEventListener('input',()=>draw());photoSort.addEventListener('change',()=>draw());
 
  function busy(v,msg=''){state.busy=v;progress.textContent=msg;}
+ async function ensureSourceReadonly(){
+  if(tokenValid(state.source)&&String(state.source.scope||'').includes('drive.readonly'))return state.source;
+  state.source=typeof getDriveFolderToken==='function'?await getDriveFolderToken():await connect('source',signedInEmail||'');
+  return state.source;
+ }
+ function useSourceFolder(folder){
+  state.sourceFolderId=folder.id;state.sourceFolderName=folder.name||'학교 공유폴더';state.sourceResourceKey=folder.resourceKey||'';
+  state.pinnedSourceFolderId=folder.id;state.pinnedSourceFolderName=folder.name||'학교 공유폴더';state.pinnedSourceResourceKey=folder.resourceKey||'';
+  sourceUrl.value='https://drive.google.com/drive/folders/'+folder.id+(folder.resourceKey?'?resourcekey='+encodeURIComponent(folder.resourceKey):'');rememberFolders();draw();
+ }
+ async function scanChosenFolder(folder){
+  useSourceFolder(folder);busy(true,'“'+(folder.name||'학교 공유폴더')+'” 사진 읽는 중…');
+  try{
+   await ensureSourceReadonly();
+   const out=await scanSourceFolder(folder.id,x=>busy(true,'공유폴더 · 폴더 '+x.folders+'개 · 사진 '+x.files+'장'),folder.resourceKey||'');
+   toast('공유폴더에서 사진 '+out.rows.length+'장을 불러왔습니다.');draw();onRefresh?.();
+  }finally{busy(false,'');}
+ }
+ async function showSharedSources(){
+  busy(true,'학교 계정으로 접근 가능한 공유폴더 찾는 중…');sharedBrowser.replaceChildren();
+  try{
+   const a=await ensureSourceReadonly(),found=await Promise.all([listSharedFolders(a.accessToken),listSharedDrives(a.accessToken)]),folders=found[0],drives=found[1];
+   const head=h('div',{class:'drive-shared-head'},h('div',{},h('span',{class:'eyebrow'},'SHARED WITH SCHOOL ACCOUNT'),h('h3',{},'내 학교 계정으로 열 수 있는 공유 사진함'),h('p',{class:'small muted'},'내 Drive 소유가 아니어도 됩니다. “나와 공유됨” 폴더와 공유 드라이브에서 접근 가능한 위치를 찾습니다.')));
+   const grid=h('div',{class:'drive-shared-grid'});
+   for(const f of folders)grid.append(h('article',{class:'drive-shared-card'},h('span',{class:'drive-shared-kind'},f.driveId?'공유 드라이브 안 폴더':'나와 공유됨'),h('h4',{},f.name),h('small',{},f.modifiedTime?new Date(f.modifiedTime).toLocaleDateString('ko-KR'):'공유 폴더'),button('이 폴더 사진 보기',()=>scanChosenFolder(f).catch(e=>toast(e.message||String(e))),'primary')));
+   for(const d of drives)grid.append(h('article',{class:'drive-shared-card drive-root'},h('span',{class:'drive-shared-kind'},'공유 드라이브'),h('h4',{},d.name),h('small',{},'공유 드라이브 전체 탐색'),button('이 드라이브 사진 보기',async()=>{busy(true,'공유 드라이브 사진 찾는 중…');try{await ensureSourceReadonly();const out=await scanSharedDrive(d,x=>busy(true,'공유 드라이브 · 사진 '+x.files+'장'));toast('공유 드라이브에서 사진 '+out.rows.length+'장을 불러왔습니다.');draw();}catch(e){toast(e.message||String(e));}finally{busy(false,'');}},'text')));
+   if(!folders.length&&!drives.length)grid.append(h('p',{class:'empty'},'이 계정의 “나와 공유됨” 폴더 또는 공유 드라이브를 찾지 못했습니다. 공유폴더 링크가 있으면 아래 입력칸에 그대로 붙여넣어 읽을 수 있습니다.'));
+   sharedBrowser.replaceChildren(head,grid);
+  }catch(e){sharedBrowser.replaceChildren(h('div',{class:'notice warn'},h('b',{},'공유폴더 목록을 가져오지 못했습니다.'),h('span',{},e.message||String(e))));}
+  finally{busy(false,'');}
+ }
  function selectedRows(){return state.rows.filter(r=>state.selected.has(r.id));}
  function pickerErrorMessage(e){
   const msg=String(e?.message||e||'');
@@ -353,15 +436,16 @@ function panel(ui){
  }
  function pinCurrentSource(){
   const id=extractFolderId(sourceUrl.value)||state.sourceFolderId;if(!id)return toast('먼저 학교 공유폴더를 선택하거나 링크를 붙여넣어 주세요.');
-  state.pinnedSourceFolderId=id;state.pinnedSourceFolderName=state.sourceFolderName||'학교 기본 사진함';rememberFolders();toast('이 폴더를 기본 학교 사진함으로 저장했습니다.');draw();
+  const resourceKey=extractResourceKey(sourceUrl.value)||state.sourceResourceKey||'';
+  state.sourceFolderId=id;state.sourceResourceKey=resourceKey;state.pinnedSourceFolderId=id;state.pinnedSourceFolderName=state.sourceFolderName||'학교 기본 사진함';state.pinnedSourceResourceKey=resourceKey;rememberFolders();toast('이 폴더를 기본 학교 사진함으로 저장했습니다.');draw();
  }
- function unpinSource(){state.pinnedSourceFolderId='';state.pinnedSourceFolderName='';rememberFolders();toast('기본 학교 사진함 지정을 해제했습니다.');draw();}
+ function unpinSource(){state.pinnedSourceFolderId='';state.pinnedSourceFolderName='';state.pinnedSourceResourceKey='';rememberFolders();toast('기본 학교 사진함 지정을 해제했습니다.');draw();}
  async function scanPinnedSource(){
   const id=state.pinnedSourceFolderId;if(!id)return openCurrentPicker();
   busy(true,'기본 학교 사진함 불러오는 중…');
   try{
    if(!tokenValid(state.source)||!String(state.source.scope||'').includes('drive.readonly'))state.source=typeof getDriveFolderToken==='function'?await getDriveFolderToken():await connect('source');
-   const out=await scanSourceFolder(id,s=>busy(true,'학교 사진함 · 폴더 '+s.folders+'개 · 사진 '+s.files+'장'));
+   const out=await scanSourceFolder(id,s=>busy(true,'학교 사진함 · 폴더 '+s.folders+'개 · 사진 '+s.files+'장'),state.pinnedSourceResourceKey||'');
    sourceUrl.value='https://drive.google.com/drive/folders/'+out.root.id;state.pinnedSourceFolderName=out.root.name;rememberFolders();
    toast('기본 학교 사진함에서 '+out.rows.length+'장을 불러왔습니다.');draw();onRefresh?.();
   }finally{busy(false,'');}
@@ -405,24 +489,25 @@ function panel(ui){
     catch(e){toast(e.message||String(e));}finally{busy(false,'');draw();}
    },'text')
   );
-  const list=h('div',{class:'drive-photo-list'});
-  const display=rows.slice(0,800);
+  const browseTools=h('div',{class:'drive-browse-tools'},photoSearch,photoSort);
+  const list=h('div',{class:'drive-photo-list'}),q=photoSearch.value.trim().toLocaleLowerCase('ko');
+  const display=[...rows].filter(r=>!q||String((r.path||'')+' '+r.name).toLocaleLowerCase('ko').includes(q)).sort((a,b)=>photoSort.value==='name'?a.name.localeCompare(b.name,'ko'):photoSort.value==='size'?(b.size||0)-(a.size||0):String(b.modifiedTime||'').localeCompare(String(a.modifiedTime||''))).slice(0,800);
   for(const r of display){
    const check=h('input',{type:'checkbox',checked:state.selected.has(r.id),disabled:r.canDownload===false,'aria-label':r.name+' 선택'});
    check.addEventListener('change',()=>{check.checked?state.selected.add(r.id):state.selected.delete(r.id);draw();});
    const media=r.thumbnailLink?h('img',{src:r.thumbnailLink,alt:r.name,loading:'lazy',referrerpolicy:'no-referrer'}):h('div',{class:'drive-photo-placeholder'},'IMG');
    list.append(h('article',{class:'drive-photo-row'+(r.canDownload===false?' disabled':'')},check,media,h('div',{class:'drive-photo-meta'},h('b',{},r.name),h('span',{},r.path||r.name),h('small',{},Math.round(r.size/1024).toLocaleString()+'KB · '+(r.supported?'웅비 변환 가능':'원본 백업만')+(r.canDownload===false?' · 다운로드 제한':'')))));
   }
-  summary.append(stats,controls,list);
+  summary.append(stats,controls,browseTools,list);
   if(rows.length>display.length)summary.append(h('p',{class:'small muted'},'화면에는 앞 '+display.length+'장만 표시합니다. 전체 '+rows.length+'장은 백업·선택 통계에 포함됩니다.'));
  }
  const configNotice=!configured()?h('div',{class:'notice warn drive-config-notice'},h('b',{},'Google Drive 연결 설정 필요'),h('span',{},' Firebase Google 로그인과 제한된 Picker API Key·Project Number를 사용해 학교 계정과 개인 계정을 각각 선택합니다. 별도 Client Secret은 사용하지 않습니다.')):null;
  const sourceActions=h('div',{class:'drive-account-card'},
-  h('div',{},h('span',{class:'eyebrow'},'SOURCE · PICKER FIRST'),h('h3',{},'학교 Drive'),h('p',{class:'small muted'},'기본은 Google Picker로 필요한 사진만 선택합니다. 폴더 전체 재귀 스캔은 별도 읽기 권한이 필요합니다.'),sourceStatus),
+  h('div',{},h('span',{class:'eyebrow'},'SOURCE · SHARED FOLDERS'),h('h3',{},'학교 Drive'),h('p',{class:'small muted'},'내 소유 폴더가 아니어도 학교 계정으로 열 수 있는 “나와 공유됨” 폴더와 공유 드라이브를 직접 찾을 수 있습니다.'),sourceStatus),
   h('div',{class:'actions'},
-   button('현재 계정으로 Picker 열기',async()=>{try{await openCurrentPicker();}catch(e){toast(e.message||String(e));}},'primary'),
-   button('폴더 전체 읽기 권한',async()=>{try{busy(true,'학교 Drive 전체 읽기 권한 연결 중…');state.source=typeof getDriveFolderToken==='function'?await getDriveFolderToken():await connect('source');toast('폴더 전체 읽기 권한을 연결했습니다.');draw();}catch(e){toast(e.message||String(e));}finally{busy(false,'');}},'text'),
-   button('Drive에서 폴더 선택',async()=>{try{const d=await pickFolder('source');if(d){sourceUrl.value='https://drive.google.com/drive/folders/'+d.id;state.sourceFolderId=d.id;state.sourceFolderName=d.name||'학교 사진';state.pinnedSourceFolderId=d.id;state.pinnedSourceFolderName=d.name||'학교 사진';rememberFolders();toast('학교 사진 폴더를 선택하고 기본 사진함으로 저장했습니다.');draw();}}catch(e){toast(e.message||String(e));}},'text'))
+   button('공유폴더 찾아보기',()=>showSharedSources(),'primary'),
+   button('사진 Picker · 큰 썸네일',async()=>{try{await openCurrentPicker();}catch(e){toast(e.message||String(e));}},'text'),
+   button('Drive에서 폴더 선택',async()=>{try{await ensureSourceReadonly();const d=await pickFolder('source');if(d){useSourceFolder(d);toast('학교 사진 폴더를 기본 사진함으로 저장했습니다.');}}catch(e){toast(e.message||String(e));}},'text'))
  );
  const targetActions=h('div',{class:'drive-account-card'},
   h('div',{},h('span',{class:'eyebrow'},'BACKUP · APP FILES ONLY'),h('h3',{},'개인 5TB Drive'),h('p',{class:'small muted'},'웅비가 만든 백업 폴더·파일만 관리합니다.'),targetStatus),
@@ -434,21 +519,21 @@ function panel(ui){
   button('공유폴더 새 탭으로 열기',()=>{const id=extractFolderId(sourceUrl.value);if(!id)return toast('공유폴더 링크를 먼저 붙여넣어 주세요.');window.open('https://drive.google.com/drive/folders/'+id,'_blank','noopener');},'text'),
   button('학교 폴더 읽기',async()=>{
    const id=extractFolderId(sourceUrl.value);if(!id)return toast('Google Drive 폴더 링크 또는 폴더 ID를 확인해 주세요.');
-   state.sourceFolderId=id;rememberFolders();busy(true,'학교 Drive 폴더 읽는 중…');
-   try{if(!tokenValid(state.source)||!String(state.source.scope||'').includes('drive.readonly'))state.source=typeof getDriveFolderToken==='function'?await getDriveFolderToken():await connect('source');const out=await scanSourceFolder(id,s=>busy(true,'폴더 '+s.folders+'개 · 사진 '+s.files+'장 확인 중'+(s.queued?' · 대기 폴더 '+s.queued:'')));sourceUrl.value='https://drive.google.com/drive/folders/'+out.root.id;toast('학교 Drive 사진 '+out.rows.length+'장을 불러왔습니다.'+(out.truncated?' · 설정 한도에서 목록을 멈췄습니다.':''));}
+   const resourceKey=extractResourceKey(sourceUrl.value);state.sourceFolderId=id;state.sourceResourceKey=resourceKey;rememberFolders();busy(true,'학교 Drive 폴더 읽는 중…');
+   try{await ensureSourceReadonly();const out=await scanSourceFolder(id,s=>busy(true,'폴더 '+s.folders+'개 · 사진 '+s.files+'장 확인 중'+(s.queued?' · 대기 폴더 '+s.queued:'')),resourceKey);sourceUrl.value='https://drive.google.com/drive/folders/'+out.root.id;toast('학교 Drive 사진 '+out.rows.length+'장을 불러왔습니다.'+(out.truncated?' · 설정 한도에서 목록을 멈췄습니다.':''));}
    catch(e){toast(e.message||String(e));}finally{busy(false,'');draw();onRefresh?.();}
   },'primary')
  );
  const quick=h('section',{class:'drive-quickstart'},
-  h('div',{},h('span',{class:'eyebrow'},'가장 쉬운 방법'),h('h3',{},state.pinnedSourceFolderId?'기본 학교 사진함 한 번에 불러오기':'공유된 학교 사진을 3단계로 가져오기'),state.pinnedSourceFolderId?h('p',{class:'small muted'},'기본 사진함 · '+(state.pinnedSourceFolderName||'저장된 공유폴더')):null),
-  h('ol',{},h('li',{},'현재 웅비 로그인 계정: ',h('b',{},signedInEmail||'Google 로그인 필요')),h('li',{},state.pinnedSourceFolderId?'“학교 사진 불러오기”를 누르면 저장된 공유폴더를 바로 읽습니다.':'처음 한 번만 Picker 또는 Drive 폴더 선택으로 학교 사진함을 지정합니다.'),h('li',{},state.pinnedSourceFolderId?'사진 목록에서 필요한 사진을 골라 분석합니다.':'Picker에서 사진을 고르면 곧바로 중복검사·기사추천까지 진행됩니다.')),
-  h('div',{class:'actions'},state.pinnedSourceFolderId?button('학교 사진 불러오기',async()=>{try{await scanPinnedSource();}catch(e){toast(e.message||String(e));}},'primary'):button('현재 계정으로 Picker 열기',async()=>{try{await openCurrentPicker();}catch(e){toast(e.message||String(e));}},'primary'),state.pinnedSourceFolderId?button('기본 사진함 해제',unpinSource,'text'):null));
+  h('div',{},h('span',{class:'eyebrow'},'가장 쉬운 방법'),h('h3',{},state.pinnedSourceFolderId?'기본 학교 사진함 한 번에 불러오기':'학교 공유폴더에서 바로 가져오기'),state.pinnedSourceFolderId?h('p',{class:'small muted'},'기본 사진함 · '+(state.pinnedSourceFolderName||'저장된 공유폴더')):null),
+  h('ol',{},h('li',{},'현재 웅비 로그인 계정: ',h('b',{},signedInEmail||'Google 로그인 필요')),h('li',{},state.pinnedSourceFolderId?'“학교 사진 불러오기”로 저장한 공유폴더를 바로 읽습니다.':'“공유폴더 찾아보기”에서 학교 계정으로 접근 가능한 폴더를 고릅니다.'),h('li',{},'폴더가 내 소유가 아니어도 접근 권한만 있으면 됩니다. 링크를 알고 있다면 아래 칸에 그대로 붙여넣어도 됩니다.')),
+  h('div',{class:'actions'},state.pinnedSourceFolderId?button('학교 사진 불러오기',async()=>{try{await scanPinnedSource();}catch(e){toast(e.message||String(e));}},'primary'):button('공유폴더 찾아보기',()=>showSharedSources(),'primary'),state.pinnedSourceFolderId?button('기본 사진함 해제',unpinSource,'text'):null));
  wrap.append(h('div',{class:'dashboard-section-head'},h('div',{},h('span',{class:'eyebrow'},'WOONBI MEDIA BRIDGE'),h('h2',{},'학교 Drive → 개인 원본 백업 → 웅비'),h('p',{class:'small muted'},'원본 저장과 웹 공개를 분리합니다. 기본 경로는 현재 로그인 계정의 Google Picker입니다. 폴더 전체 읽기는 필요할 때만 별도 권한을 요청합니다.'))),quick);
  if(configNotice)wrap.append(configNotice);
- wrap.append(h('div',{class:'drive-account-grid'},sourceActions,targetActions),sourceControls,progress,summary);
+ wrap.append(h('div',{class:'drive-account-grid'},sourceActions,targetActions),sharedBrowser,sourceControls,progress,summary);
  draw();return wrap;
 }
 
 restoreFolders();
-W.driveBridge={panel,connect,pickFolder,pickImages,scanSourceFolder,downloadForWoonbi,backupRows,resetTokens,state,_test:{extractFolderId,sanitizeFolderName,sameRevision,escapeQuery,cfg,configured}};
+W.driveBridge={panel,connect,pickFolder,pickImages,listSharedFolders,listSharedDrives,scanSharedDrive,scanSourceFolder,downloadForWoonbi,backupRows,resetTokens,state,_test:{extractFolderId,extractResourceKey,sanitizeFolderName,sameRevision,escapeQuery,cfg,configured}};
 })();

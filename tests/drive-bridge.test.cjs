@@ -12,6 +12,8 @@ test('Drive bridge parses folder links and raw IDs',()=>{
   assert.equal(t.extractFolderId('https://drive.google.com/open?id=1AbCdEfGhIjKlMnOp'),'1AbCdEfGhIjKlMnOp');
   assert.equal(t.extractFolderId('1AbCdEfGhIjKlMnOp'),'1AbCdEfGhIjKlMnOp');
   assert.equal(t.extractFolderId('https://example.com/no-folder'),'');
+  assert.equal(t.extractResourceKey('https://drive.google.com/drive/folders/1AbCdEfGhIjKlMnOp?resourcekey=0-AbC_123'),'0-AbC_123');
+  assert.equal(t.extractResourceKey('https://drive.google.com/drive/folders/1AbCdEfGhIjKlMnOp'),'');
 });
 
 test('Drive bridge sanitizes backup folder names',()=>{
@@ -50,7 +52,7 @@ test('Drive bridge contains direct multi-select image Picker path',()=>{
   const src=fs.readFileSync('web/js/drive-bridge.js','utf8');
   assert.match(src,/MULTISELECT_ENABLED/);
   assert.match(src,/image\/jpeg,image\/png,image\/webp/);
-  assert.match(src,/현재 계정으로 Picker 열기/);
+  assert.match(src,/사진 Picker · 큰 썸네일/);
 });
 
 
@@ -76,7 +78,10 @@ test('Drive bridge keeps a pinned school photo folder for one-button import',()=
 test('Picker explicitly binds current origin and auto-analyzes picked photos',()=>{
   const src=fs.readFileSync('web/js/drive-bridge.js','utf8');
   assert.match(src,/\.setOrigin\(location\.origin\)/);
-  assert.match(src,/NAV_HIDDEN/);
+  assert.match(src,/DocsViewMode\.GRID/);
+  assert.match(src,/DOCS_IMAGES/);
+  assert.match(src,/setEnableDrives\(true\)/);
+  assert.doesNotMatch(src,/enableFeature\(g\.Feature\.NAV_HIDDEN\)/);
   assert.match(src,/await sendRowsToWoonbi\(rows\)/);
   assert.match(src,/docs\.google\.com\/\*/);
 });
@@ -102,4 +107,41 @@ test('local folder fallback stays available when Google login is skipped',()=>{
   const app=fs.readFileSync('web/js/app.js','utf8');
   assert.match(app,/로그인 없이 사진 폴더 가져오기/);
   assert.match(app,/woonbi-local-photo-input/);
+});
+
+
+test('Drive bridge discovers shared school folders outside My Drive',()=>{
+  const src=fs.readFileSync('web/js/drive-bridge.js','utf8');
+  assert.match(src,/sharedWithMe = true/);
+  assert.match(src,/includeItemsFromAllDrives:'true'/);
+  assert.match(src,/supportsAllDrives:'true'/);
+  assert.match(src,/listSharedDrives/);
+  assert.match(src,/공유폴더 찾아보기/);
+  assert.match(src,/내 소유 폴더가 아니어도/);
+});
+
+
+test('shared drive root scan uses drive corpus and all-drives flags',()=>{
+  const src=fs.readFileSync('web/js/drive-bridge.js','utf8');
+  assert.match(src,/async function scanSharedDrive/);
+  assert.match(src,/corpora:'drive'/);
+  assert.match(src,/driveId:drive\.id/);
+  assert.match(src,/includeItemsFromAllDrives:'true'/);
+  assert.match(src,/supportsAllDrives:'true'/);
+});
+
+
+test('link-shared folder resource keys are preserved for metadata listing and download',()=>{
+  const src=fs.readFileSync('web/js/drive-bridge.js','utf8');
+  assert.match(src,/X-Goog-Drive-Resource-Keys/);
+  assert.match(src,/pinnedSourceResourceKey/);
+  assert.match(src,/extractResourceKey/);
+});
+
+
+test('Drive photo browser has search and sort for large school folders',()=>{
+  const src=fs.readFileSync('web/js/drive-bridge.js','utf8');
+  assert.match(src,/사진 이름·폴더 검색/);
+  assert.match(src,/최근 사진순/);
+  assert.match(src,/큰 파일순/);
 });

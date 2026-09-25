@@ -982,3 +982,46 @@ body{background:var(--paper)}
 @media (max-width:620px){
   .site-footer nav{justify-content:flex-start;gap:2px 14px}
 }
+
+
+/* Shared school Drive browser + visual photo grid */
+.drive-shared-browser:empty{display:none}
+.drive-shared-browser{margin:14px 0 18px;border-top:4px solid var(--ink);border-bottom:1px solid var(--line);padding:14px 0}
+.drive-shared-head{display:flex;justify-content:space-between;gap:18px;align-items:end;margin-bottom:12px}
+.drive-shared-head h3{font:800 24px/1.12 var(--serif);margin:4px 0}
+.drive-shared-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.drive-shared-card{min-height:132px;border:1px solid var(--line);background:#faf7ef;padding:12px;display:grid;grid-template-rows:auto 1fr auto auto;gap:6px}
+.drive-shared-card.drive-root{border-top:3px solid var(--navy)}
+.drive-shared-kind{font-size:8px;letter-spacing:.13em;color:var(--accent);font-weight:800}
+.drive-shared-card h4{font:800 18px/1.18 var(--serif);margin:0;word-break:keep-all}
+.drive-shared-card small{font-size:9px;color:var(--muted)}
+.drive-shared-card button{justify-self:start}
+
+/* Photo-first browsing: large thumbnails, not tiny file rows. */
+.drive-photo-list{
+  grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
+  gap:10px;padding:10px;max-height:760px;border:1px solid var(--line);background:#eee8dc
+}
+.drive-photo-row{
+  position:relative;display:block;min-height:0;padding:8px;background:#fff;border:1px solid var(--line)
+}
+.drive-photo-row:nth-child(odd){border-right:1px solid var(--line)}
+.drive-photo-row>input[type=checkbox]{position:absolute;z-index:2;top:14px;left:14px;width:18px;height:18px;accent-color:var(--accent)}
+.drive-photo-row>img,.drive-photo-row>.drive-photo-placeholder{
+  width:100%;height:auto;aspect-ratio:4/3;object-fit:cover;display:grid;place-items:center;background:#e5e0d5
+}
+.drive-photo-meta{padding-top:8px;gap:3px}
+.drive-photo-meta b{font-size:11px}
+.drive-photo-meta span,.drive-photo-meta small{font-size:8.5px}
+@media(max-width:760px){
+ .drive-shared-grid{grid-template-columns:1fr 1fr}
+ .drive-photo-list{grid-template-columns:1fr 1fr}
+}
+@media(max-width:520px){
+ .drive-shared-grid,.drive-photo-list{grid-template-columns:1fr}
+ .drive-photo-row>img,.drive-photo-row>.drive-photo-placeholder{width:100%;height:auto}
+}
+
+.drive-browse-tools{display:grid;grid-template-columns:minmax(220px,1fr) 170px;gap:8px;margin:0 0 10px}
+.drive-browse-tools input,.drive-browse-tools select{width:100%;min-height:38px}
+@media(max-width:520px){.drive-browse-tools{grid-template-columns:1fr}}
