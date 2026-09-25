@@ -8,7 +8,8 @@
     "check": "node scripts/check.cjs",
     "start": "python3 -m http.server 8137 --bind 127.0.0.1 --directory web",
     "build": "python3 scripts/build.py",
-    "test:rules": "firebase emulators:exec --project woonbi-rules-test --only firestore,storage \"node --test tests/security-rules.test.mjs\""
+    "test:rules": "firebase emulators:exec --project woonbi-rules-test --only firestore,storage \"node --test tests/security-rules.test.mjs\"",
+    "deploy:hosting": "node scripts/deploy-hosting.cjs"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.2",
