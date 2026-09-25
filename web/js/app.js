@@ -339,6 +339,14 @@ async function connectScannedRows(rows){
  for(const row of selected){try{let current=await store.getArticle(row.articleId);if(!['draft','changes'].includes(current.status))throw new Error('검토 중/승인 기사는 사진을 추가할 수 없습니다.');if(current.photos.length>=12)throw new Error('기사 사진 12장 한도입니다.');const plan=W.legacyPlanFor?.(current.id),slot=plan?.photos?.[current.photos.length],d=await preparePhoto(row.file,current.id);if(slot){d.photo.caption=(slot.caption||'').replace(/ · 실제 현장 사진으로 교체 필요$/,'').slice(0,300);}d.photo.alt=row.file.name.replace(/\.[^.]+$/,'').slice(0,200);await store.upload(current.id,d.photo,d.original,d.web);current=await store.saveArticle(current.id,current.revision,{photos:[...current.photos,d.photo]});result.done++;}catch(e){result.skipped.push({name:row.name,message:e?.message||String(e)});}}
  return result;
 }
+function drivePhotoPanel(){
+ const wrap=h('section',{class:'photo-folder-panel drive-photo-panel'}),status=h('span',{class:'small muted'},''),url=h('input',{type:'url',placeholder:'Google Drive 공유 폴더 링크 붙여넣기','aria-label':'Google Drive 공유 폴더 링크'}),mode=h('select',{'aria-label':'가져오기 방식'},h('option',{value:'selective'},'선택 사진만 웅비에 연결'),h('option',{value:'backup'},'원본 백업 후 웅비 연결'));
+ const openDrive=button('학교 Drive 열기',()=>window.open('https://drive.google.com/drive/shared-with-me','_blank','noopener'),'text');
+ const save=button('폴더 연결 기억',()=>{const v=url.value.trim();if(v&&!/^https:\/\/drive\.google\.com\//i.test(v))return toast('Google Drive 폴더 링크를 확인해 주세요.');localStorage.setItem('woonbi.drive.source',v);localStorage.setItem('woonbi.drive.mode',mode.value);status.textContent=v?'연결 정보 저장됨':'연결 정보 지움';toast(v?'학교 Drive 폴더 연결 정보를 이 브라우저에 저장했습니다.':'Drive 연결 정보를 지웠습니다.');},'primary');
+ url.value=localStorage.getItem('woonbi.drive.source')||'';mode.value=localStorage.getItem('woonbi.drive.mode')||'selective';
+ wrap.append(h('div',{class:'dashboard-section-head'},h('div',{},h('span',{class:'eyebrow'},'GOOGLE DRIVE PHOTO SOURCE'),h('h2',{},'학교 공유 사진 가져오기'),h('p',{class:'small muted'},'학교 계정으로 볼 수 있는 공유 폴더를 원본 자료함으로 두고, 필요한 사진만 골라 웅비 사진 정리기로 가져오는 흐름입니다. Drive 원본과 웹진 공개 권한은 분리합니다.')),h('div',{class:'actions'},openDrive,status)),h('div',{class:'drive-photo-controls'},url,mode,save),h('ol',{class:'small muted drive-photo-flow'},h('li',{},'학교 Drive 공유 폴더에서 사용할 사진을 선택하거나 내려받습니다.'),h('li',{},'아래 “사진 폴더 선택”으로 폴더를 읽으면 중복 제거·기사 자동추천을 수행합니다.'),h('li',{},'체크한 사진만 Firebase Storage에 원본 비공개 + WebP 공개본으로 연결합니다.')),h('p',{class:'small muted'},'다음 연결 단계: Google Picker + Drive API OAuth를 붙이면 공유 폴더를 웹진 안에서 직접 탐색·선택하고, 학교 Drive → 개인/KHS 원본 백업 → 웅비 연결까지 한 화면에서 처리할 수 있습니다.'));
+ return wrap;
+}
 function photoScanPanel(articles){
  const wrap=h('section',{class:'photo-folder-panel'}),input=h('input',{type:'file',multiple:true,accept:'image/jpeg,image/png,image/webp',webkitdirectory:true,hidden:true}),progress=h('span',{class:'small muted'},''),summary=h('div',{class:'photo-scan-summary'});
  const head=h('div',{class:'dashboard-section-head'},h('div',{},h('span',{class:'eyebrow'},'LOCAL FOLDER SCAN'),h('h2',{},'사진 폴더 자동 정리'),h('p',{class:'small muted'},'사진은 선택 단계에서는 업로드하지 않습니다. 파일명·폴더명·해시만 브라우저에서 분석합니다.')),h('div',{class:'actions'},button('사진 폴더 선택',()=>input.click(),'primary'),progress));
@@ -378,7 +386,7 @@ async function renderPhotoDesk(){
    slots.append(box);
   }card.append(slots);root.append(card);
  }
- const scanner=photoScanPanel(articles);main.replaceChildren(head,scanner,tabs,root,h('p',{class:'small muted source-bottom'},'실제 사진은 원본 비공개 + WebP 공개용 파생본 구조로 저장됩니다. 폴더 분석은 로컬에서만 수행되고, 체크 후 연결한 사진만 업로드됩니다.'));
+ const drive=drivePhotoPanel(),scanner=photoScanPanel(articles);main.replaceChildren(head,drive,scanner,tabs,root,h('p',{class:'small muted source-bottom'},'실제 사진은 원본 비공개 + WebP 공개용 파생본 구조로 저장됩니다. 학교 Drive 원본 권한과 웹진 공개 권한은 분리하고, 체크 후 연결한 사진만 업로드됩니다.'));
 }
 async function renderMembers(){
  if(store.mode==='demo'&&W.plan2026)return renderPlanMembers();
