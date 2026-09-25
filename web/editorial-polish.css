@@ -512,3 +512,20 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
 .n-story-copy .lastyear-badge,.n-story-copy .restored-badge{margin-right:7px}
 .n-story-copy .photo-credit{display:block;margin-top:3px;font-size:9px;color:#8b8b84}
 .n-story-copy figure img{border:1px solid rgba(28,38,50,.08)}
+
+/* v0.6.10 — denser long-read opening */
+@media(min-width:1040px){
+ .n-reader-controls{margin-top:8px;padding-bottom:8px}
+ .n-reading-layout{margin-top:18px}
+ .n-story-head{margin-top:12px;margin-bottom:18px;padding-top:12px;padding-bottom:18px}
+ .n-story-head h1{margin-top:8px}
+ .n-story-head .n-meta{margin-top:17px}
+ .n-draft-notice{margin:16px 0 24px}
+ .n-story-copy figure:first-child{margin-top:28px}
+ .n-read-aside{top:62px}
+}
+@media(max-width:620px){
+ .n-reading-layout{margin-top:10px}
+ .n-story-head{margin-top:8px;padding-top:7px;padding-bottom:16px}
+ .n-draft-notice{margin:14px 0 20px}
+}
