@@ -15,6 +15,10 @@ if(fs.existsSync(referencePath)){
   const ids=[...new Set([...text.matchAll(/reference-EX\d{2}/g)].map(m=>m[0]))];
   if(ids.length!==12)throw new Error('Expected 12 public Woonbi reference articles, found '+ids.length);
   const index=fs.readFileSync('web/index.html','utf8');
+  if(!index.includes('js/drive-bridge.js'))throw new Error('Google Drive media bridge must be loaded by web/index.html');
+  const driveBridgeText=fs.readFileSync('web/js/drive-bridge.js','utf8');
+  for(const required of ['drive.readonly','drive.file','scanSourceFolder','backupRows','appProperties'])if(!driveBridgeText.includes(required))throw new Error('Drive bridge regression: '+required);
+  if(!fs.readFileSync('package.json','utf8').includes('tests/drive-bridge.test.cjs'))throw new Error('Drive bridge regression test must remain in npm test.');
   if(!index.includes('js/reference-data.js'))throw new Error('reference-data.js is not loaded by web/index.html');
 
   const legacyRef='web/js/legacy-reference-data.js';
