@@ -54,7 +54,7 @@ function apply(rows){
  });
 }
 W.lastYearMedia={
- media,order,apply,photosFor,
+ media,order,apply,photosFor,photoForKey:(a,key,i=0)=>photo(a,key,i),
  showcase:order.map(key=>({key,src:media[key].path,caption:media[key].label,width:media[key].width,height:media[key].height}))
 };
 if(W.newsroomData?.examples)W.newsroomData={...W.newsroomData,examples:apply(W.newsroomData.examples)};

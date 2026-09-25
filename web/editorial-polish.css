@@ -529,3 +529,31 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
  .n-story-head{margin-top:8px;padding-top:7px;padding-bottom:16px}
  .n-draft-notice{margin:14px 0 20px}
 }
+
+
+/* v0.6 editorial density pass: keep imagery while removing dead columns. */
+@media (min-width:1001px){
+  .n-research-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:30px 26px;
+  }
+  .n-research-grid .n-card:first-child{
+    grid-column:span 2;
+  }
+  .n-research-grid .n-card:first-child .n-photo img{
+    aspect-ratio:2.05;
+  }
+  .n-lead{
+    grid-template-rows:auto auto auto 1fr;
+    align-content:stretch;
+  }
+  .n-side-text .n-card-image{
+    display:none;
+  }
+  .n-side-text{
+    padding-top:4px;
+  }
+}
+@media (max-width:1039px){
+  .n-side-text .n-card-image{display:block}
+}
