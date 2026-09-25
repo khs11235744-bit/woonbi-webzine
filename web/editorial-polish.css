@@ -460,3 +460,55 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
  .n-folio-stat strong{font-size:18px}
  .editorial-placeholder .cover-folio{right:12px;bottom:10px;font-size:7px}
 }
+
+/* v0.6.9 — tighter above-the-fold newspaper rhythm */
+@media(min-width:1040px){
+ .utility{height:36px}
+ .masthead{min-height:118px;gap:22px}
+ .brand{gap:15px}
+ .brand strong{font-size:72px;line-height:1}
+ .brand-kr{font-size:22px;padding-top:7px}
+ .brand-kr>span{font-size:9px;margin-top:5px}
+ .masthead-line{font-size:11px;line-height:1.55;margin-top:6px;padding-left:20px}
+ .masthead-right{gap:3px}
+ .masthead-right>span:first-child{font-size:16px}
+ .section-nav{min-height:43px;gap:27px}
+ .section-nav button{padding:9px 0;min-height:40px;font-size:13px}
+ .newsroom-main{padding-top:16px}
+ .n-toolbar{padding-top:6px;padding-bottom:11px}
+ .n-edition-note{margin-bottom:20px;padding:8px 0 9px}
+ .n-front-folio{margin-bottom:12px}
+ .school-life{margin-bottom:18px;padding:9px 0 9px}
+ .school-life-head{padding-bottom:6px}
+ .school-life-title h2{font-size:19px}
+ .school-life-item{min-height:96px;padding-top:7px;padding-bottom:5px}
+ .school-life-item h3{font-size:14px}
+ .school-life-summary{font-size:10px;line-height:1.45}
+ .school-life-list li,.school-life-menu li{font-size:9px}
+ .school-life-foot{padding-top:4px}
+ .n-front{margin-top:0}
+}
+@media(min-width:1280px){
+ .masthead{min-height:122px}
+ .brand strong{font-size:76px}
+}
+@media(max-width:1039px){
+ .masthead{min-height:108px}
+}
+@media(max-width:620px){
+ .utility{height:34px}
+ .masthead{min-height:82px}
+ .brand strong{font-size:43px}
+ .brand-kr{font-size:17px}
+ .section-nav{min-height:42px}
+ .newsroom-main{padding-top:13px}
+ .n-toolbar{position:relative;top:auto;padding-top:4px}
+ .n-edition-note{margin-bottom:18px}
+}
+
+/* Detailed-story media labels must distinguish archive examples from generic placeholders. */
+.n-story-copy figure.lastyear-detail figcaption{justify-content:flex-start;text-align:left}
+.n-story-copy figure.restored-detail figcaption{justify-content:flex-start;text-align:left}
+.n-story-copy .lastyear-badge,.n-story-copy .restored-badge{margin-right:7px}
+.n-story-copy .photo-credit{display:block;margin-top:3px;font-size:9px;color:#8b8b84}
+.n-story-copy figure img{border:1px solid rgba(28,38,50,.08)}
