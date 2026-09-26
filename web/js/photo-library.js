@@ -42,7 +42,7 @@ W.curate=function(rows=[],count=12){
    if(score>bestScore){bestScore=score;bestIndex=i;}
   }
   if(bestIndex<0)break;
-  const [pick]=pool.splice(bestIndex,1);pick.curationScore=Math.round(bestScore);selected.push(pick);
+  const [pick]=pool.splice(bestIndex,1),reasons=[],q=Number(pick.quality?.overall||0),mp=(Number(pick.width||0)*Number(pick.height||0))/1000000,match=Number(pick.score||0),events=pick.library?.events||[],date=pick.library?.date||'',article=pick.library?.article||'',aspect=(Number(pick.width||0)||1)/(Number(pick.height||0)||1);if(q>=80)reasons.push('품질 '+q+'점');else if(q>=65)reasons.push('품질 양호');if(mp>=5)reasons.push(Math.round(mp*10)/10+'MP 고해상도');if(match>=5)reasons.push('기사 연관 높음');if(events[0]&&!(usedEvent.get(events[0])||0))reasons.push('새 행사 장면');if(date&&!(usedDate.get(date)||0))reasons.push('날짜 다양성');if(article&&!(usedArticle.get(article)||0))reasons.push('기사 다양성');if(aspect<.86&&!selected.some(x=>((x.width||1)/(x.height||1))<.86))reasons.push('세로 구도 확보');if(aspect>1.18&&!selected.some(x=>((x.width||1)/(x.height||1))>1.18))reasons.push('가로 구도 확보');if(clustered.has(pick.key))reasons.push('유사사진 묶음 대표');pick.curationScore=Math.round(bestScore);pick.curationReasons=reasons.slice(0,4);selected.push(pick);
   for(const e of pick.library?.events||[])usedEvent.set(e,(usedEvent.get(e)||0)+1);
   if(pick.library?.date)usedDate.set(pick.library.date,(usedDate.get(pick.library.date)||0)+1);
   if(pick.library?.article)usedArticle.set(pick.library.article,(usedArticle.get(pick.library.article)||0)+1);

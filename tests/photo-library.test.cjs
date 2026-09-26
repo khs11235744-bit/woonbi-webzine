@@ -45,3 +45,14 @@ test('curation caps selection at twenty',()=>{
  const rows=Array.from({length:40},(_,i)=>({key:'k'+i,name:'p'+i,width:2000,height:1500,size:1000000,score:1,quality:{overall:80},duplicateOf:'',nearDuplicateOf:'',supported:true,library:{date:'2026-09-26',events:[],article:''}}));
  assert.equal(P.curate(rows,50).length,20);
 });
+
+
+test('curation explains why a photo was selected',()=>{
+ const rows=[
+  {key:'a',name:'a.jpg',width:3200,height:2200,size:2200000,score:8,quality:{overall:92},duplicateOf:'',nearDuplicateOf:'',supported:true,library:{date:'2026-09-26',events:['축제·공연'],article:'축제 기사'}},
+  {key:'b',name:'b.jpg',width:2200,height:3200,size:1800000,score:3,quality:{overall:78},duplicateOf:'',nearDuplicateOf:'',supported:true,library:{date:'2026-09-25',events:['체육대회'],article:'체육 기사'}}
+ ];
+ const picks=P.curate(rows,2);
+ assert.equal(picks.length,2);
+ assert.ok(picks.every(x=>Array.isArray(x.curationReasons)&&x.curationReasons.length>0));
+});

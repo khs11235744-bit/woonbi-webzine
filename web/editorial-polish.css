@@ -1332,3 +1332,59 @@ body{background:var(--paper)}
  #printArea .book-page-number.left{left:calc(var(--bleed) + var(--safe))}
  #printArea .book-page-number.right{right:calc(var(--bleed) + var(--safe))}
 }
+
+
+/* 100-role editorial panel pass: action-first workflow for students and editors. */
+.student-mode-toggle{align-self:flex-start}
+.simple-article-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;margin:12px 0}
+.workflow-task-board,.workflow-pipeline,.workflow-blockers{margin:22px 0;border-top:4px solid var(--ink);padding-top:14px}
+.workflow-task-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.workflow-task{position:relative;display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid var(--line);padding:12px;background:#fff}
+.workflow-task.danger{border-top:4px solid var(--accent);background:#fff2ef}
+.workflow-task.warn{border-top:4px solid #a7772b;background:#fffaf0}
+.workflow-task.waiting{background:#f2efe8}
+.workflow-task.done{background:#edf3ed}
+.workflow-task-stage{font:700 8px/1 var(--sans);letter-spacing:.08em;color:var(--muted)}
+.workflow-task h3{font:800 15px/1.25 var(--serif);margin:2px 0}
+.workflow-task p{font-size:9px;line-height:1.45;color:var(--muted);margin:2px 0}
+.workflow-task small{font-size:8px;color:var(--muted)}
+.workflow-pipeline-row{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.workflow-stage{display:grid;gap:6px;border-top:4px solid #b8b2a6;padding:10px 8px;background:#f5f1e8}
+.workflow-stage.done{border-color:#58705d;background:#edf3ed}
+.workflow-stage-no{font:700 9px/1 Georgia,serif;color:var(--accent)}
+.workflow-stage b{font:800 13px/1.1 var(--serif)}
+.workflow-stage strong{font:800 24px/1 var(--sans)}
+.workflow-stage progress{width:100%;height:6px}
+.workflow-stage small{font-size:8px;line-height:1.4;color:var(--muted)}
+.workflow-blocker-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.workflow-blocker{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid var(--line);padding:10px;background:#fff}
+.workflow-blocker.danger{border-left:5px solid var(--accent)}
+.workflow-blocker.warn{border-left:5px solid #a7772b}
+.workflow-priority{font:800 18px/1 var(--sans);color:var(--accent)}
+.workflow-blocker h3{font:800 14px/1.2 var(--serif);margin:2px 0}
+.workflow-blocker p{font-size:9px;color:var(--muted);margin:2px 0}
+.workflow-blocker small{font-size:8px;color:var(--muted)}
+.row-next,.queue-next{display:inline-flex;align-items:center;min-height:22px;padding:2px 6px;border:1px solid var(--line);font-size:8px;font-weight:700;background:#f5f1e8}
+.row-next.danger,.queue-next.danger{border-color:#b55a50;color:#8b2f2a;background:#fff0ed}
+.row-next.warn,.queue-next.warn{border-color:#c69c57;color:#805a1b;background:#fff9ec}
+.row-next.done,.queue-next.done{border-color:#7d9881;color:#45604a;background:#eef4ed}
+.editorial-glossary{margin:18px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:10px 0}
+.editorial-glossary summary{cursor:pointer;font-size:10px;font-weight:800}
+.editorial-glossary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:7px 16px;margin-top:10px}
+.editorial-glossary-grid>div{display:grid;grid-template-columns:90px minmax(0,1fr);gap:8px;border-top:1px solid #ddd6ca;padding-top:6px}
+.editorial-glossary-grid b{font-size:9px;color:var(--accent)}
+.editorial-glossary-grid span{font-size:9px;line-height:1.5;color:var(--muted)}
+.curation-reasons{margin:5px 0 0;padding:5px 7px;border-left:3px solid var(--accent);background:#f8f1e7;font-size:8px;line-height:1.5;color:#5f5147}
+@media(max-width:900px){
+ .workflow-pipeline-row{grid-template-columns:repeat(3,1fr)}
+ .workflow-blocker-list{grid-template-columns:1fr}
+}
+@media(max-width:620px){
+ .simple-article-search{grid-template-columns:1fr}
+ .workflow-task-list{grid-template-columns:1fr}
+ .workflow-task{grid-template-columns:34px minmax(0,1fr)}
+ .workflow-task>button{grid-column:2}
+ .workflow-pipeline-row{grid-template-columns:1fr 1fr}
+ .workflow-blocker{grid-template-columns:34px minmax(0,1fr)}
+ .workflow-blocker>button{grid-column:2}
+}

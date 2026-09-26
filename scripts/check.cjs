@@ -20,10 +20,13 @@ if(fs.existsSync(referencePath)){
   if(!index.includes('js/photo-library.js'))throw new Error('Photo library module must be loaded by web/index.html');
   if(!index.includes('js/photo-editor.js'))throw new Error('Photo editor helper module must be loaded by web/index.html');
   if(!index.includes('js/magazine-engine.js'))throw new Error('Magazine engine must be loaded by web/index.html');
+  if(!index.includes('js/workflow-engine.js'))throw new Error('Workflow engine must be loaded by web/index.html');
   if(!fs.readFileSync('package.json','utf8').includes('tests/editorial-layout.test.cjs'))throw new Error('Editorial treatment regression test must remain in npm test.');
   if(!fs.readFileSync('package.json','utf8').includes('tests/photo-library.test.cjs'))throw new Error('Photo library regression test must remain in npm test.');
   if(!fs.readFileSync('package.json','utf8').includes('tests/photo-editor.test.cjs'))throw new Error('Photo editor regression test must remain in npm test.');
   if(!fs.readFileSync('package.json','utf8').includes('tests/magazine-engine.test.cjs'))throw new Error('Magazine engine regression test must remain in npm test.');
+  if(!fs.readFileSync('package.json','utf8').includes('tests/workflow-engine.test.cjs'))throw new Error('Workflow engine regression test must remain in npm test.');
+  if(!fs.existsSync('docs/EDITORIAL_PANEL_100_20260926.md'))throw new Error('100-role editorial review must remain documented.');
   const appText=fs.readFileSync('web/js/app.js','utf8');
   if(!appText.includes('01_잡지조판계획.json')||!appText.includes('02_PDF페이지순서.txt')||!appText.includes('03_인쇄체크리스트.json')||!appText.includes('04_펼침면계획.json')||!appText.includes('05_인쇄사양.json')||!appText.includes('06_지면수동조정.json')||!appText.includes('dataset.magazineTemplate'))throw new Error('Magazine-ready layout handoff must remain wired.');
   if(!fs.readFileSync('package.json','utf8').includes('tests/issue-system.test.cjs'))throw new Error('Issue system regression test must remain in npm test.');

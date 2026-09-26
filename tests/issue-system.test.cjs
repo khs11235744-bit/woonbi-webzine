@@ -195,3 +195,20 @@ test('proof PDF includes crop marks safe area and selected print profile metadat
  assert.match(app,/06_지면수동조정\.json/);
  assert.match(app,/p\.bleedMm\+p\.safeMm/);
 });
+
+
+test('student simple mode keeps onboarding and plain-language next actions',()=>{
+ const app=fs.readFileSync('web/js/app.js','utf8');
+ assert.match(app,/학생용 간단보기/);
+ assert.match(app,/웅비 작업 3단계/);
+ assert.match(app,/오늘 내가 할 일/);
+ assert.match(app,/row-next/);
+ assert.match(app,/baseRole==='student'/);
+});
+
+test('print handoff includes a human-readable printer README',()=>{
+ const app=fs.readFileSync('web/js/app.js','utf8');
+ assert.match(app,/99_인쇄소_읽어주세요\.txt/);
+ assert.match(app,/파일 설명/);
+ assert.match(app,/최종 PDF\/X 변환/);
+});
