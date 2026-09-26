@@ -44,3 +44,27 @@ test('footer keeps Korean navigation labels intact at tablet and desktop widths'
  assert.match(css,/min-width:max-content/);
  assert.match(css,/min-width:621px\) and \(max-width:1000px/);
 });
+
+
+test('article photo desk exposes lead recommendation and print readiness',()=>{
+ const app=fs.readFileSync('web/js/app.js','utf8');
+ const css=fs.readFileSync('web/editorial-polish.css','utf8');
+ assert.match(app,/대표사진 자동추천/);
+ assert.match(app,/photoHealthSummary/);
+ assert.match(app,/인쇄용 충분/);
+ assert.match(app,/저해상도 · 교체 권장/);
+ assert.match(app,/사진 크게 보기/);
+ assert.match(css,/\.photo-box\.is-cover/);
+ assert.match(css,/\.editor-photo-preview/);
+});
+
+
+test('article editor exposes magazine layout hint linked to print engine',()=>{
+ const app=fs.readFileSync('web/js/app.js','utf8');
+ const css=fs.readFileSync('web/editorial-polish.css','utf8');
+ assert.match(app,/renderMagazineEditorHint/);
+ assert.match(app,/magazineEditorHint/);
+ assert.match(app,/표지점수/);
+ assert.match(app,/WoonbiMagazine\.buildPlan/);
+ assert.match(css,/\.magazine-editor-panel/);
+});
