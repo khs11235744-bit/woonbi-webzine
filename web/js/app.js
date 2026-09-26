@@ -195,7 +195,7 @@ async function openEditor(id){
  side.firstChild.append(button('웹 공개 회수',async()=>{if(confirm('공개 웹진에서 이 기사를 내릴까요? 원고와 인쇄 확정본은 유지됩니다.')){await store.unpublish(edit.id);toast('공개를 회수했습니다.');}},'danger'));
  side.firstChild.append(h('p',{class:'small muted'},`웹 공개 동의 ${edit.webConsent?'확인':'미확인'} · 책 수록 ${edit.printConsent?'확인':'미확인'}`));}
  side.append(h('div',{class:'panel magazine-editor-panel',id:'magazineEditorHint','aria-live':'polite'}));side.append(h('div',{class:'panel',id:'v4Preflight','aria-live':'polite'}));side.append(h('div',{class:'panel ai-editor-panel',id:'aiEditorPanel','aria-live':'polite'}));
- side.append(h('div',{class:'panel'},h('h3',{},'기록과 미리보기'),button('기사 미리보기',async()=>{const a={...edit,...readEditor()};const content=await renderArticle(a);dialogOpen('발행 전 미리보기',content);}),button('수정 이력 보기',historyDialog),button('내 원고 사본 받기',()=>textDownload(JSON.stringify({...edit,...readEditor()},null,2),'woonbi-article-backup.json'))));
+ side.append(h('div',{class:'panel'},h('h3',{},'기록과 미리보기'),button('본문+사진 배치 보기',async()=>dialogOpen('본문과 사진 배치',await placementPreviewNode({...edit,...readEditor()})),'primary'),button('기사 미리보기',async()=>{const a={...edit,...readEditor()};const content=await renderArticle(a);dialogOpen('발행 전 미리보기',content);}),button('수정 이력 보기',historyDialog),button('내 원고 사본 받기',()=>textDownload(JSON.stringify({...edit,...readEditor()},null,2),'woonbi-article-backup.json'))));
  const file=h('input',{type:'file',multiple:true,accept:'image/jpeg,image/png,image/webp',hidden:true,id:'photoInput'});file.addEventListener('change',()=>uploadFiles(file.files).catch(showError));
  const drop=h('div',{class:'photo-dropzone',role:'button',tabindex:writable?0:-1,'aria-disabled':String(!writable)},h('strong',{},'사진을 여기로 끌어오거나 눌러 선택'),h('span',{},'JPG · PNG · WebP / 장당 25MB / 웹용 WebP 자동 생성'));
  if(writable){drop.addEventListener('click',()=>file.click());drop.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();file.click();}});for(const ev of ['dragenter','dragover'])drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('is-drag');});for(const ev of ['dragleave','drop'])drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('is-drag');});drop.addEventListener('drop',e=>uploadFiles(e.dataTransfer.files).catch(showError));}
@@ -291,6 +291,18 @@ async function preparePhoto(file,aid){
  const id=C.uuid(),base=`private/${aid}/${id}`;return {photo:{id,caption:'',alt:file.name.replace(/\.[^.]+$/,'').slice(0,200),after:-1,width,height,originalBytes:file.size,originalType:file.type,originalPath:base+'/original',webPath:base+'/web.webp'},original:file,web};
 }
 async function uploadFiles(files){if(!edit||!C.canEdit(user,edit)||uploading)return;const list=Array.from(files);if(edit.photos.length+list.length>12)throw new Error('사진은 기사당 최대 12장입니다.');uploading=true;const root=$('#uploadProgress');try{for(let i=0;i<list.length;i++){root.replaceChildren(h('span',{class:'small'},`${i+1}/${list.length} · 웹용 사진 준비 중`));const data=await preparePhoto(list[i],edit.id),progress=h('progress',{max:1,value:0}),label=h('span',{class:'small'},`${i+1}/${list.length} 저장 중`);root.replaceChildren(h('div',{class:'progress'},progress,label));await store.upload(edit.id,data.photo,data.original,data.web,v=>{progress.value=v;label.textContent=`${i+1}/${list.length} · ${Math.round(v*100)}%`;});edit.photos.push(data.photo);changed();await save();await renderPhotoGrid();renderPreflight();}toast('사진과 원고를 저장했습니다.');}finally{uploading=false;root.replaceChildren();$('#photoInput').value='';}}
+async function placementPreviewNode(a){
+ const node=h('section',{class:'placement-preview'}),pos=C.photoPositions(a),blocks=C.blocks(a.body),lead=pos.get(-1)||[];
+ node.append(h('div',{class:'placement-preview-head'},h('span',{class:'eyebrow'},'ARTICLE FLOW'),h('h3',{},a.title),h('p',{},'대표사진과 본문 사진이 어느 문단 뒤에 들어가는지 실제 읽기 순서대로 보여줍니다.')));
+ async function photos(rows,label){if(!rows?.length)return;const strip=h('div',{class:'placement-photo-strip'},h('b',{},label));for(const p of rows)strip.append(h('figure',{},await imageNode(p),h('figcaption',{},p.caption||p.alt||'사진 설명 미입력')));node.append(strip);}
+ await photos(lead,'대표사진');
+ for(const b of blocks){
+  const block=h('article',{class:'placement-block '+b.kind},h('span',{class:'placement-no'},String(b.i+1).padStart(2,'0')),h(b.kind==='heading'?'h4':'p',{},b.text));
+  node.append(block);await photos(pos.get(b.i),'이 문단 뒤');
+ }
+ if(!blocks.length)node.append(h('p',{class:'empty'},'본문을 작성하면 문단과 사진 배치가 여기에 나타납니다.'));
+ return node;
+}
 async function renderArticle(a){const article=h('article',{class:'read-article'},h('div',{class:'eyebrow'},a.category),h('h1',{},a.title),a.deck?h('p',{class:'deck'},a.deck):null,h('p',{class:'read-meta'},a.byline||'필자명 미입력'));const copy=h('div',{class:'read-copy'}),pos=C.photoPositions(a);async function addPhotos(key){for(const p of pos.get(key)||[]){const fig=h('figure',{class:p.lastYearSample?'lastyear-detail':p.restored?'restored-detail':''},await imageNode(p));const cap=h('figcaption',{});if(p.lastYearSample)cap.append(h('strong',{class:'lastyear-badge'},'지난 호 자료사진'));else if(p.restored)cap.append(h('strong',{class:'restored-badge'},'복원 자료'));else if(W.editorial.sample(p))cap.append(h('strong',{class:'sample-badge'},'교체용 예시 · 실제 현장 아님'));if(p.caption)cap.append(document.createTextNode(p.caption));if(p.credit)cap.append(h('span',{class:'photo-credit'},'사진 · '+p.credit));fig.append(cap);copy.append(fig);}}
  await addPhotos(-1);for(const b of C.blocks(a.body)){copy.append(h(b.kind==='heading'?'h3':'p',{},b.text));await addPhotos(b.i);}article.append(copy);return article;}
 async function legacyRenderPublic(){const pub=(await store.listPublic()).sort((a,b)=>b.publishedAt.localeCompare(a.publishedAt));const head=h('div',{class:'public-heading'},h('div',{class:'eyebrow'},'WOONBI · POHANG HIGH SCHOOL'),h('h1',{},'우리의 학교,\n우리의 이야기.'),h('p',{class:'intro'},'학교의 하루를 학생의 글과 사진으로 기록합니다.'));const grid=h('div',{class:'public-grid'});main.replaceChildren(head,grid);
@@ -437,6 +449,19 @@ function photoScanPanel(articles){
   if(type==='people')return (r.library?.people||[]).includes(value);
   return true;
  }
+ function similarityPanel(rows){
+  const groups=WoonbiPhotoLibrary.similarityClusters(rows),box=h('section',{class:'photo-similarity-panel'},h('div',{class:'photo-library-head'},h('div',{},h('span',{class:'eyebrow'},'SIMILAR SHOTS'),h('h3',{},'비슷한 사진 묶음 · 베스트컷')),groups.length?button('묶음별 베스트컷만 선택',()=>{for(const g of groups){for(const r of g)r.selected=false;const best=WoonbiPhotoLibrary.bestRow(g);if(best&&!best.duplicateOf)best.selected=true;}draw();},'primary'):null));
+  if(!groups.length){box.append(h('p',{class:'empty'},'현재 분석에서 별도 유사사진 묶음이 없습니다.'));return box;}
+  const grid=h('div',{class:'photo-similarity-groups'});
+  for(const [gi,g] of groups.slice(0,20).entries()){
+   const best=WoonbiPhotoLibrary.bestRow(g),card=h('article',{class:'photo-similarity-card'});
+   const hero=h('button',{class:'photo-similarity-hero','aria-label':'유사사진 '+(gi+1)+' 묶음 크게 비교'},h('img',{src:scanPreview(best),alt:best.name,loading:'lazy'}),h('span',{},'추천 베스트 · '+g.length+'장'));
+   hero.addEventListener('click',()=>{const compare=h('div',{class:'photo-compare-grid'});for(const r of g.slice(0,20)){const chosen=r.key===best.key;compare.append(h('article',{class:'photo-compare-item'+(chosen?' best':'')},h('img',{src:scanPreview(r),alt:r.name}),h('b',{},chosen?'추천 베스트':r.duplicateOf?'완전 중복':r.nearDuplicateOf?'유사 사진':'비교'),h('small',{},r.name+' · '+(r.width||'?')+'×'+(r.height||'?')),button(r.selected?'선택 해제':'이 사진 선택',()=>{r.selected=!r.selected;dialog.close();draw();},r.selected?'text':'primary')));}dialogOpen('유사사진 비교 · '+g.length+'장',compare);});
+   const thumbs=h('div',{class:'photo-similarity-thumbs'});for(const r of g.slice(0,8))thumbs.append(h('img',{src:scanPreview(r),alt:r.name,loading:'lazy'}));
+   card.append(hero,h('div',{class:'photo-similarity-copy'},h('b',{},best.name),h('small',{},(best.width||'?')+'×'+(best.height||'?')+' · 추천점수 '+Math.round(best.score||0)),button(best.selected?'베스트컷 선택됨':'베스트컷 선택',()=>{for(const r of g)r.selected=false;if(!best.duplicateOf)best.selected=true;draw();},best.selected?'text':'primary')),thumbs);grid.append(card);
+  }
+  box.append(grid);return box;
+ }
  async function draw(){
   summary.replaceChildren();const st=photoScanState;if(!st.rows.length){summary.append(h('p',{class:'empty'},'폴더나 Google Picker에서 사진을 가져오면 날짜·행사·기사·인물별 자료실과 중복 검사 결과가 여기에 표시됩니다.'));return;}
   const usable=st.rows.filter(r=>!r.duplicateOf&&!r.nearDuplicateOf&&r.articleId),chosen=st.rows.filter(r=>r.selected),visible=st.rows.filter(matchesLibrary);
@@ -457,7 +482,7 @@ function photoScanPanel(articles){
    const row=h('article',{class:'photo-scan-row'+(disabled?' duplicate':'')},check,h('img',{src:scanPreview(r),alt:r.name,loading:'lazy'}),h('div',{class:'photo-scan-meta'},h('b',{},r.name),h('span',{},r.path),h('small',{},Math.round(r.size/1024).toLocaleString()+'KB · '+r.width+'×'+r.height),tags.length?h('div',{class:'photo-library-tags'},tags.slice(0,6).map(t=>h('span',{},t))):null),h('div',{class:'photo-scan-match'},h('span',{class:disabled?'slot-state':'slot-state filled'},badge),r.hits?.length?h('small',{class:'muted'},'일치: '+r.hits.join(', ')):null,select));
    table.append(row);
   }
-  summary.append(stats,libraryIndex(st.rows),controls,table);
+  summary.append(stats,libraryIndex(st.rows),similarityPanel(st.rows),controls,table);
  }
  input.addEventListener('change',async()=>{const files=input.files;if(!files?.length)return;progress.textContent='0/'+files.length+' 분석';try{photoLibraryFilter={type:'',value:''};await scanPhotoFolder(files,articles,(n,total)=>progress.textContent=n+'/'+total+' 분석');progress.textContent='분석 완료';await draw();}catch(e){progress.textContent='분석 실패';showError(e);}});
  draw();return wrap;
@@ -544,14 +569,31 @@ function magazinePlanNode(items,title='웅비 · 2026 편집본'){
  return h('section',{class:'magazine-plan-panel'},h('div',{class:'magazine-plan-head'},h('div',{},h('span',{class:'eyebrow'},'AUTO LAYOUT PREVIEW'),h('h2',{},title)),h('p',{},'표지·목차·기사 지면을 자동 배치하고 1p·2p·4p 구조, 예상 페이지, 사진 부족과 인쇄 해상도 위험을 미리 표시합니다.')),grid,summary);
 }
 
-async function renderBook(){if(!C.teacher(user))return renderPending();const articles=(await store.listArticles()).filter(a=>a.status==='approved'&&a.printConsent),all=new Map(articles.map(a=>[a.id,a]));issueSelection=issueSelection.filter(id=>all.has(id));const title=h('input',{id:'issueTitle',value:'웅비 · 2026 편집본',maxlength:150}),pick=h('div'),order=h('ol',{class:'book-order'}),archives=h('div'),coverBox=h('div'),coverMockups=h('div'),livePlan=h('div');
- async function refreshMagazineExtras(){const selected=issueSelection.map(id=>all.get(id)).filter(Boolean);if(issueCoverArticleId&&!selected.some(a=>a.id===issueCoverArticleId))issueCoverArticleId='';livePlan.replaceChildren(magazinePlanNode(selected,title.value));coverBox.replaceChildren(await coverCandidatePanel(selected,async id=>{issueCoverArticleId=id;await refreshMagazineExtras();}));coverMockups.replaceChildren(await coverMockupPanel(selected,title.value,()=>refreshMagazineExtras().catch(showError)));}
+function magazinePageMapNode(items,title='웅비 · 2026 편집본'){
+ const map=WoonbiMagazine.pageMap(items,title),section=h('section',{class:'magazine-page-map-panel'});
+ const head=h('div',{class:'magazine-plan-head'},h('div',{},h('span',{class:'eyebrow'},'FULL ISSUE MAP'),h('h2',{},'한 권 전체 페이지 지도')),h('p',{},'표지 → 목차 → 섹션 오프너 → 기사면 → 콜로폰 → 뒤표지 순서를 실제 페이지 단위로 확인합니다. 인쇄 4배수 조정용 여백면도 자동 표시합니다.'));
+ const grid=h('div',{class:'magazine-page-map'});
+ for(const p of map.pages){
+  const cls='magazine-page-cell kind-'+p.kind+' type-'+(p.type||'news');
+  const cell=h('article',{class:cls,'data-kind':p.kind,'data-folio':p.folio},
+   h('span',{class:'page-folio'},p.folio),
+   h('span',{class:'page-kind'},p.label||p.kind),
+   h('h4',{},p.title||''),
+   p.kind==='article'?h('small',{},(p.template||'')+(p.i? ' · 이어지는 면 '+(p.i+1):'')+(p.photoCount?' · 사진 '+p.photoCount:'') ):null,
+   p.warnings?.length?h('p',{class:'page-warning'},p.warnings.join(' · ')):null);
+  grid.append(cell);
+ }
+ const summary=h('div',{class:'magazine-plan-summary'},h('span',{},'전체 지도 ',h('strong',{},map.mappedPages),'면'),h('span',{},'인쇄 시그니처 ',h('strong',{},map.totalSheets),'묶음'),h('span',{},'기사 ',h('strong',{},map.rows.length),'편'),h('span',{},'조판 경고 ',h('strong',{},map.warnCount)));
+ section.append(head,grid,summary);return section;
+}
+async function renderBook(){if(!C.teacher(user))return renderPending();const articles=(await store.listArticles()).filter(a=>a.status==='approved'&&a.printConsent),all=new Map(articles.map(a=>[a.id,a]));issueSelection=issueSelection.filter(id=>all.has(id));const title=h('input',{id:'issueTitle',value:'웅비 · 2026 편집본',maxlength:150}),pick=h('div'),order=h('ol',{class:'book-order'}),archives=h('div'),coverBox=h('div'),coverMockups=h('div'),pageMapBox=h('div'),livePlan=h('div');
+ async function refreshMagazineExtras(){const selected=issueSelection.map(id=>all.get(id)).filter(Boolean);if(issueCoverArticleId&&!selected.some(a=>a.id===issueCoverArticleId))issueCoverArticleId='';livePlan.replaceChildren(magazinePlanNode(selected,title.value));pageMapBox.replaceChildren(magazinePageMapNode(selected,title.value));coverBox.replaceChildren(await coverCandidatePanel(selected,async id=>{issueCoverArticleId=id;await refreshMagazineExtras();}));coverMockups.replaceChildren(await coverMockupPanel(selected,title.value,()=>refreshMagazineExtras().catch(showError)));}
  title.addEventListener('input',()=>refreshMagazineExtras().catch(showError));
  const head=h('div',{class:'heading-row'},h('div',{},h('div',{class:'eyebrow'},'PRINT EDITION'),h('h1',{},'한 번 쓴 원고, 한 권의 교지'),h('p',{class:'intro'},'책 수록 동의를 확인한 승인 기사만 묶습니다. 확정본은 이후 웹 원고 수정과 분리해 보관합니다.')));
  function renderOrder(){order.replaceChildren();if(!issueSelection.length)order.append(h('li',{class:'muted'},'왼쪽에서 기사를 골라 주세요.'));for(const [i,id] of issueSelection.entries()){const up=button('↑',()=>{if(i>0){[issueSelection[i-1],issueSelection[i]]=[issueSelection[i],issueSelection[i-1]];renderOrder();}}),down=button('↓',()=>{if(i<issueSelection.length-1){[issueSelection[i+1],issueSelection[i]]=[issueSelection[i],issueSelection[i+1]];renderOrder();}});up.setAttribute('aria-label','기사 순서 올리기');down.setAttribute('aria-label','기사 순서 내리기');order.append(h('li',{},h('span',{},`${i+1}. ${all.get(id).title}`),up,down));}refreshMagazineExtras().catch(showError);}
  for(const a of articles){const check=h('input',{type:'checkbox',value:a.id,checked:issueSelection.includes(a.id)});check.addEventListener('change',()=>{issueSelection=check.checked?[...issueSelection,a.id]:issueSelection.filter(id=>id!==a.id);renderOrder();});pick.append(h('label',{class:'check'},check,h('span',{},a.title)));}
  if(!articles.length)pick.append(h('p',{class:'muted'},'책 수록이 승인된 기사가 아직 없습니다.'));
- main.replaceChildren(head,h('div',{class:'split'},h('section',{class:'panel'},h('h2',{},'수록 기사 선택'),pick),h('section',{class:'panel'},h('label',{},'책 제목',title),h('h3',{},'목차 순서'),order,button('확정본 만들고 미리보기',async()=>{const issue=await store.makeIssue(issueSelection,title.value);toast('원고 확정본을 저장했습니다.');await openIssue(issue);},'primary'))),coverBox,coverMockups,livePlan,h('section',{class:'panel'},h('h2',{},'보관한 확정본'),archives),h('p',{class:'small muted'},'기본 A4 검토용 출력입니다. 인쇄소용 PDF/X, 재단선·도련, 정밀 쪽번호와 자동 조판 검수는 후속 단계입니다.'));renderOrder();
+ main.replaceChildren(head,h('div',{class:'split'},h('section',{class:'panel'},h('h2',{},'수록 기사 선택'),pick),h('section',{class:'panel'},h('label',{},'책 제목',title),h('h3',{},'목차 순서'),order,button('확정본 만들고 미리보기',async()=>{const issue=await store.makeIssue(issueSelection,title.value);toast('원고 확정본을 저장했습니다.');await openIssue(issue);},'primary'))),coverBox,coverMockups,pageMapBox,livePlan,h('section',{class:'panel'},h('h2',{},'보관한 확정본'),archives),h('p',{class:'small muted'},'기본 A4 검토용 출력입니다. 인쇄소용 PDF/X, 재단선·도련, 정밀 쪽번호와 자동 조판 검수는 후속 단계입니다.'));renderOrder();
  for(const issue of await store.listIssues())archives.append(h('div',{class:'archive-row'},h('span',{},issue.title),button('확정본 열기',async()=>openIssue(await store.getIssue(issue.id)))));}
 async function bookNode(issue){
  const root=h('div',{class:'book-preview'}),coverArticle=issue.items.find(a=>a.id===issueCoverArticleId)||issue.items[0]||null,coverPhoto=coverArticle?coverCandidateScore(coverArticle).photo:null;
@@ -567,7 +609,7 @@ async function bookNode(issue){
  return root;
 }
 
-async function openIssue(issue){const book=await bookNode(issue),node=h('div',{},magazinePlanNode(issue.items,issue.title),book);dialogOpen('책 미리보기 · 승인 원고 확정본',node,[button('A4 인쇄 / PDF 저장',async()=>{$('#printArea').replaceChildren(await bookNode(issue));await Promise.all([...$('#printArea img')].map(i=>i.decode().catch(()=>{})));await document.fonts.ready;window.print();},'primary'),button('인쇄소 전달 묶음 받기',()=>exportIssue(issue)),button('확정 원고 JSON 받기',()=>textDownload(JSON.stringify(issue,null,2),'woonbi-issue.json'))]);}
+async function openIssue(issue){const book=await bookNode(issue),node=h('div',{},magazinePageMapNode(issue.items,issue.title),magazinePlanNode(issue.items,issue.title),book);dialogOpen('책 미리보기 · 승인 원고 확정본',node,[button('A4 인쇄 / PDF 저장',async()=>{$('#printArea').replaceChildren(await bookNode(issue));await Promise.all([...$('#printArea img')].map(i=>i.decode().catch(()=>{})));await document.fonts.ready;window.print();},'primary'),button('인쇄소 전달 묶음 받기',()=>exportIssue(issue)),button('확정 원고 JSON 받기',()=>textDownload(JSON.stringify(issue,null,2),'woonbi-issue.json'))]);}
 async function exportIssue(issue){
  const filename='woonbi-print-handoff.zip',handle=await chooseSaveHandle(filename,'application/zip');if(handle===false)return;
  toast('인쇄소 전달 묶음을 만드는 중입니다…');

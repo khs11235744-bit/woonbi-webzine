@@ -69,3 +69,23 @@ test('article editor exposes magazine layout hint linked to print engine',()=>{
  assert.match(app,/WoonbiMagazine\.buildPlan/);
  assert.match(css,/\.magazine-editor-panel/);
 });
+
+
+test('article editor visualizes photo placement between paragraphs',()=>{
+ const app=fs.readFileSync('web/js/app.js','utf8');
+ const css=fs.readFileSync('web/editorial-polish.css','utf8');
+ assert.match(app,/placementPreviewNode/);
+ assert.match(app,/본문\+사진 배치 보기/);
+ assert.match(app,/C\.photoPositions/);
+ assert.match(css,/\.placement-preview/);
+ assert.match(css,/\.placement-photo-strip/);
+});
+
+test('print editor exposes full issue page map',()=>{
+ const app=fs.readFileSync('web/js/app.js','utf8');
+ const css=fs.readFileSync('web/editorial-polish.css','utf8');
+ assert.match(app,/magazinePageMapNode/);
+ assert.match(app,/FULL ISSUE MAP/);
+ assert.match(css,/\.magazine-page-map/);
+ assert.match(css,/\.magazine-page-cell\.kind-opener/);
+});

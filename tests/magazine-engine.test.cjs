@@ -38,3 +38,19 @@ test('issue plan assigns page ranges and rounds recommendation to multiples of f
  assert.equal(p.plans[1].start,2);
  assert.equal(p.plans[1].end,5);
 });
+
+
+test('full issue page map includes cover contents section openers colophon back cover and 4-page padding',()=>{
+ const items=[
+  {id:'a',title:'첫 기사',photos:[],_plan:{type:'news',template:'news-1p',pages:1,label:'SCHOOL NEWS'}},
+  {id:'b',title:'사진 특집',photos:[{alt:'x'},{alt:'y'},{alt:'z'},{alt:'w'}],_plan:{type:'photo',template:'photo-4p',pages:4,label:'PHOTO ESSAY'}}
+ ];
+ const map=M.pageMap(items,'웅비');
+ assert.equal(map.pages[0].kind,'cover');
+ assert.equal(map.pages[1].kind,'contents');
+ assert.ok(map.pages.some(x=>x.kind==='opener'&&x.type==='news'));
+ assert.ok(map.pages.some(x=>x.kind==='opener'&&x.type==='photo'));
+ assert.ok(map.pages.some(x=>x.kind==='colophon'));
+ assert.equal(map.pages.at(-1).kind,'backcover');
+ assert.equal(map.pages.length%4,0);
+});

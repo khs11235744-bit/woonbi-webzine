@@ -27,4 +27,24 @@ W.buildPlan=function(items,title='웅비 · 2026 편집본'){
  const warnCount=plans.reduce((n,x)=>n+x.warnings.length,0);
  return {title,rows,plans,contentPages,printPages,padded,counts,warnCount};
 };
+W.pageMap=function(items,title='웅비 · 2026 편집본'){
+ const base=W.buildPlan(items,title),pages=[],seen=new Set();let folio=1,previousType='';
+ pages.push({kind:'cover',label:'표지',title,folio:'COVER',type:'cover'});
+ pages.push({kind:'contents',label:'목차',title:'이번 호의 차례',folio:'TOC',type:'contents'});
+ for(const x of base.plans){
+  const type=x.p.type||'news',label=x.p.label||type;
+  if(type!==previousType&&!seen.has(type)){
+   pages.push({kind:'opener',label,title:label+' SECTION',folio:String(folio++),type});
+   seen.add(type);
+  }
+  for(let i=0;i<(Number(x.p.pages)||1);i++){
+   pages.push({kind:'article',label,i,title:x.a.title,articleId:x.a.id,folio:String(folio++),type,template:x.p.template,photoCount:(x.a.photos||[]).length,warnings:x.warnings||[]});
+  }
+  previousType=type;
+ }
+ pages.push({kind:'colophon',label:'콜로폰',title:'편집 후기 · 제작진 · 사진 출처',folio:String(folio++),type:'colophon'});
+ pages.push({kind:'backcover',label:'뒤표지',title:'우리의 학교, 우리의 기록',folio:'BACK',type:'backcover'});
+ while(pages.length%4)pages.splice(pages.length-1,0,{kind:'blank',label:'여백',title:'인쇄 4배수 조정',folio:String(folio++),type:'blank'});
+ return {...base,pages,totalSheets:Math.ceil(pages.length/4),mappedPages:pages.length};
+};
 })();
