@@ -62,6 +62,40 @@ W.pageMap=function(items,title='웅비 · 2026 편집본'){
  while(pages.length%4)pages.splice(pages.length-1,0,{kind:'blank',label:'여백',title:'인쇄 4배수 조정',folio:String(folio++),type:'blank'});
  return {...base,pages,totalSheets:Math.ceil(pages.length/4),mappedPages:pages.length};
 };
+W.photoFeatureLayouts=function(rows=[],pages=2){
+ const pageCount=Number(pages)>=4?4:2,max=pageCount===4?20:12,items=(rows||[]).slice(0,max);
+ const perPage=Math.max(1,Math.ceil(items.length/pageCount)),variants=[];
+ const mk=(id,label,slots)=>({id,label,pages:pageCount,photoKeys:items.map(x=>x.key||x.id||x.name),slots});
+ const hero=[],mosaic=[],rhythm=[];
+ for(let i=0;i<items.length;i++){
+  const page=Math.min(pageCount-1,Math.floor(i/perPage)),local=i-page*perPage,count=Math.min(perPage,items.length-page*perPage);
+  if(local===0)hero.push({i,page,x:0,y:0,w:100,h:58});
+  else{const cols=2,cell=Math.max(1,Math.ceil((count-1)/cols)),col=(local-1)%cols,row=Math.floor((local-1)/cols);hero.push({i,page,x:col*50,y:60+row*(40/cell),w:49,h:Math.max(18,39/cell)});}
+  const mCols=count<=4?2:3,mRows=Math.ceil(count/mCols),mCol=local%mCols,mRow=Math.floor(local/mCols);mosaic.push({i,page,x:mCol*(100/mCols),y:mRow*(100/mRows),w:100/mCols,h:100/mRows});
+  if(local%5===0)rhythm.push({i,page,x:0,y:Math.floor(local/5)*48,w:100,h:44});
+  else{const rLocal=local%5-1,col=rLocal%2,row=Math.floor(rLocal/2);rhythm.push({i,page,x:col*51,y:(Math.floor(local/5)*48)+row*22,w:49,h:20});}
+ }
+ variants.push(mk('hero','A · 대표컷 중심',hero),mk('mosaic','B · 균등 모자이크',mosaic),mk('rhythm','C · 리듬형 화보',rhythm));
+ return {pages:pageCount,items,variants};
+};
+W.publicationMatter=function(items=[],title='웅비 · 2026 편집본',meta={}){
+ const clean=v=>String(v||'').trim(),writers=[],photographers=[],seenW=new Set(),seenP=new Set();
+ for(const a of items){
+  for(const n of [a.byline,...(a.assigneeNames||[])]){const x=clean(n);if(x&&!seenW.has(x)){seenW.add(x);writers.push(x);}}
+  for(const p of a.photos||[]){const credit=clean(p.credit||p.photographer||'');if(credit&&!seenP.has(credit)){seenP.add(credit);photographers.push(credit);}}
+ }
+ const year=Number(meta.year)||new Date().getFullYear(),school=clean(meta.school)||'포항고등학교',publisher=clean(meta.publisher)||school+' 학생 웹진 편집부';
+ return {title,year,school,publisher,writers,photographers,site:clean(meta.site)||'woonbi-webzine-2026.web.app',copyright:'© '+year+' '+publisher+'. 기사·사진의 권리는 각 필자와 촬영자에게 있습니다.',edition:clean(meta.edition)||'雄飛 VOL.42',generatedAt:new Date().toISOString()};
+};
+W.runningHead=function(page,matter){
+ if(!page)return '';
+ if(page.kind==='cover'||page.kind==='backcover')return '';
+ if(page.kind==='contents')return matter.edition+' · CONTENTS';
+ if(page.kind==='opener')return matter.edition+' · '+String(page.label||page.type||'SECTION');
+ if(page.kind==='colophon')return matter.edition+' · CREDITS';
+ if(page.kind==='blank')return matter.edition;
+ return matter.edition+' · '+String(page.label||page.type||'WOONBI');
+};
 W.spreadMap=function(items,title='웅비 · 2026 편집본'){
  const map=W.pageMap(items,title),spreads=[];
  if(!map.pages.length)return {...map,spreads};

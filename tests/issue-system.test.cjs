@@ -145,3 +145,53 @@ test('photo desk exposes 10 12 16 20 shot curation controls',()=>{
  assert.match(app,/화보용 자동선정/);
  assert.match(app,/curationScore/);
 });
+
+
+test('spread editor exposes four-corner resize handles and snap guides',()=>{
+ const app=fs.readFileSync('web/js/app.js','utf8');
+ const css=fs.readFileSync('web/editorial-polish.css','utf8');
+ assert.match(app,/attachSpreadResizeHandles/);
+ assert.match(app,/spreadSnapValue/);
+ assert.match(app,/spreadShowGuides/);
+ assert.match(app,/\['nw','ne','sw','se'\]/);
+ assert.match(css,/\.spread-resize-handle\.nw/);
+ assert.match(css,/\.spread-resize-handle\.se/);
+ assert.match(css,/\.spread-snap-guide\.x/);
+ assert.match(css,/\.spread-snap-guide\.y/);
+});
+
+test('photo curation exposes 2p and 4p three-option feature layouts',()=>{
+ const app=fs.readFileSync('web/js/app.js','utf8');
+ const css=fs.readFileSync('web/editorial-polish.css','utf8');
+ assert.match(app,/PHOTO FEATURE LAYOUT/);
+ assert.match(app,/화보 자동조판 3안/);
+ assert.match(app,/2p 화보/);
+ assert.match(app,/4p 화보/);
+ assert.match(app,/WoonbiMagazine\.photoFeatureLayouts/);
+ assert.match(app,/woonbi\.photoFeaturePlan/);
+ assert.match(css,/\.photo-feature-layouts/);
+ assert.match(css,/\.photo-feature-page/);
+});
+
+test('review book auto-generates running heads folios credits and copyright',()=>{
+ const app=fs.readFileSync('web/js/app.js','utf8');
+ const css=fs.readFileSync('web/editorial-polish.css','utf8');
+ assert.match(app,/decoratePrintSheet/);
+ assert.match(app,/book-running-head/);
+ assert.match(app,/book-page-number/);
+ assert.match(app,/CREDITS \/ COLOPHON/);
+ assert.match(app,/제작진 · 판권/);
+ assert.match(app,/WoonbiMagazine\.publicationMatter/);
+ assert.match(css,/\.book-running-head/);
+ assert.match(css,/\.book-page-number/);
+ assert.match(css,/\.book-credits-grid/);
+});
+
+test('proof PDF includes crop marks safe area and selected print profile metadata',()=>{
+ const app=fs.readFileSync('web/js/app.js','utf8');
+ assert.match(app,/print-crop-marks/);
+ assert.match(app,/print-safe-guide/);
+ assert.match(app,/05_인쇄사양\.json/);
+ assert.match(app,/06_지면수동조정\.json/);
+ assert.match(app,/p\.bleedMm\+p\.safeMm/);
+});

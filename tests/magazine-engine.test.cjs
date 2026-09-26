@@ -104,3 +104,28 @@ test('print package includes selected profile and blocks low resolution cover',(
  assert.ok(p.checks.some(x=>x.id==='cover300'&&x.severity==='error'));
  assert.equal(p.ready,false);
 });
+
+
+test('photo feature layouts produce three distinct 2p and 4p variants',()=>{
+ const rows=Array.from({length:20},(_,i)=>({key:'p'+i,name:'p'+i+'.jpg'}));
+ const two=M.photoFeatureLayouts(rows,2);
+ const four=M.photoFeatureLayouts(rows,4);
+ assert.equal(two.variants.length,3);
+ assert.equal(four.variants.length,3);
+ assert.equal(two.pages,2);
+ assert.equal(four.pages,4);
+ assert.ok(two.variants.every(v=>v.slots.every(s=>s.page>=0&&s.page<2)));
+ assert.ok(four.variants.every(v=>v.slots.every(s=>s.page>=0&&s.page<4)));
+ assert.equal(Array.from(two.variants,v=>v.id).join(','),'hero,mosaic,rhythm');
+});
+
+test('publication matter derives writers credits and running heads',()=>{
+ const items=[{byline:'학생 기자',assigneeNames:['편집 학생'],photos:[{credit:'사진 학생'}]}];
+ const m=M.publicationMatter(items,'웅비',{year:2026,school:'포항고등학교',edition:'雄飛 VOL.42',site:'example.test'});
+ assert.ok(m.writers.includes('학생 기자'));
+ assert.ok(m.writers.includes('편집 학생'));
+ assert.ok(m.photographers.includes('사진 학생'));
+ assert.match(m.copyright,/2026/);
+ assert.match(M.runningHead({kind:'article',label:'FEATURE'},m),/雄飛 VOL\.42/);
+ assert.equal(M.runningHead({kind:'cover'},m),'');
+});

@@ -463,6 +463,32 @@ function photoScanPanel(articles){
   if(type==='people')return (r.library?.people||[]).includes(value);
   return true;
  }
+ let featurePages=Number(safeLocalGet('woonbi.photoFeaturePages',2))||2,featurePlan=safeLocalGet('woonbi.photoFeaturePlan',null);
+ function featureLayoutPanel(rows){
+  const picks=rows.filter(r=>(r.curated||r.selected)&&!r.duplicateOf),box=h('section',{class:'photo-feature-panel'});
+  const pagesSelect=h('select',{'aria-label':'화보 자동조판 페이지'},h('option',{value:2},'2p 화보'),h('option',{value:4},'4p 화보'));pagesSelect.value=String(featurePages);pagesSelect.addEventListener('change',()=>{featurePages=Number(pagesSelect.value);safeLocalSet('woonbi.photoFeaturePages',featurePages);draw();});
+  const head=h('div',{class:'photo-library-head'},h('div',{},h('span',{class:'eyebrow'},'PHOTO FEATURE LAYOUT'),h('h3',{},'화보 자동조판 3안'),h('p',{class:'small muted'},'큐레이션한 사진을 대표컷형·모자이크형·리듬형으로 자동 배치합니다.')),pagesSelect);
+  box.append(head);
+  if(picks.length<4){box.append(h('p',{class:'empty'},'화보용 자동선정 또는 직접 선택으로 사진을 4장 이상 고르면 3가지 조판안이 생성됩니다.'));return box;}
+  const plan=WoonbiMagazine.photoFeatureLayouts(picks,featurePages),grid=h('div',{class:'photo-feature-layouts'});
+  for(const variant of plan.variants){
+   const selected=featurePlan?.variant===variant.id&&Number(featurePlan?.pages)===plan.pages,card=h('article',{class:'photo-feature-variant'+(selected?' selected':'')});
+   card.append(h('div',{class:'photo-feature-variant-head'},h('b',{},variant.label),h('span',{},plan.pages+'p · '+plan.items.length+'장')));
+   const pages=h('div',{class:'photo-feature-pages','data-pages':String(plan.pages)});
+   for(let pi=0;pi<plan.pages;pi++){
+    const page=h('div',{class:'photo-feature-page'},h('span',{class:'photo-feature-folio'},String(pi+1).padStart(2,'0')));
+    for(const slot of variant.slots.filter(x=>x.page===pi)){
+     const row=plan.items[slot.i];if(!row)continue;
+     page.append(h('figure',{class:'photo-feature-slot',style:'left:'+slot.x+'%;top:'+slot.y+'%;width:'+slot.w+'%;height:'+slot.h+'%;'},h('img',{src:scanPreview(row),alt:row.name,loading:'lazy'}),h('figcaption',{},row.library?.events?.[0]||row.library?.article||'')));
+    }
+    pages.append(page);
+   }
+   card.append(pages,button(selected?'선택된 화보안':'이 화보안 선택',()=>{featurePlan={pages:plan.pages,variant:variant.id,label:variant.label,photoKeys:variant.photoKeys,createdAt:now()};safeLocalSet('woonbi.photoFeaturePlan',featurePlan);toast(variant.label+'을 화보안으로 저장했습니다.');draw();},selected?'primary':'text'));
+   grid.append(card);
+  }
+  const foot=h('div',{class:'photo-feature-foot'},featurePlan?h('span',{},'저장된 화보안 · '+featurePlan.label+' · '+featurePlan.pages+'p · '+featurePlan.photoKeys.length+'장'):h('span',{class:'muted'},'아직 선택한 화보안 없음'),button('화보 계획 JSON',()=>{if(!featurePlan)return toast('먼저 화보안 하나를 선택해 주세요.');textDownload(JSON.stringify(featurePlan,null,2),'woonbi-photo-feature-plan.json');},'text'));
+  box.append(grid,foot);return box;
+ }
  function similarityPanel(rows){
   const groups=WoonbiPhotoLibrary.similarityClusters(rows),box=h('section',{class:'photo-similarity-panel'},h('div',{class:'photo-library-head'},h('div',{},h('span',{class:'eyebrow'},'SIMILAR SHOTS'),h('h3',{},'비슷한 사진 묶음 · 베스트컷')),groups.length?button('묶음별 베스트컷만 선택',()=>{for(const g of groups){for(const r of g)r.selected=false;const best=WoonbiPhotoLibrary.bestRow(g);if(best&&!best.duplicateOf)best.selected=true;}draw();},'primary'):null));
   if(!groups.length){box.append(h('p',{class:'empty'},'현재 분석에서 별도 유사사진 묶음이 없습니다.'));return box;}
@@ -501,7 +527,7 @@ function photoScanPanel(articles){
     h('div',{class:'photo-scan-meta'},h('b',{},r.name),h('span',{},r.path),h('small',{},Math.round(r.size/1024).toLocaleString()+'KB · '+r.width+'×'+r.height+' · 선명 '+(r.quality?.sharpness??'?')+' · 노출 '+(r.quality?.exposure??'?')+' · 구도 '+(r.quality?.composition??'?')),tags.length?h('div',{class:'photo-library-tags'},tags.slice(0,6).map(t=>h('span',{},t))):null),h('div',{class:'photo-scan-match'},h('span',{class:disabled?'slot-state':'slot-state filled'},badge),r.hits?.length?h('small',{class:'muted'},'일치: '+r.hits.join(', ')):null,select));
    table.append(row);
   }
-  summary.append(stats,libraryIndex(st.rows),similarityPanel(st.rows),controls,table);
+  summary.append(stats,libraryIndex(st.rows),similarityPanel(st.rows),featureLayoutPanel(st.rows),controls,table);
  }
  input.addEventListener('change',async()=>{const files=input.files;if(!files?.length)return;progress.textContent='0/'+files.length+' 분석';try{photoLibraryFilter={type:'',value:''};await scanPhotoFolder(files,articles,(n,total)=>progress.textContent=n+'/'+total+' 분석');progress.textContent='분석 완료';await draw();}catch(e){progress.textContent='분석 실패';showError(e);}});
  draw();return wrap;
@@ -611,22 +637,66 @@ function spreadDefaultLayout(p){
  return {title:{x:7,y:wide?66:58,w:86},photo:{x:7,y:10,w:86,h:wide?50:42}};
 }
 function spreadLayout(p){const key=spreadOverrideKey(p),base=spreadDefaultLayout(p),saved=issueSpreadOverrides[key]||{};return {key,title:{...base.title,...(saved.title||{})},photo:{...base.photo,...(saved.photo||{})}};}
+function spreadSnapValue(value,candidates,threshold=1.7){
+ let best=value,dist=threshold+1,guide=null;
+ for(const c of candidates){const d=Math.abs(value-c);if(d<dist&&d<=threshold){best=c;dist=d;guide=c;}}
+ return {value:best,guide};
+}
+function spreadShowGuides(canvas,xGuide,yGuide){
+ let gx=canvas.querySelector('.spread-snap-guide.x'),gy=canvas.querySelector('.spread-snap-guide.y');
+ if(!gx){gx=h('span',{class:'spread-snap-guide x'});canvas.append(gx);}
+ if(!gy){gy=h('span',{class:'spread-snap-guide y'});canvas.append(gy);}
+ gx.hidden=xGuide==null;if(xGuide!=null)gx.style.left=xGuide+'%';
+ gy.hidden=yGuide==null;if(yGuide!=null)gy.style.top=yGuide+'%';
+}
+function spreadClearGuides(canvas){for(const x of canvas.querySelectorAll('.spread-snap-guide'))x.hidden=true;}
+function spreadSnapPosition(x,y,state){
+ const xs=[0,5,10,25,33.333,50,66.667,75,90,95],ys=[0,5,10,25,33.333,50,66.667,75,90,95];
+ let sx=spreadSnapValue(x,xs),sy=spreadSnapValue(y,ys),gx=sx.guide,gy=sy.guide,nx=sx.value,ny=sy.value;
+ const centerX=spreadSnapValue(nx+(Number(state.w)||0)/2,[25,33.333,50,66.667,75]),right=spreadSnapValue(nx+(Number(state.w)||0),[50,90,95,100]);
+ if(centerX.guide!=null){nx=centerX.value-(Number(state.w)||0)/2;gx=centerX.guide;}else if(right.guide!=null){nx=right.value-(Number(state.w)||0);gx=right.guide;}
+ const centerY=spreadSnapValue(ny+(Number(state.h)||0)/2,[25,33.333,50,66.667,75]),bottom=spreadSnapValue(ny+(Number(state.h)||0),[50,90,95,100]);
+ if(centerY.guide!=null){ny=centerY.value-(Number(state.h)||0)/2;gy=centerY.guide;}else if(bottom.guide!=null){ny=bottom.value-(Number(state.h)||0);gy=bottom.guide;}
+ return {x:nx,y:ny,gx,gy};
+}
+function persistSpreadPart(key,part,state){issueSpreadOverrides[key]=issueSpreadOverrides[key]||{};issueSpreadOverrides[key][part]={...state};saveIssueLayoutState();}
 function bindSpreadDrag(el,canvas,key,part,state){
  el.classList.add('spread-draggable');
- el.addEventListener('pointerdown',e=>{if(e.button!=null&&e.button!==0)return;e.preventDefault();el.setPointerCapture?.(e.pointerId);const rect=canvas.getBoundingClientRect(),startX=e.clientX,startY=e.clientY,origX=state.x,origY=state.y;
-  const move=ev=>{const dx=(ev.clientX-startX)/rect.width*100,dy=(ev.clientY-startY)/rect.height*100;state.x=Math.max(0,Math.min(92,origX+dx));state.y=Math.max(0,Math.min(90,origY+dy));el.style.left=state.x+'%';el.style.top=state.y+'%';};
-  const up=()=>{el.removeEventListener('pointermove',move);el.removeEventListener('pointerup',up);el.removeEventListener('pointercancel',up);issueSpreadOverrides[key]=issueSpreadOverrides[key]||{};issueSpreadOverrides[key][part]={...state};saveIssueLayoutState();};
+ el.addEventListener('pointerdown',e=>{if(e.target.closest?.('.spread-resize-handle'))return;if(e.button!=null&&e.button!==0)return;e.preventDefault();el.setPointerCapture?.(e.pointerId);const rect=canvas.getBoundingClientRect(),startX=e.clientX,startY=e.clientY,origX=state.x,origY=state.y;
+  const move=ev=>{const rawX=origX+(ev.clientX-startX)/rect.width*100,rawY=origY+(ev.clientY-startY)/rect.height*100,snap=spreadSnapPosition(rawX,rawY,state);state.x=Math.max(0,Math.min(100-(Number(state.w)||8),snap.x));state.y=Math.max(0,Math.min(100-(Number(state.h)||8),snap.y));el.style.left=state.x+'%';el.style.top=state.y+'%';spreadShowGuides(canvas,snap.gx,snap.gy);};
+  const up=()=>{el.removeEventListener('pointermove',move);el.removeEventListener('pointerup',up);el.removeEventListener('pointercancel',up);spreadClearGuides(canvas);persistSpreadPart(key,part,state);};
   el.addEventListener('pointermove',move);el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);
  });
 }
-async function spreadPageCell(p,side,items=[]){
+function attachSpreadResizeHandles(el,canvas,key,part,state){
+ for(const corner of ['nw','ne','sw','se']){
+  const handle=h('span',{class:'spread-resize-handle '+corner,'aria-label':'사진 크기 조절 '+corner});el.append(handle);
+  handle.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();handle.setPointerCapture?.(e.pointerId);const rect=canvas.getBoundingClientRect(),startX=e.clientX,startY=e.clientY,orig={x:state.x,y:state.y,w:state.w,h:state.h};
+   const move=ev=>{const dx=(ev.clientX-startX)/rect.width*100,dy=(ev.clientY-startY)/rect.height*100;let x=orig.x,y=orig.y,w=orig.w,h=orig.h;
+    if(corner.includes('e'))w=orig.w+dx;if(corner.includes('s'))h=orig.h+dy;
+    if(corner.includes('w')){x=orig.x+dx;w=orig.w-dx;}if(corner.includes('n')){y=orig.y+dy;h=orig.h-dy;}
+    w=Math.max(18,Math.min(100-x,w));h=Math.max(16,Math.min(100-y,h));x=Math.max(0,Math.min(100-w,x));y=Math.max(0,Math.min(100-h,y));
+    const right=spreadSnapValue(x+w,[25,33.333,50,66.667,75,90,95,100]),bottom=spreadSnapValue(y+h,[25,33.333,50,66.667,75,90,95,100]);
+    if(corner.includes('e')&&right.guide!=null)w=right.value-x;
+    if(corner.includes('s')&&bottom.guide!=null)h=bottom.value-y;
+    const left=spreadSnapValue(x,[0,5,10,25,33.333,50,66.667,75]),top=spreadSnapValue(y,[0,5,10,25,33.333,50,66.667,75]);
+    if(corner.includes('w')&&left.guide!=null){w+=x-left.value;x=left.value;}
+    if(corner.includes('n')&&top.guide!=null){h+=y-top.value;y=top.value;}
+    state.x=x;state.y=y;state.w=w;state.h=h;el.style.left=x+'%';el.style.top=y+'%';el.style.width=w+'%';el.style.height=h+'%';spreadShowGuides(canvas,corner.includes('e')?right.guide:left.guide,corner.includes('s')?bottom.guide:top.guide);
+   };
+   const up=()=>{handle.removeEventListener('pointermove',move);handle.removeEventListener('pointerup',up);handle.removeEventListener('pointercancel',up);spreadClearGuides(canvas);persistSpreadPart(key,part,state);};
+   handle.addEventListener('pointermove',move);handle.addEventListener('pointerup',up);handle.addEventListener('pointercancel',up);
+  });
+ }
+}
+async function spreadPageCell(p,side,items=[],matter=null){
  if(!p)return h('div',{class:'spread-page empty-side'},h('span',{},side==='left'?'왼쪽 면 없음':'오른쪽 면 없음'));
- const page=h('article',{class:'spread-page kind-'+p.kind+' type-'+(p.type||'news'),'data-side':side},h('span',{class:'spread-page-side'},side==='left'?'L':'R'),h('span',{class:'spread-page-folio'},p.folio),h('span',{class:'spread-page-kind'},p.label||p.kind));
+ const running=matter?WoonbiMagazine.runningHead(p,matter):'',page=h('article',{class:'spread-page kind-'+p.kind+' type-'+(p.type||'news'),'data-side':side},h('span',{class:'spread-page-side'},side==='left'?'L':'R'),h('span',{class:'spread-page-folio'},p.folio),running?h('span',{class:'spread-running-head'},running):null,h('span',{class:'spread-page-kind'},p.label||p.kind));
  if(p.kind==='article'){
   const article=items.find(a=>a.id===p.articleId),layout=spreadLayout(p),canvas=h('div',{class:'spread-page-canvas'}),photo=article?.photos?.[0]||null;
-  if(photo){const media=h('div',{class:'spread-edit-photo',style:'left:'+layout.photo.x+'%;top:'+layout.photo.y+'%;width:'+layout.photo.w+'%;height:'+layout.photo.h+'%;'},await imageNode(photo));bindSpreadDrag(media,canvas,layout.key,'photo',layout.photo);canvas.append(media);}
+  if(photo){const media=h('div',{class:'spread-edit-photo',style:'left:'+layout.photo.x+'%;top:'+layout.photo.y+'%;width:'+layout.photo.w+'%;height:'+layout.photo.h+'%;'},await imageNode(photo));bindSpreadDrag(media,canvas,layout.key,'photo',layout.photo);attachSpreadResizeHandles(media,canvas,layout.key,'photo',layout.photo);canvas.append(media);}
   const title=h('h4',{class:'spread-edit-title',style:'left:'+layout.title.x+'%;top:'+layout.title.y+'%;width:'+layout.title.w+'%;'},p.title||'');bindSpreadDrag(title,canvas,layout.key,'title',layout.title);canvas.append(title);
-  canvas.append(h('div',{class:'spread-edit-hint'},'제목·대표사진을 드래그해 위치 조정'));
+  canvas.append(h('div',{class:'spread-edit-hint'},'드래그 이동 · 사진 모서리 리사이즈 · 중앙/여백/3분할 스냅'));
   page.append(canvas,h('small',{class:'spread-template-note'},(p.template||'')+(p.i?' · 이어지는 면 '+(p.i+1):'')+(p.photoCount?' · 사진 '+p.photoCount:'')),button('이 면 위치 초기화',()=>{delete issueSpreadOverrides[layout.key];saveIssueLayoutState();toast('이 면의 수동 위치를 초기화했습니다.');},'spread-reset'));
  }else{
   page.append(h('h4',{},p.title||''),p.kind==='blank'?h('small',{},'4배수 인쇄를 위한 자동 여백면'):null);
@@ -635,14 +705,14 @@ async function spreadPageCell(p,side,items=[]){
  return page;
 }
 async function magazineSpreadNode(items,title='웅비 · 2026 편집본'){
- const map=WoonbiMagazine.spreadMap(items,title),section=h('section',{class:'magazine-spread-view-panel'});
- const head=h('div',{class:'magazine-plan-head'},h('div',{},h('span',{class:'eyebrow'},'SPREAD VIEW'),h('h2',{},'좌우 펼침면 조판 · 드래그 편집')),h('p',{},'기사면의 제목과 대표사진을 직접 드래그해 배치합니다. 위치는 이 브라우저에 저장되고 인쇄소 전달 묶음에도 포함됩니다.'));
+ const map=WoonbiMagazine.spreadMap(items,title),matter=WoonbiMagazine.publicationMatter(items,title,{year:2026,school:'포항고등학교',edition:'雄飛 VOL.42'}),section=h('section',{class:'magazine-spread-view-panel'});
+ const head=h('div',{class:'magazine-plan-head'},h('div',{},h('span',{class:'eyebrow'},'SPREAD VIEW'),h('h2',{},'좌우 펼침면 조판 · 드래그 편집')),h('p',{},'기사면의 제목과 대표사진을 직접 드래그·리사이즈하고 스냅 가이드로 정렬합니다. 러닝헤드와 쪽번호도 실제 페이지 기준으로 표시합니다.'));
  const list=h('div',{class:'magazine-spread-view'});
  for(const sp of map.spreads){
   const row=h('section',{class:'magazine-spread-row kind-'+sp.kind},h('div',{class:'spread-label'},sp.label));
-  if(sp.kind==='cover')row.append(await spreadPageCell(null,'left',items),await spreadPageCell(sp.right,'right',items));
-  else if(sp.kind==='backcover')row.append(await spreadPageCell(sp.left,'left',items),await spreadPageCell(null,'right',items));
-  else row.append(await spreadPageCell(sp.left,'left',items),h('div',{class:'spread-gutter','aria-hidden':'true'}),await spreadPageCell(sp.right,'right',items));
+  if(sp.kind==='cover')row.append(await spreadPageCell(null,'left',items,matter),await spreadPageCell(sp.right,'right',items,matter));
+  else if(sp.kind==='backcover')row.append(await spreadPageCell(sp.left,'left',items,matter),await spreadPageCell(null,'right',items,matter));
+  else row.append(await spreadPageCell(sp.left,'left',items,matter),h('div',{class:'spread-gutter','aria-hidden':'true'}),await spreadPageCell(sp.right,'right',items,matter));
   list.append(row);
  }
  section.append(head,list);return section;
@@ -662,25 +732,46 @@ async function renderBook(){if(!C.teacher(user))return renderPending();const art
  function renderOrder(){order.replaceChildren();if(!issueSelection.length)order.append(h('li',{class:'muted'},'왼쪽에서 기사를 골라 주세요.'));for(const [i,id] of issueSelection.entries()){const up=button('↑',()=>{if(i>0){[issueSelection[i-1],issueSelection[i]]=[issueSelection[i],issueSelection[i-1]];renderOrder();}}),down=button('↓',()=>{if(i<issueSelection.length-1){[issueSelection[i+1],issueSelection[i]]=[issueSelection[i],issueSelection[i+1]];renderOrder();}});up.setAttribute('aria-label','기사 순서 올리기');down.setAttribute('aria-label','기사 순서 내리기');order.append(h('li',{},h('span',{},`${i+1}. ${all.get(id).title}`),up,down));}refreshMagazineExtras().catch(showError);}
  for(const a of articles){const check=h('input',{type:'checkbox',value:a.id,checked:issueSelection.includes(a.id)});check.addEventListener('change',()=>{issueSelection=check.checked?[...issueSelection,a.id]:issueSelection.filter(id=>id!==a.id);renderOrder();});pick.append(h('label',{class:'check'},check,h('span',{},a.title)));}
  if(!articles.length)pick.append(h('p',{class:'muted'},'책 수록이 승인된 기사가 아직 없습니다.'));
- main.replaceChildren(head,h('div',{class:'split'},h('section',{class:'panel'},h('h2',{},'수록 기사 선택'),pick),h('section',{class:'panel'},h('label',{},'책 제목',title),h('label',{},'최종 인쇄 판형',profileSelect),h('h3',{},'목차 순서'),order,button('확정본 만들고 미리보기',async()=>{const issue=await store.makeIssue(issueSelection,title.value);toast('원고 확정본을 저장했습니다.');await openIssue(issue);},'primary'))),coverBox,coverMockups,pageMapBox,spreadBox,preflightBox,livePlan,h('section',{class:'panel'},h('h2',{},'보관한 확정본'),archives),h('p',{class:'small muted'},'기본 A4 검토용 출력입니다. 인쇄소용 PDF/X, 재단선·도련, 정밀 쪽번호와 자동 조판 검수는 후속 단계입니다.'));renderOrder();
+ main.replaceChildren(head,h('div',{class:'split'},h('section',{class:'panel'},h('h2',{},'수록 기사 선택'),pick),h('section',{class:'panel'},h('label',{},'책 제목',title),h('label',{},'최종 인쇄 판형',profileSelect),h('h3',{},'목차 순서'),order,button('확정본 만들고 미리보기',async()=>{const issue=await store.makeIssue(issueSelection,title.value);toast('원고 확정본을 저장했습니다.');await openIssue(issue);},'primary'))),coverBox,coverMockups,pageMapBox,spreadBox,preflightBox,livePlan,h('section',{class:'panel'},h('h2',{},'보관한 확정본'),archives),h('p',{class:'small muted'},'선택한 판형의 검토용 PDF에 도련·재단선·안전영역·러닝헤드·쪽번호를 표시합니다. PDF/X 최종 변환은 인쇄소 환경에서 확인하세요.'));renderOrder();
  for(const issue of await store.listIssues())archives.append(h('div',{class:'archive-row'},h('span',{},issue.title),button('확정본 열기',async()=>openIssue(await store.getIssue(issue.id)))));}
+function decoratePrintSheet(sheet,page,matter,folioText){
+ if(!sheet||!page||['cover','backcover'].includes(page.kind))return sheet;
+ const running=WoonbiMagazine.runningHead(page,matter),n=Number(String(page.folio||'').replace(/\D/g,'')),side=n&&n%2?'right':'left';
+ if(running)sheet.append(h('div',{class:'book-running-head'},running));
+ if(folioText)sheet.append(h('span',{class:'book-page-number '+side},folioText));
+ return sheet;
+}
+function articleFolioRange(pack,articleId){
+ const pages=pack.pages.filter(p=>p.kind==='article'&&p.articleId===articleId);if(!pages.length)return '';
+ return pages.length===1?String(pages[0].folio):String(pages[0].folio)+'–'+String(pages.at(-1).folio);
+}
 async function bookNode(issue){
- const pack=WoonbiMagazine.printPackage(issue.items,issue.title,issuePrintProfile),root=h('div',{class:'book-preview'}),coverArticle=issue.items.find(a=>a.id===issueCoverArticleId)||issue.items[0]||null,coverPhoto=coverArticle?coverCandidateScore(coverArticle).photo:null;
+ const pack=WoonbiMagazine.printPackage(issue.items,issue.title,issuePrintProfile),matter=WoonbiMagazine.publicationMatter(issue.items,issue.title,{year:2026,school:'포항고등학교',edition:'雄飛 VOL.42',site:location.host}),root=h('div',{class:'book-preview'}),coverArticle=issue.items.find(a=>a.id===issueCoverArticleId)||issue.items[0]||null,coverPhoto=coverArticle?coverCandidateScore(coverArticle).photo:null;
  const cover=h('section',{class:'book-cover print-cover print-sheet cover-style-'+issueCoverStyle},
-  h('div',{class:'print-cover-brand'},h('strong',{},'雄飛'),h('span',{},'WOONBI · VOL.42 / 2026')),
+  h('div',{class:'print-cover-brand'},h('strong',{},'雄飛'),h('span',{},matter.edition+' / '+matter.year)),
   coverPhoto?await imageNode(coverPhoto):h('div',{class:'print-cover-placeholder'},'雄飛'),
-  h('div',{class:'print-cover-title'},h('p',{},'포항고등학교 교지'),h('h1',{},coverArticle?.title||issue.title),h('p',{},coverArticle?.deck||`${issue.items.length}편 · 원고 확정본`)),
+  h('div',{class:'print-cover-title'},h('p',{},matter.school+' 교지'),h('h1',{},coverArticle?.title||issue.title),h('p',{},coverArticle?.deck||`${issue.items.length}편 · 원고 확정본`)),
   h('p',{class:'small'},`확정 ${issue.createdAt.slice(0,10)}${store.mode==='demo'?' · 로컬 저장 원고의 검토용 출력':''}`));
- const toc=h('section',{class:'book-toc print-sheet'},h('h2',{},'목차'),h('p',{class:'book-toc-deck'},issue.title),h('ol',{},issue.items.map((a,i)=>{const p=W.editorialLayout?.plan?.(a)||{pages:1,label:'SCHOOL NEWS'};return h('li',{},h('span',{},String(i+1).padStart(2,'0')),h('b',{},a.title),h('small',{},(p.label||p.type)+' · '+p.pages+'p'));})));
- root.append(cover,toc);let previousType='';
+ const tocPage=pack.pages.find(p=>p.kind==='contents'),toc=h('section',{class:'book-toc print-sheet'},h('h2',{},'목차'),h('p',{class:'book-toc-deck'},issue.title),h('ol',{},issue.items.map((a,i)=>{const p=W.editorialLayout?.plan?.(a)||{pages:1,label:'SCHOOL NEWS'};return h('li',{},h('span',{},String(i+1).padStart(2,'0')),h('b',{},a.title),h('small',{},(p.label||p.type)+' · '+p.pages+'p'));})));
+ decoratePrintSheet(toc,tocPage,matter,tocPage?.folio||'TOC');root.append(cover,toc);let previousType='';const usedOpeners=new Set();
  for(const a of issue.items){
   const node=await renderArticle(a),layout=W.editorialLayout?.plan?.(a)||{type:'news',label:'SCHOOL NEWS',pages:1,template:'news-1p'};
-  if(layout.type!==previousType){root.append(h('section',{class:'book-section-opener print-sheet type-'+layout.type},h('span',{class:'eyebrow'},layout.label||layout.type),h('h2',{},layout.label||layout.type),h('p',{},'웅비 · '+issue.title)));previousType=layout.type;}
-  node.classList.add('magazine-template','magazine-'+layout.type,'print-sheet');node.dataset.magazineTemplate=layout.template;node.dataset.magazinePages=String(layout.pages);root.append(node);
+  if(layout.type!==previousType){
+   const openerPage=pack.pages.find(p=>p.kind==='opener'&&p.type===layout.type&&!usedOpeners.has(p.folio));if(openerPage)usedOpeners.add(openerPage.folio);
+   const opener=h('section',{class:'book-section-opener print-sheet type-'+layout.type},h('span',{class:'eyebrow'},layout.label||layout.type),h('h2',{},layout.label||layout.type),h('p',{},matter.edition+' · '+issue.title));
+   decoratePrintSheet(opener,openerPage,matter,openerPage?.folio||'');root.append(opener);previousType=layout.type;
+  }
+  const firstPage=pack.pages.find(p=>p.kind==='article'&&p.articleId===a.id);
+  node.classList.add('magazine-template','magazine-'+layout.type,'print-sheet');node.dataset.magazineTemplate=layout.template;node.dataset.magazinePages=String(layout.pages);node.dataset.logicalFolio=articleFolioRange(pack,a.id);
+  decoratePrintSheet(node,firstPage,matter,articleFolioRange(pack,a.id));root.append(node);
  }
- root.append(h('section',{class:'book-colophon print-sheet'},h('span',{class:'eyebrow'},'COLOPHON'),h('h2',{},'편집 후기 · 제작진 · 사진 출처'),h('p',{},'기사별 필자·사진 캡션·출처와 편집 기록을 최종 인쇄 전 확인하는 면입니다.')));
- for(let i=0;i<pack.blankCount;i++)root.append(h('section',{class:'book-blank-page print-sheet'},h('span',{},'자동 여백면'),h('small',{},'인쇄 4배수 조정을 위해 삽입됨')));
- root.append(h('section',{class:'book-back-cover print-sheet'},h('strong',{},'雄飛'),h('p',{},'우리의 학교, 우리의 기록'),h('small',{},'포항고등학교 학생 웹진 · WOONBI')));
+ const colPage=pack.pages.find(p=>p.kind==='colophon'),credits=h('section',{class:'book-colophon print-sheet'},h('span',{class:'eyebrow'},'CREDITS / COLOPHON'),h('h2',{},'제작진 · 판권'),h('div',{class:'book-credits-grid'},
+  h('div',{},h('b',{},'발행'),h('p',{},matter.publisher),h('b',{},'학교'),h('p',{},matter.school),h('b',{},'발행연도'),h('p',{},String(matter.year)),h('b',{},'웹'),h('p',{},matter.site)),
+  h('div',{},h('b',{},'필자·편집 참여'),h('p',{},matter.writers.length?matter.writers.join(' · '):'기사별 필자 표기 참조'),h('b',{},'사진'),h('p',{},matter.photographers.length?matter.photographers.join(' · '):'기사별 사진 캡션·출처 참조'))),
+  h('p',{class:'book-copyright'},matter.copyright),h('p',{class:'small muted'},'자동 생성일 '+new Date(matter.generatedAt).toLocaleString('ko-KR')));
+ decoratePrintSheet(credits,colPage,matter,colPage?.folio||'');root.append(credits);
+ const blankPages=pack.pages.filter(p=>p.kind==='blank');for(const bp of blankPages){const blank=h('section',{class:'book-blank-page print-sheet'},h('span',{},'자동 여백면'),h('small',{},'인쇄 4배수 조정을 위해 삽입됨'));decoratePrintSheet(blank,bp,matter,bp.folio);root.append(blank);}
+ root.append(h('section',{class:'book-back-cover print-sheet'},h('strong',{},'雄飛'),h('p',{},'우리의 학교, 우리의 기록'),h('small',{},matter.school+' · '+matter.edition)));
  return root;
 }
 
@@ -689,7 +780,7 @@ function applyPrintProfileStyle(profileId=issuePrintProfile){
  style.textContent='@media print{'+
   '@page{size:'+p.fullWidthMm+'mm '+p.fullHeightMm+'mm;margin:0}'+
   '#printArea{--trim-w:'+p.trimWidthMm+'mm;--trim-h:'+p.trimHeightMm+'mm;--bleed:'+p.bleedMm+'mm;--safe:'+p.safeMm+'mm}'+
-  '#printArea .print-sheet{position:relative!important;box-sizing:border-box!important;width:'+p.fullWidthMm+'mm!important;min-height:'+p.fullHeightMm+'mm!important;margin:0!important;padding:'+p.bleedMm+'mm!important;break-after:page!important;overflow:hidden!important}'+
+  '#printArea .print-sheet{position:relative!important;box-sizing:border-box!important;width:'+p.fullWidthMm+'mm!important;min-height:'+p.fullHeightMm+'mm!important;margin:0!important;padding:'+(p.bleedMm+p.safeMm)+'mm!important;break-after:page!important;overflow:hidden!important}'+
   '#printArea .print-sheet:before{content:\'\';position:absolute;z-index:50;pointer-events:none;left:'+p.bleedMm+'mm;top:'+p.bleedMm+'mm;width:'+p.trimWidthMm+'mm;height:'+p.trimHeightMm+'mm;box-sizing:border-box;border:.12mm solid rgba(0,0,0,.48)}'+
   '#printArea .print-sheet:after{content:\'TRIM '+p.trimWidthMm+'x'+p.trimHeightMm+'mm · BLEED '+p.bleedMm+'mm · '+p.dpi+'dpi\';position:absolute;z-index:51;left:'+(p.bleedMm+2)+'mm;bottom:'+(p.bleedMm+1)+'mm;font:6pt/1 sans-serif;color:#555;background:#fff;padding:.5mm 1mm}'+
   '#printArea .print-safe-guide{position:absolute;pointer-events:none;z-index:49;left:'+(p.bleedMm+p.safeMm)+'mm;top:'+(p.bleedMm+p.safeMm)+'mm;width:'+(p.trimWidthMm-p.safeMm*2)+'mm;height:'+(p.trimHeightMm-p.safeMm*2)+'mm;border:.1mm dashed rgba(160,0,0,.35)}'+
