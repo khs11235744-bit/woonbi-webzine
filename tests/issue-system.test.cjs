@@ -48,11 +48,12 @@ test('footer keeps Korean navigation labels intact at tablet and desktop widths'
 
 test('article photo desk exposes lead recommendation and print readiness',()=>{
  const app=fs.readFileSync('web/js/app.js','utf8');
+ const photo=fs.readFileSync('web/js/photo-editor.js','utf8');
  const css=fs.readFileSync('web/editorial-polish.css','utf8');
  assert.match(app,/대표사진 자동추천/);
  assert.match(app,/photoHealthSummary/);
- assert.match(app,/인쇄용 충분/);
- assert.match(app,/저해상도 · 교체 권장/);
+ assert.match(photo,/인쇄용 충분/);
+ assert.match(photo,/저해상도 · 교체 권장/);
  assert.match(app,/사진 크게 보기/);
  assert.match(css,/\.photo-box\.is-cover/);
  assert.match(css,/\.editor-photo-preview/);

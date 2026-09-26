@@ -200,7 +200,7 @@ async function openEditor(id){
  const drop=h('div',{class:'photo-dropzone',role:'button',tabindex:writable?0:-1,'aria-disabled':String(!writable)},h('strong',{},'사진을 여기로 끌어오거나 눌러 선택'),h('span',{},'JPG · PNG · WebP / 장당 25MB / 웹용 WebP 자동 생성'));
  if(writable){drop.addEventListener('click',()=>file.click());drop.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();file.click();}});for(const ev of ['dragenter','dragover'])drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('is-drag');});for(const ev of ['dragleave','drop'])drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('is-drag');});drop.addEventListener('drop',e=>uploadFiles(e.dataTransfer.files).catch(showError));}
  const planPanel=photoPlanPanel(edit,writable);
- const photos=h('section',{class:'editor-photos'},h('div',{class:'photo-section-head'},h('div',{},h('h2',{},'사진'),h('p',{class:'muted small'},'첫 번째 사진이 대표사진입니다. 원본은 비공개 보관하고 1600px 이하 WebP 공개용 파생본을 자동 생성합니다.')),h('span',{class:'photo-count'},edit.photos.length+'/12')),file,drop,h('div',{class:'photo-tools'},button('사진 여러 장 올리기',()=>{if(writable)file.click();}),button('대표사진 자동추천',()=>{if(!writable||edit.photos.length<2)return;const best=WoonbiMagazine.coverScore(edit).photo;if(!best)return toast('추천할 사진이 없습니다.');if(edit.photos[0]?.id===best.id)return toast('현재 대표사진이 가장 적합합니다.');movePhoto(best.id,0);toast('해상도가 가장 좋은 사진을 대표사진으로 올렸습니다.');},'text'),h('span',{id:'photoHealth',class:'photo-health'})),planPanel,h('div',{id:'uploadProgress','aria-live':'polite'}),h('div',{class:'photo-grid',id:'photoGrid'}));
+ const photos=h('section',{class:'editor-photos'},h('div',{class:'photo-section-head'},h('div',{},h('h2',{},'사진'),h('p',{class:'muted small'},'첫 번째 사진이 대표사진입니다. 원본은 비공개 보관하고 1600px 이하 WebP 공개용 파생본을 자동 생성합니다.')),h('span',{class:'photo-count'},edit.photos.length+'/12')),file,drop,h('div',{class:'photo-tools'},button('사진 여러 장 올리기',()=>{if(writable)file.click();}),button('대표사진 자동추천',()=>{if(!writable||edit.photos.length<2)return;const bestId=WoonbiPhotoEditor.bestLeadId(edit);if(!bestId)return toast('추천할 사진이 없습니다.');if(edit.photos[0]?.id===bestId)return toast('현재 대표사진이 가장 적합합니다.');movePhoto(bestId,0);toast('해상도가 가장 좋은 사진을 대표사진으로 올렸습니다.');},'text'),h('span',{id:'photoHealth',class:'photo-health'})),planPanel,h('div',{id:'uploadProgress','aria-live':'polite'}),h('div',{class:'photo-grid',id:'photoGrid'}));
  if(!writable){drop.classList.add('disabled');photos.querySelector('.photo-tools').hidden=true;}
  const top=h('div',{class:'editor-top'},button('← 기사 목록',()=>navigate('articles'),'text'),h('span',{class:'badge '+edit.status},articleState(edit)),h('span',{id:'saveStatus',class:'save-status'},store.mode==='demo'?(store.persistence==='memory'?'이 탭에만 임시 저장됨':'이 기기에 저장됨'):'학교 서버에서 불러옴'));
  main.replaceChildren(top,h('div',{class:'notice',id:'remoteNotice',hidden:true},'기사가 변경되었습니다. 같은 원고를 다른 탭에서 편집했다면 저장할 때 버전을 다시 확인합니다.'),h('div',{class:'notice error',id:'conflictBox',hidden:true}),h('div',{class:'editor-grid'},h('div',{},edit.feedback?h('div',{class:'notice warn'},h('b',{},'수정 의견'),h('p',{},edit.feedback)):null,planBrief(edit),edit.contentOrigin?newsroom.editorialNotes(edit):null,writing,h('div',{style:'height:28px'}),photos),side));
@@ -235,12 +235,7 @@ async function replacePhoto(id,file){
  }catch(e){if(edit.photos[index]?.id!==previous.id){edit.photos[index]=previous;buffer();}throw e;}
  finally{uploading=false;root.textContent='';}
 }
-function photoHealthSummary(photos=[]){
- const missingCaption=photos.filter(p=>!String(p.caption||'').trim()).length;
- const missingAlt=photos.filter(p=>!String(p.alt||'').trim()).length;
- const lowRes=photos.filter(p=>Number(p.width||0)&&Number(p.width||0)<1600).length;
- return {missingCaption,missingAlt,lowRes,ok:photos.length>0&&!missingAlt&&!lowRes};
-}
+const photoHealthSummary=photos=>WoonbiPhotoEditor.health(photos);
 async function previewEditorPhoto(p,index,total){
  const img=await imageNode(p),meta=h('div',{class:'editor-photo-preview-meta'},
   h('b',{},(index===0?'대표사진 · ':'본문 사진 '+(index+1)+' · ')+(p.caption||'설명 미입력')),
@@ -265,7 +260,7 @@ async function renderPhotoGrid(){
    box.addEventListener('dragleave',()=>box.classList.remove('drag-over'));
    box.addEventListener('drop',e=>{e.preventDefault();box.classList.remove('drag-over');const source=e.dataTransfer.getData('text/plain');movePhoto(source,i);});
   }
-  const visual=h('div',{class:'photo-box-visual'},await imageNode(p),h('span',{class:'photo-role '+(i===0?'cover':'body')},i===0?'대표사진':'본문 '+i),button('크게 보기',()=>previewEditorPhoto(p,i,a.photos.length).catch(showError),'photo-preview-button'));
+  const visual=h('div',{class:'photo-box-visual'},await imageNode(p),h('span',{class:'photo-role '+(i===0?'cover':'body')},WoonbiPhotoEditor.role(i)),button('크게 보기',()=>previewEditorPhoto(p,i,a.photos.length).catch(showError),'photo-preview-button'));
   box.append(visual);
   if(W.editorial.sample(p))box.append(h('span',{class:'sample-badge'},'교체용 예시 · 올해 현장 아님'));
   const caption=h('input',{value:p.caption,maxlength:300,disabled:!writable,placeholder:'무엇을 찍은 사진인지 짧게 설명'}),alt=h('input',{value:p.alt,maxlength:200,disabled:!writable,placeholder:'사진을 보지 못해도 이해할 수 있는 설명'}),pos=h('select',{disabled:!writable},h('option',{value:-1},i===0?'자동 · 대표사진':'자동 · 본문 사이'));
@@ -274,8 +269,8 @@ async function renderPhotoGrid(){
   caption.addEventListener('input',()=>{const x=livePhoto();if(x){x.caption=caption.value;changed();}});
   alt.addEventListener('input',()=>{const x=livePhoto();if(x){x.alt=alt.value;changed();}});
   pos.addEventListener('change',()=>{const x=livePhoto();if(x){x.after=Number(pos.value);changed();}});
-  const quality=Number(p.width||0)>=2400?'인쇄용 충분':Number(p.width||0)>=1600?'웹 충분 · 인쇄 확인':Number(p.width||0)>0?'저해상도 · 교체 권장':'해상도 미확인';
-  box.append(h('div',{class:'photo-quality '+(quality.startsWith('저해상도')?'warn':'')},quality),h('label',{},'사진 설명',caption),h('label',{},'사진 대체 설명',alt),h('label',{},'본문 배치',pos),h('span',{class:'small muted'},`${p.width||'?'}×${p.height||'?'}${p.originalBytes?' · 원본 '+(p.originalBytes/1024/1024).toFixed(1)+'MB':''}`));
+  const quality=WoonbiPhotoEditor.quality(p);
+  box.append(h('div',{class:'photo-quality '+(quality.level==='warn'?'warn':'')},quality.label),h('label',{},'사진 설명',caption),h('label',{},'사진 대체 설명',alt),h('label',{},'본문 배치',pos),h('span',{class:'small muted'},`${p.width||'?'}×${p.height||'?'}${p.originalBytes?' · 원본 '+(p.originalBytes/1024/1024).toFixed(1)+'MB':''}`));
   if(writable){
    const replacement=h('input',{type:'file',accept:'image/jpeg,image/png,image/webp',class:'replace-input',hidden:true,'aria-label':'이 사진 교체'});
    replacement.addEventListener('change',()=>replacePhoto(p.id,replacement.files[0]).catch(showError));
