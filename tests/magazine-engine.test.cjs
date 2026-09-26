@@ -54,3 +54,25 @@ test('full issue page map includes cover contents section openers colophon back 
  assert.equal(map.pages.at(-1).kind,'backcover');
  assert.equal(map.pages.length%4,0);
 });
+
+
+test('spread map pairs inside pages as left and right while keeping covers single',()=>{
+ const items=[{id:'a',title:'기사',photos:[{width:2400,height:1600,alt:'사진',caption:'설명'}],_plan:{type:'news',template:'news-1p',pages:1,label:'SCHOOL NEWS'}}];
+ const m=M.spreadMap(items,'웅비');
+ assert.equal(m.spreads[0].kind,'cover');
+ assert.equal(m.spreads.at(-1).kind,'backcover');
+ const inside=m.spreads.find(x=>x.kind==='spread');
+ assert.ok(inside.left);
+ assert.ok(inside.right);
+});
+
+test('print package emits sequential PDF order, checklist, and automatic blank pages',()=>{
+ const items=[{id:'a',title:'기사',deck:'부제',body:'본문',photos:[{width:2400,height:1600,alt:'사진',caption:'설명'}],_plan:{type:'news',template:'news-1p',pages:1,label:'SCHOOL NEWS'}}];
+ const p=M.printPackage(items,'웅비');
+ assert.equal(p.pdfOrder.length%4,0);
+ assert.ok(p.blankCount>0);
+ assert.equal(p.pdfOrder[0].side,'front-cover');
+ assert.equal(p.pdfOrder.at(-1).side,'back-cover');
+ assert.ok(p.checks.some(x=>x.id==='pages4'&&x.severity==='ok'));
+ assert.equal(p.ready,true);
+});

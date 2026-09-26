@@ -18,3 +18,12 @@ test('similarity clusters group duplicates and choose one best row',()=>{
  assert.equal(groups[0].length,3);
  assert.equal(P.bestRow(groups[0]).key,'b');
 });
+
+
+test('best row uses visual quality as part of burst selection',()=>{
+ const group=[
+  {key:'big',width:3200,height:2200,size:2000,score:1,quality:{overall:35}},
+  {key:'clean',width:2600,height:1800,size:1800,score:1,quality:{overall:95}}
+ ];
+ assert.equal(P.bestRow(group).key,'clean');
+});

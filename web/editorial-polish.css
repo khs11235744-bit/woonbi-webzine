@@ -1184,3 +1184,78 @@ body{background:var(--paper)}
  .magazine-page-map{grid-template-columns:1fr 1fr}
  .magazine-page-cell.kind-cover,.magazine-page-cell.kind-opener,.magazine-page-cell.kind-backcover{grid-column:span 2}
 }
+
+
+/* Q1 spread view — left/right pages with a visible gutter. */
+.magazine-spread-view-panel{margin:28px 0 0;border-top:4px solid var(--ink);padding-top:18px}
+.magazine-spread-view{display:grid;gap:18px}
+.magazine-spread-row{display:grid;grid-template-columns:minmax(0,1fr) 10px minmax(0,1fr);gap:0;align-items:stretch}
+.magazine-spread-row.kind-cover,.magazine-spread-row.kind-backcover{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.spread-label{grid-column:1/-1;font-size:8px;letter-spacing:.14em;color:var(--muted);margin-bottom:5px}
+.spread-gutter{background:linear-gradient(90deg,transparent,#b9b0a2 50%,transparent)}
+.spread-page{position:relative;min-height:310px;border:1px solid var(--line);background:#f8f3e9;padding:18px 16px;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden}
+.spread-page[data-side="left"]{border-right-color:#8d877d}
+.spread-page[data-side="right"]{border-left-color:#8d877d}
+.spread-page.empty-side{border-style:dashed;background:transparent;color:var(--muted);place-content:center;text-align:center}
+.spread-page h4{font:800 24px/1.08 var(--serif);letter-spacing:-.04em;max-width:88%;margin:7px 0}
+.spread-page small{font-size:8px;color:var(--muted)}
+.spread-page-side{position:absolute;left:9px;top:9px;font:700 8px/1 var(--sans);color:var(--muted)}
+.spread-page-folio{position:absolute;right:9px;top:9px;font:700 9px/1 Georgia,serif;color:var(--accent)}
+.spread-page-kind{font-size:8px;letter-spacing:.13em;color:var(--muted)}
+.spread-page.kind-cover,.spread-page.kind-backcover{background:var(--navy);color:var(--paper);min-height:350px}
+.spread-page.kind-cover h4,.spread-page.kind-backcover h4{font-size:32px}
+.spread-page.kind-opener{background:var(--ink);color:var(--paper)}
+.spread-page.kind-article.type-photo{background:#191919;color:#f4f0e7}
+.spread-page.kind-article.type-feature{border-top:6px solid var(--accent)}
+.spread-page.kind-article.type-research{background:#ecebe5}
+.spread-page.kind-blank{border-style:dashed;background:transparent;color:var(--muted)}
+@media(max-width:720px){
+ .magazine-spread-row,.magazine-spread-row.kind-cover,.magazine-spread-row.kind-backcover{grid-template-columns:1fr}
+ .spread-gutter{display:none}
+ .spread-page{min-height:230px}
+ .spread-page.empty-side{display:none}
+}
+
+/* Q3 print preflight and sequential PDF order. */
+.print-preflight-panel{margin:28px 0 0;border-top:4px solid var(--ink);padding-top:18px}
+.print-check-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+.print-check{display:grid;gap:5px;border:1px solid var(--line);padding:10px;background:#fff}
+.print-check.ok{border-top:3px solid #58705d}
+.print-check.warn{border-top:3px solid #b27a2e;background:#fff9ec}
+.print-check.error{border-top:3px solid var(--accent);background:#fff0ed}
+.check-state{font:800 8px/1 var(--sans);letter-spacing:.12em;color:var(--muted)}
+.print-check.warn .check-state{color:#8a5b1c}.print-check.error .check-state{color:var(--accent)}
+.print-check b{font:800 14px/1.2 var(--serif)}.print-check small{font-size:9px;color:var(--muted)}
+.print-ready{margin:12px 0;padding:10px 12px;border-left:4px solid var(--line);font-size:10px;font-weight:700}
+.print-ready.ready{border-color:#58705d;color:#3f6047}.print-ready.blocked{border-color:var(--accent);color:var(--accent)}
+.pdf-order{border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:10px 0}
+.pdf-order summary{cursor:pointer;font-weight:800;font-size:11px}
+.pdf-order ol{list-style:none;margin:10px 0 0;padding:0;max-height:360px;overflow:auto}
+.pdf-order li{display:grid;grid-template-columns:38px 90px minmax(0,1fr) 150px;gap:8px;border-top:1px solid #ddd6ca;padding:7px 4px;align-items:baseline}
+.pdf-order li>span:first-child{font:700 9px/1 Georgia,serif;color:var(--accent)}
+.pdf-order li>b{font-size:10px}.pdf-order li>span:nth-child(3){font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pdf-order li small{font-size:8px;color:var(--muted)}
+@media(max-width:700px){.pdf-order li{grid-template-columns:32px 70px minmax(0,1fr)}.pdf-order li small{grid-column:2/-1}}
+
+
+/* Uploaded photo visual quality score. */
+.photo-quality{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
+.photo-quality-score{font-size:8px;line-height:1.45;color:var(--muted);font-weight:500}
+
+/* Actual review-book structural pages. */
+.book-section-opener,.book-blank-page{break-after:page;min-height:900px;padding:70px 52px}
+.book-section-opener{display:flex;flex-direction:column;justify-content:flex-end;background:var(--ink);color:var(--paper)}
+.book-section-opener h2{font:800 64px/1 var(--serif);letter-spacing:-.05em;max-width:75%;margin:12px 0 18px}
+.book-section-opener p{font-size:11px;letter-spacing:.08em}
+.book-section-opener.type-photo{background:#171717}
+.book-section-opener.type-research{background:#31434e}
+.book-section-opener.type-portrait{background:#594b41}
+.book-section-opener.type-essay{background:#e8e0d2;color:var(--ink)}
+.book-section-opener.type-feature{background:var(--navy)}
+.book-section-opener.type-news{background:#343431}
+.book-blank-page{display:grid;place-items:center;text-align:center;border:1px dashed var(--line);color:var(--muted)}
+.book-blank-page span{font:700 18px/1.2 var(--serif)}
+.book-blank-page small{display:block;margin-top:8px;font-size:9px}
+@media(max-width:760px){
+ .book-section-opener,.book-blank-page{min-height:600px;padding:40px 28px}
+ .book-section-opener h2{font-size:42px;max-width:100%}
+}

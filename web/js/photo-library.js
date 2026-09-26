@@ -15,9 +15,9 @@ W.similarityClusters=function(rows=[]){
 };
 W.bestRow=function(group=[]){
  const score=r=>{
-  const area=Number(r.width||0)*Number(r.height||0),mp=area/1000000,match=Number(r.score||0),bytes=Math.min(8,Number(r.size||0)/1024/1024);
+  const area=Number(r.width||0)*Number(r.height||0),mp=area/1000000,match=Number(r.score||0),bytes=Math.min(8,Number(r.size||0)/1024/1024),quality=Number(r.quality?.overall||0);
   const dupPenalty=r.duplicateOf?18:r.nearDuplicateOf?6:0;
-  return mp*8+match*1.5+bytes-dupPenalty;
+  return mp*6+match*1.25+bytes+quality*.65-dupPenalty;
  };
  return [...group].sort((a,b)=>score(b)-score(a)||Number(b.lastModified||0)-Number(a.lastModified||0))[0]||null;
 };

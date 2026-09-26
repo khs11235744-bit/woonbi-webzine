@@ -31,3 +31,21 @@ test('photo roles distinguish cover and body images',()=>{
  assert.equal(P.role(0),'대표사진');
  assert.equal(P.role(2),'본문 2');
 });
+
+
+test('visual metric scoring stays in 0-100 range',()=>{
+ const q=P.scoreMetrics({sharpness:120,exposure:80,composition:70,resolution:90});
+ assert.equal(q.sharpness,100);
+ assert.ok(q.overall>=0&&q.overall<=100);
+ assert.equal(q.exposure,80);
+});
+
+test('image-data analysis scores neutral exposure and high resolution without face detection',()=>{
+ const w=16,h=16,data=new Uint8ClampedArray(w*h*4);
+ for(let i=0;i<data.length;i+=4){data[i]=128;data[i+1]=128;data[i+2]=128;data[i+3]=255;}
+ const q=P.analyzeImageData(data,w,h,3200,2400);
+ assert.equal(q.resolution,96);
+ assert.ok(q.exposure>80);
+ assert.ok(q.composition>=0&&q.composition<=100);
+ assert.ok(q.sharpness>=0&&q.sharpness<=100);
+});

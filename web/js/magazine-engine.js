@@ -2,11 +2,11 @@
 const W=window.WoonbiMagazine=window.WoonbiMagazine||{};
 function editorialPlan(a){return window.Woonbi?.editorialLayout?.plan?.(a)||{type:'news',template:'news-1p',pages:1,label:'SCHOOL NEWS'};}
 W.coverScore=function(a){
- const p=editorialPlan(a),photos=[...(a.photos||[])],bestPhoto=photos.sort((x,y)=>(Number(y.width||0)*Number(y.height||0))-(Number(x.width||0)*Number(x.height||0)))[0]||null,reasons=[];let score=0;
+ const p=editorialPlan(a),photos=[...(a.photos||[])],photoRank=x=>Number(x.quality?.overall||0)*100000000+(Number(x.width||0)*Number(x.height||0)),bestPhoto=photos.sort((x,y)=>photoRank(y)-photoRank(x))[0]||null,reasons=[];let score=0;
  if(p.type==='photo'||p.type==='feature'){score+=30;reasons.push('표지형 기사');}
  else if(p.type==='portrait'){score+=18;reasons.push('인물 중심');}
  else if(p.type==='research'){score+=8;reasons.push('탐구 대표성');}
- if(bestPhoto){const mp=(Number(bestPhoto.width||0)*Number(bestPhoto.height||0))/1000000;score+=Math.min(28,mp*5);reasons.push(Math.round(mp*10)/10+'MP 사진');if(Number(bestPhoto.width||0)>=2000)score+=8;}
+ if(bestPhoto){const mp=(Number(bestPhoto.width||0)*Number(bestPhoto.height||0))/1000000;score+=Math.min(28,mp*5);reasons.push(Math.round(mp*10)/10+'MP 사진');if(Number(bestPhoto.width||0)>=2000)score+=8;if(Number(bestPhoto.quality?.overall)>=70){score+=8;reasons.push('사진 품질 '+bestPhoto.quality.overall+'점');}}
  const title=String(a.title||'');if(title.length>=7&&title.length<=28){score+=12;reasons.push('표지 제목 길이 적합');}else if(title.length<=36)score+=5;
  if(String(a.deck||'').trim())score+=4;if(String(a.body||'').length>900)score+=3;
  return {article:a,plan:p,photo:bestPhoto,score:Math.round(score),reasons};
@@ -46,5 +46,35 @@ W.pageMap=function(items,title='웅비 · 2026 편집본'){
  pages.push({kind:'backcover',label:'뒤표지',title:'우리의 학교, 우리의 기록',folio:'BACK',type:'backcover'});
  while(pages.length%4)pages.splice(pages.length-1,0,{kind:'blank',label:'여백',title:'인쇄 4배수 조정',folio:String(folio++),type:'blank'});
  return {...base,pages,totalSheets:Math.ceil(pages.length/4),mappedPages:pages.length};
+};
+W.spreadMap=function(items,title='웅비 · 2026 편집본'){
+ const map=W.pageMap(items,title),spreads=[];
+ if(!map.pages.length)return {...map,spreads};
+ spreads.push({kind:'cover',no:0,left:null,right:map.pages[0],label:'앞표지'});
+ let i=1,no=1;
+ while(i<map.pages.length-1){
+  spreads.push({kind:'spread',no,left:map.pages[i]||null,right:map.pages[i+1]||null,label:'펼침 '+no});
+  no++;i+=2;
+ }
+ if(i<map.pages.length)spreads.push({kind:'backcover',no,left:map.pages[i],right:null,label:'뒤표지'});
+ return {...map,spreads};
+};
+W.printPackage=function(items,title='웅비 · 2026 편집본'){
+ const map=W.pageMap(items,title),pdfOrder=map.pages.map((p,i)=>({
+  order:i+1,kind:p.kind,folio:p.folio,label:p.label,title:p.title||'',articleId:p.articleId||'',template:p.template||'',
+  side:i===0?'front-cover':i===map.pages.length-1?'back-cover':i%2===1?'left/verso':'right/recto'
+ }));
+ const photos=(items||[]).flatMap(a=>(a.photos||[]).map(p=>({article:a,photo:p}))),blankCount=map.pages.filter(p=>p.kind==='blank').length,lowRes=photos.filter(x=>Number(x.photo.width||0)&&Number(x.photo.width||0)<1600),missingCaption=photos.filter(x=>!String(x.photo.caption||'').trim()),missingAlt=photos.filter(x=>!String(x.photo.alt||'').trim()),articleWarnings=map.plans.flatMap(x=>x.warnings.map(w=>({title:x.a.title,warning:w})));
+ const covers=(items||[]).map(a=>W.coverScore(a)).sort((a,b)=>b.score-a.score),cover=covers[0]||null,checks=[];
+ const add=(id,label,severity,detail)=>checks.push({id,label,severity,detail});
+ add('pages4','전체 쪽수 4배수',map.pages.length%4===0?'ok':'error',map.pages.length+'면');
+ add('articles','수록 기사',map.rows.length?'ok':'error',map.rows.length+'편');
+ add('cover','표지 후보',cover?.photo?'ok':'error',cover?.photo?(cover.article.title+' · '+cover.score+'점'):'대표사진 있는 기사 없음');
+ add('lowres','인쇄 해상도',lowRes.length?'warn':'ok',lowRes.length?lowRes.length+'장 확인 필요':'저해상도 경고 없음');
+ add('captions','사진 설명',missingCaption.length?'warn':'ok',missingCaption.length?missingCaption.length+'장 설명 없음':'사진 설명 확인');
+ add('alt','대체설명',missingAlt.length?'warn':'ok',missingAlt.length?missingAlt.length+'장 누락':'대체설명 확인');
+ add('article-preflight','기사별 조판',articleWarnings.length?'warn':'ok',articleWarnings.length?articleWarnings.length+'건 확인 필요':'기사별 조판 경고 없음');
+ add('blank','자동 여백면','ok',blankCount?blankCount+'면 자동 삽입':'추가 여백면 불필요');
+ return {...map,pdfOrder,checks,blankCount,cover,ready:checks.every(x=>x.severity!=='error'),warningCount:checks.filter(x=>x.severity==='warn').length};
 };
 })();

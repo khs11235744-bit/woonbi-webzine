@@ -89,3 +89,25 @@ test('print editor exposes full issue page map',()=>{
  assert.match(css,/\.magazine-page-map/);
  assert.match(css,/\.magazine-page-cell\.kind-opener/);
 });
+
+
+test('spread and print preflight are visible and exported with handoff',()=>{
+ const app=fs.readFileSync('web/js/app.js','utf8');
+ const css=fs.readFileSync('web/editorial-polish.css','utf8');
+ assert.match(app,/magazineSpreadNode/);
+ assert.match(app,/printPreflightNode/);
+ assert.match(app,/02_PDF페이지순서\.txt/);
+ assert.match(app,/03_인쇄체크리스트\.json/);
+ assert.match(app,/04_펼침면계획\.json/);
+ assert.match(css,/\.magazine-spread-view/);
+ assert.match(css,/\.print-preflight-panel/);
+});
+
+test('review book includes section openers and automatic blank pages',()=>{
+ const app=fs.readFileSync('web/js/app.js','utf8');
+ const css=fs.readFileSync('web/editorial-polish.css','utf8');
+ assert.match(app,/book-section-opener/);
+ assert.match(app,/book-blank-page/);
+ assert.match(css,/\.book-section-opener/);
+ assert.match(css,/\.book-blank-page/);
+});

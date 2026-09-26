@@ -25,9 +25,9 @@ if(fs.existsSync(referencePath)){
   if(!fs.readFileSync('package.json','utf8').includes('tests/photo-editor.test.cjs'))throw new Error('Photo editor regression test must remain in npm test.');
   if(!fs.readFileSync('package.json','utf8').includes('tests/magazine-engine.test.cjs'))throw new Error('Magazine engine regression test must remain in npm test.');
   const appText=fs.readFileSync('web/js/app.js','utf8');
-  if(!appText.includes('01_잡지조판계획.json')||!appText.includes('dataset.magazineTemplate'))throw new Error('Magazine-ready layout handoff must remain wired.');
+  if(!appText.includes('01_잡지조판계획.json')||!appText.includes('02_PDF페이지순서.txt')||!appText.includes('03_인쇄체크리스트.json')||!appText.includes('04_펼침면계획.json')||!appText.includes('dataset.magazineTemplate'))throw new Error('Magazine-ready layout handoff must remain wired.');
   if(!fs.readFileSync('package.json','utf8').includes('tests/issue-system.test.cjs'))throw new Error('Issue system regression test must remain in npm test.');
-  for(const required of ['표지 시안 3종','photoLibraryMeta','book-back-cover'])if(!appText.includes(required))throw new Error('Issue system regression: '+required);
+  for(const required of ['표지 시안 3종','photoLibraryMeta','magazineSpreadNode','printPreflightNode','book-back-cover'])if(!appText.includes(required))throw new Error('Issue system regression: '+required);
   const driveBridgeText=fs.readFileSync('web/js/drive-bridge.js','utf8');
   for(const required of ['drive.readonly','drive.file','scanSourceFolder','backupRows','appProperties'])if(!driveBridgeText.includes(required))throw new Error('Drive bridge regression: '+required);
   if(!fs.readFileSync('package.json','utf8').includes('tests/drive-bridge.test.cjs'))throw new Error('Drive bridge regression test must remain in npm test.');

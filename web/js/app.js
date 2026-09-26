@@ -270,7 +270,7 @@ async function renderPhotoGrid(){
   alt.addEventListener('input',()=>{const x=livePhoto();if(x){x.alt=alt.value;changed();}});
   pos.addEventListener('change',()=>{const x=livePhoto();if(x){x.after=Number(pos.value);changed();}});
   const quality=WoonbiPhotoEditor.quality(p);
-  box.append(h('div',{class:'photo-quality '+(quality.level==='warn'?'warn':'')},quality.label),h('label',{},'사진 설명',caption),h('label',{},'사진 대체 설명',alt),h('label',{},'본문 배치',pos),h('span',{class:'small muted'},`${p.width||'?'}×${p.height||'?'}${p.originalBytes?' · 원본 '+(p.originalBytes/1024/1024).toFixed(1)+'MB':''}`));
+  const score=p.quality?.overall!=null?h('span',{class:'photo-quality-score'},'품질 '+p.quality.overall+' · 선명 '+p.quality.sharpness+' · 노출 '+p.quality.exposure+' · 구도 '+p.quality.composition):null;box.append(h('div',{class:'photo-quality '+(quality.level==='warn'?'warn':'')},quality.label,score),h('label',{},'사진 설명',caption),h('label',{},'사진 대체 설명',alt),h('label',{},'본문 배치',pos),h('span',{class:'small muted'},`${p.width||'?'}×${p.height||'?'}${p.originalBytes?' · 원본 '+(p.originalBytes/1024/1024).toFixed(1)+'MB':''}`));
   if(writable){
    const replacement=h('input',{type:'file',accept:'image/jpeg,image/png,image/webp',class:'replace-input',hidden:true,'aria-label':'이 사진 교체'});
    replacement.addEventListener('change',()=>replacePhoto(p.id,replacement.files[0]).catch(showError));
@@ -288,7 +288,7 @@ async function preparePhoto(file,aid){
  const bitmap=await createImageBitmap(file);if(bitmap.width*bitmap.height>45000000){bitmap.close();throw new Error('사진 해상도가 너무 큽니다. 4,500만 화소 이하로 줄여 주세요.');}
  const ratio=Math.min(1,1600/Math.max(bitmap.width,bitmap.height)),c=document.createElement('canvas');c.width=Math.round(bitmap.width*ratio);c.height=Math.round(bitmap.height*ratio);c.getContext('2d').drawImage(bitmap,0,0,c.width,c.height);
  const width=bitmap.width,height=bitmap.height;bitmap.close();const web=await new Promise(r=>c.toBlob(r,'image/webp',.84));if(!web||web.type!=='image/webp')throw new Error('이 브라우저에서 웹용 사진 변환을 지원하지 않습니다.');
- const id=C.uuid(),base=`private/${aid}/${id}`;return {photo:{id,caption:'',alt:file.name.replace(/\.[^.]+$/,'').slice(0,200),after:-1,width,height,originalBytes:file.size,originalType:file.type,originalPath:base+'/original',webPath:base+'/web.webp'},original:file,web};
+ const quality=await WoonbiPhotoEditor.analyzeFile(file),id=C.uuid(),base=`private/${aid}/${id}`;return {photo:{id,caption:'',alt:file.name.replace(/\.[^.]+$/,'').slice(0,200),after:-1,width,height,quality,originalBytes:file.size,originalType:file.type,originalPath:base+'/original',webPath:base+'/web.webp'},original:file,web};
 }
 async function uploadFiles(files){if(!edit||!C.canEdit(user,edit)||uploading)return;const list=Array.from(files);if(edit.photos.length+list.length>12)throw new Error('사진은 기사당 최대 12장입니다.');uploading=true;const root=$('#uploadProgress');try{for(let i=0;i<list.length;i++){root.replaceChildren(h('span',{class:'small'},`${i+1}/${list.length} · 웹용 사진 준비 중`));const data=await preparePhoto(list[i],edit.id),progress=h('progress',{max:1,value:0}),label=h('span',{class:'small'},`${i+1}/${list.length} 저장 중`);root.replaceChildren(h('div',{class:'progress'},progress,label));await store.upload(edit.id,data.photo,data.original,data.web,v=>{progress.value=v;label.textContent=`${i+1}/${list.length} · ${Math.round(v*100)}%`;});edit.photos.push(data.photo);changed();await save();await renderPhotoGrid();renderPreflight();}toast('사진과 원고를 저장했습니다.');}finally{uploading=false;root.replaceChildren();$('#photoInput').value='';}}
 async function placementPreviewNode(a){
@@ -379,6 +379,15 @@ async function photoExactHash(file){
 async function photoAverageColor(file){
  try{const bmp=await createImageBitmap(file),c=document.createElement('canvas');c.width=1;c.height=1;const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(bmp,0,0,1,1);bmp.close();const d=ctx.getImageData(0,0,1,1).data;return [d[0],d[1],d[2]];}catch{return [0,0,0];}
 }
+async function photoVisualAnalysis(file){
+ try{
+  const bmp=await createImageBitmap(file),width=bmp.width,height=bmp.height;
+  const tiny=document.createElement('canvas');tiny.width=1;tiny.height=1;const t=tiny.getContext('2d',{willReadFrequently:true});t.drawImage(bmp,0,0,1,1);const px=t.getImageData(0,0,1,1).data,avgColor=[px[0],px[1],px[2]];
+  const hashCanvas=document.createElement('canvas');hashCanvas.width=9;hashCanvas.height=8;const hc=hashCanvas.getContext('2d',{willReadFrequently:true});hc.drawImage(bmp,0,0,9,8);const hd=hc.getImageData(0,0,9,8).data;let bits='';for(let y=0;y<8;y++)for(let x=0;x<8;x++){const i=(y*9+x)*4,j=i+4,g=hd[i]*.299+hd[i+1]*.587+hd[i+2]*.114,h=hd[j]*.299+hd[j+1]*.587+hd[j+2]*.114;bits+=g>h?'1':'0';}let dhash='';for(let i=0;i<bits.length;i+=4)dhash+=parseInt(bits.slice(i,i+4),2).toString(16);
+  const max=128,scale=Math.min(1,max/Math.max(width,height)),w=Math.max(16,Math.round(width*scale)),h=Math.max(16,Math.round(height*scale)),qc=document.createElement('canvas');qc.width=w;qc.height=h;const qctx=qc.getContext('2d',{willReadFrequently:true});qctx.drawImage(bmp,0,0,w,h);const quality=WoonbiPhotoEditor.analyzeImageData(qctx.getImageData(0,0,w,h).data,w,h,width,height);
+  bmp.close();return {width,height,dhash,avgColor,quality};
+ }catch{return {width:0,height:0,dhash:'',avgColor:[0,0,0],quality:WoonbiPhotoEditor.scoreMetrics({})};}
+}
 function photoColorDistance(a,b){if(!a||!b)return 999;return Math.sqrt((a[0]-b[0])**2+(a[1]-b[1])**2+(a[2]-b[2])**2);}
 async function photoDHash(file){
  try{const bmp=await createImageBitmap(file),c=document.createElement('canvas');c.width=9;c.height=8;const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(bmp,0,0,9,8);bmp.close();const d=ctx.getImageData(0,0,9,8).data;let bits='';for(let y=0;y<8;y++)for(let x=0;x<8;x++){const i=(y*9+x)*4,j=i+4,g=d[i]*.299+d[i+1]*.587+d[i+2]*.114,h=d[j]*.299+d[j+1]*.587+d[j+2]*.114;bits+=g>h?'1':'0';}let hex='';for(let i=0;i<bits.length;i+=4)hex+=parseInt(bits.slice(i,i+4),2).toString(16);return hex;}catch{return '';}
@@ -388,9 +397,9 @@ function scanPreview(row){const key='scan:'+row.key;if(urls.has(key))return urls
 const photoLibraryMeta=(row,articles)=>WoonbiPhotoLibrary.libraryMeta(row,articles);
 async function scanPhotoFolder(files,articles,onProgress){
  const scanLimit=Math.max(100,Math.min(5000,Number(window.WOONBI_CONFIG?.media?.scanLimit)||2000)),list=[...files].filter(f=>/^image\/(jpeg|png|webp)$/i.test(f.type)||/\.(jpe?g|png|webp)$/i.test(f.name)).slice(0,scanLimit),rows=[],exact=new Map();
- for(let i=0;i<list.length;i++){const file=list[i],path=file.webkitRelativePath||file.name,dims=await photoDimensions(file),hash=await photoExactHash(file),dhash=await photoDHash(file),avgColor=await photoAverageColor(file),row={key:'f'+i,file,name:file.name,path,size:file.size,lastModified:file.lastModified,width:dims.width,height:dims.height,hash,dhash,avgColor,duplicateOf:'',nearDuplicateOf:'',articleId:'',score:0,hits:[],selected:false};
+ for(let i=0;i<list.length;i++){const file=list[i],path=file.webkitRelativePath||file.name,visual=await photoVisualAnalysis(file),hash=await photoExactHash(file),row={key:'f'+i,file,name:file.name,path,size:file.size,lastModified:file.lastModified,width:visual.width,height:visual.height,hash,dhash:visual.dhash,avgColor:visual.avgColor,quality:visual.quality,duplicateOf:'',nearDuplicateOf:'',articleId:'',score:0,hits:[],selected:false};
   if(exact.has(hash))row.duplicateOf=exact.get(hash).name;else exact.set(hash,row);
-  const ranked=articles.map(a=>({a,...scorePhotoArticle(row,a)})).sort((x,y)=>y.score-x.score||(x.a.planOrder||999)-(y.a.planOrder||999));if(ranked[0]?.score>0){row.articleId=ranked[0].a.id;row.score=ranked[0].score;row.hits=ranked[0].hits;}row.library=photoLibraryMeta(row,articles);const existing=articles.flatMap(a=>(a.photos||[]).map(p=>({a,p}))).find(x=>Number(x.p.originalBytes)===file.size&&Number(x.p.width)===dims.width&&Number(x.p.height)===dims.height);row.existingCandidate=existing?existing.a.title:'';
+  const ranked=articles.map(a=>({a,...scorePhotoArticle(row,a)})).sort((x,y)=>y.score-x.score||(x.a.planOrder||999)-(y.a.planOrder||999));if(ranked[0]?.score>0){row.articleId=ranked[0].a.id;row.score=ranked[0].score;row.hits=ranked[0].hits;}row.library=photoLibraryMeta(row,articles);const existing=articles.flatMap(a=>(a.photos||[]).map(p=>({a,p}))).find(x=>Number(x.p.originalBytes)===file.size&&Number(x.p.width)===visual.width&&Number(x.p.height)===visual.height);row.existingCandidate=existing?existing.a.title:'';
   rows.push(row);onProgress?.(i+1,list.length);
  }
  for(let i=0;i<rows.length;i++){if(rows[i].duplicateOf||!rows[i].dhash)continue;for(let j=0;j<i;j++){if(rows[j].duplicateOf||!rows[j].dhash)continue;const dist=photoHashDistance(rows[i].dhash,rows[j].dhash),color=photoColorDistance(rows[i].avgColor,rows[j].avgColor);if(dist<=3&&color<=12){rows[i].nearDuplicateOf=rows[j].name;break;}}}
@@ -456,9 +465,9 @@ function photoScanPanel(articles){
   for(const [gi,g] of groups.slice(0,20).entries()){
    const best=WoonbiPhotoLibrary.bestRow(g),card=h('article',{class:'photo-similarity-card'});
    const hero=h('button',{class:'photo-similarity-hero','aria-label':'유사사진 '+(gi+1)+' 묶음 크게 비교'},h('img',{src:scanPreview(best),alt:best.name,loading:'lazy'}),h('span',{},'추천 베스트 · '+g.length+'장'));
-   hero.addEventListener('click',()=>{const compare=h('div',{class:'photo-compare-grid'});for(const r of g.slice(0,20)){const chosen=r.key===best.key;compare.append(h('article',{class:'photo-compare-item'+(chosen?' best':'')},h('img',{src:scanPreview(r),alt:r.name}),h('b',{},chosen?'추천 베스트':r.duplicateOf?'완전 중복':r.nearDuplicateOf?'유사 사진':'비교'),h('small',{},r.name+' · '+(r.width||'?')+'×'+(r.height||'?')),button(r.selected?'선택 해제':'이 사진 선택',()=>{r.selected=!r.selected;dialog.close();draw();},r.selected?'text':'primary')));}dialogOpen('유사사진 비교 · '+g.length+'장',compare);});
+   hero.addEventListener('click',()=>{const compare=h('div',{class:'photo-compare-grid'});for(const r of g.slice(0,20)){const chosen=r.key===best.key;compare.append(h('article',{class:'photo-compare-item'+(chosen?' best':'')},h('img',{src:scanPreview(r),alt:r.name}),h('b',{},chosen?'추천 베스트':r.duplicateOf?'완전 중복':r.nearDuplicateOf?'유사 사진':'비교'),h('small',{},r.name+' · '+(r.width||'?')+'×'+(r.height||'?')+' · 품질 '+(r.quality?.overall??'?')),button(r.selected?'선택 해제':'이 사진 선택',()=>{r.selected=!r.selected;dialog.close();draw();},r.selected?'text':'primary')));}dialogOpen('유사사진 비교 · '+g.length+'장',compare);});
    const thumbs=h('div',{class:'photo-similarity-thumbs'});for(const r of g.slice(0,8))thumbs.append(h('img',{src:scanPreview(r),alt:r.name,loading:'lazy'}));
-   card.append(hero,h('div',{class:'photo-similarity-copy'},h('b',{},best.name),h('small',{},(best.width||'?')+'×'+(best.height||'?')+' · 추천점수 '+Math.round(best.score||0)),button(best.selected?'베스트컷 선택됨':'베스트컷 선택',()=>{for(const r of g)r.selected=false;if(!best.duplicateOf)best.selected=true;draw();},best.selected?'text':'primary')),thumbs);grid.append(card);
+   card.append(hero,h('div',{class:'photo-similarity-copy'},h('b',{},best.name),h('small',{},(best.width||'?')+'×'+(best.height||'?')+' · 품질 '+(best.quality?.overall??'?')+' · 선명 '+(best.quality?.sharpness??'?')+' · 노출 '+(best.quality?.exposure??'?')+' · 구도 '+(best.quality?.composition??'?')),button(best.selected?'베스트컷 선택됨':'베스트컷 선택',()=>{for(const r of g)r.selected=false;if(!best.duplicateOf)best.selected=true;draw();},best.selected?'text':'primary')),thumbs);grid.append(card);
   }
   box.append(grid);return box;
  }
@@ -586,35 +595,80 @@ function magazinePageMapNode(items,title='웅비 · 2026 편집본'){
  const summary=h('div',{class:'magazine-plan-summary'},h('span',{},'전체 지도 ',h('strong',{},map.mappedPages),'면'),h('span',{},'인쇄 시그니처 ',h('strong',{},map.totalSheets),'묶음'),h('span',{},'기사 ',h('strong',{},map.rows.length),'편'),h('span',{},'조판 경고 ',h('strong',{},map.warnCount)));
  section.append(head,grid,summary);return section;
 }
-async function renderBook(){if(!C.teacher(user))return renderPending();const articles=(await store.listArticles()).filter(a=>a.status==='approved'&&a.printConsent),all=new Map(articles.map(a=>[a.id,a]));issueSelection=issueSelection.filter(id=>all.has(id));const title=h('input',{id:'issueTitle',value:'웅비 · 2026 편집본',maxlength:150}),pick=h('div'),order=h('ol',{class:'book-order'}),archives=h('div'),coverBox=h('div'),coverMockups=h('div'),pageMapBox=h('div'),livePlan=h('div');
- async function refreshMagazineExtras(){const selected=issueSelection.map(id=>all.get(id)).filter(Boolean);if(issueCoverArticleId&&!selected.some(a=>a.id===issueCoverArticleId))issueCoverArticleId='';livePlan.replaceChildren(magazinePlanNode(selected,title.value));pageMapBox.replaceChildren(magazinePageMapNode(selected,title.value));coverBox.replaceChildren(await coverCandidatePanel(selected,async id=>{issueCoverArticleId=id;await refreshMagazineExtras();}));coverMockups.replaceChildren(await coverMockupPanel(selected,title.value,()=>refreshMagazineExtras().catch(showError)));}
+function spreadPageCell(p,side){
+ if(!p)return h('div',{class:'spread-page empty-side'},h('span',{},side==='left'?'왼쪽 면 없음':'오른쪽 면 없음'));
+ return h('article',{class:'spread-page kind-'+p.kind+' type-'+(p.type||'news'),'data-side':side},
+  h('span',{class:'spread-page-side'},side==='left'?'L':'R'),
+  h('span',{class:'spread-page-folio'},p.folio),
+  h('span',{class:'spread-page-kind'},p.label||p.kind),
+  h('h4',{},p.title||''),
+  p.kind==='article'?h('small',{},(p.template||'')+(p.i?' · 이어지는 면 '+(p.i+1):'')+(p.photoCount?' · 사진 '+p.photoCount:'')):null,
+  p.kind==='blank'?h('small',{},'4배수 인쇄를 위한 자동 여백면'):null,
+  p.warnings?.length?h('p',{class:'page-warning'},p.warnings.join(' · ')):null);
+}
+function magazineSpreadNode(items,title='웅비 · 2026 편집본'){
+ const map=WoonbiMagazine.spreadMap(items,title),section=h('section',{class:'magazine-spread-view-panel'});
+ const head=h('div',{class:'magazine-plan-head'},h('div',{},h('span',{class:'eyebrow'},'SPREAD VIEW'),h('h2',{},'좌우 펼침면 조판')),h('p',{},'실제 책을 펼쳤을 때 왼쪽·오른쪽 면이 어떻게 만나는지 확인합니다. 표지와 뒤표지는 단독 면으로 표시합니다.'));
+ const list=h('div',{class:'magazine-spread-view'});
+ for(const sp of map.spreads){
+  const row=h('section',{class:'magazine-spread-row kind-'+sp.kind},h('div',{class:'spread-label'},sp.label));
+  if(sp.kind==='cover')row.append(spreadPageCell(null,'left'),spreadPageCell(sp.right,'right'));
+  else if(sp.kind==='backcover')row.append(spreadPageCell(sp.left,'left'),spreadPageCell(null,'right'));
+  else row.append(spreadPageCell(sp.left,'left'),h('div',{class:'spread-gutter','aria-hidden':'true'}),spreadPageCell(sp.right,'right'));
+  list.append(row);
+ }
+ section.append(head,list);return section;
+}
+function printPreflightNode(items,title='웅비 · 2026 편집본'){
+ const pack=WoonbiMagazine.printPackage(items,title),section=h('section',{class:'print-preflight-panel'});
+ const head=h('div',{class:'magazine-plan-head'},h('div',{},h('span',{class:'eyebrow'},'PRINT PREFLIGHT'),h('h2',{},'인쇄소 제출 전 점검')),h('p',{},'쪽수·표지·사진 해상도·캡션·조판 경고와 PDF 페이지 순서를 한 번에 확인합니다.'));
+ const checks=h('div',{class:'print-check-grid'});
+ for(const c of pack.checks)checks.append(h('article',{class:'print-check '+c.severity},h('span',{class:'check-state'},c.severity==='ok'?'PASS':c.severity==='warn'?'CHECK':'STOP'),h('b',{},c.label),h('small',{},c.detail)));
+ const order=h('details',{class:'pdf-order'},h('summary',{},'PDF 페이지 순서 '+pack.pdfOrder.length+'면 보기'),h('ol',{},pack.pdfOrder.map(p=>h('li',{},h('span',{},String(p.order).padStart(2,'0')),h('b',{},p.label),h('span',{},p.title||''),h('small',{},p.side+' · '+p.folio)))));
+ section.append(head,checks,h('div',{class:'print-ready '+(pack.ready?'ready':'blocked')},pack.ready?'출력 순서 생성 가능 · 경고 항목을 확인하세요.':'필수 항목을 먼저 해결해야 합니다.',' · 자동 여백 '+pack.blankCount+'면 · 경고 '+pack.warningCount+'건'),order);return section;
+}
+async function renderBook(){if(!C.teacher(user))return renderPending();const articles=(await store.listArticles()).filter(a=>a.status==='approved'&&a.printConsent),all=new Map(articles.map(a=>[a.id,a]));issueSelection=issueSelection.filter(id=>all.has(id));const title=h('input',{id:'issueTitle',value:'웅비 · 2026 편집본',maxlength:150}),pick=h('div'),order=h('ol',{class:'book-order'}),archives=h('div'),coverBox=h('div'),coverMockups=h('div'),pageMapBox=h('div'),spreadBox=h('div'),preflightBox=h('div'),livePlan=h('div');
+ async function refreshMagazineExtras(){const selected=issueSelection.map(id=>all.get(id)).filter(Boolean);if(issueCoverArticleId&&!selected.some(a=>a.id===issueCoverArticleId))issueCoverArticleId='';livePlan.replaceChildren(magazinePlanNode(selected,title.value));pageMapBox.replaceChildren(magazinePageMapNode(selected,title.value));spreadBox.replaceChildren(magazineSpreadNode(selected,title.value));preflightBox.replaceChildren(printPreflightNode(selected,title.value));coverBox.replaceChildren(await coverCandidatePanel(selected,async id=>{issueCoverArticleId=id;await refreshMagazineExtras();}));coverMockups.replaceChildren(await coverMockupPanel(selected,title.value,()=>refreshMagazineExtras().catch(showError)));}
  title.addEventListener('input',()=>refreshMagazineExtras().catch(showError));
  const head=h('div',{class:'heading-row'},h('div',{},h('div',{class:'eyebrow'},'PRINT EDITION'),h('h1',{},'한 번 쓴 원고, 한 권의 교지'),h('p',{class:'intro'},'책 수록 동의를 확인한 승인 기사만 묶습니다. 확정본은 이후 웹 원고 수정과 분리해 보관합니다.')));
  function renderOrder(){order.replaceChildren();if(!issueSelection.length)order.append(h('li',{class:'muted'},'왼쪽에서 기사를 골라 주세요.'));for(const [i,id] of issueSelection.entries()){const up=button('↑',()=>{if(i>0){[issueSelection[i-1],issueSelection[i]]=[issueSelection[i],issueSelection[i-1]];renderOrder();}}),down=button('↓',()=>{if(i<issueSelection.length-1){[issueSelection[i+1],issueSelection[i]]=[issueSelection[i],issueSelection[i+1]];renderOrder();}});up.setAttribute('aria-label','기사 순서 올리기');down.setAttribute('aria-label','기사 순서 내리기');order.append(h('li',{},h('span',{},`${i+1}. ${all.get(id).title}`),up,down));}refreshMagazineExtras().catch(showError);}
  for(const a of articles){const check=h('input',{type:'checkbox',value:a.id,checked:issueSelection.includes(a.id)});check.addEventListener('change',()=>{issueSelection=check.checked?[...issueSelection,a.id]:issueSelection.filter(id=>id!==a.id);renderOrder();});pick.append(h('label',{class:'check'},check,h('span',{},a.title)));}
  if(!articles.length)pick.append(h('p',{class:'muted'},'책 수록이 승인된 기사가 아직 없습니다.'));
- main.replaceChildren(head,h('div',{class:'split'},h('section',{class:'panel'},h('h2',{},'수록 기사 선택'),pick),h('section',{class:'panel'},h('label',{},'책 제목',title),h('h3',{},'목차 순서'),order,button('확정본 만들고 미리보기',async()=>{const issue=await store.makeIssue(issueSelection,title.value);toast('원고 확정본을 저장했습니다.');await openIssue(issue);},'primary'))),coverBox,coverMockups,pageMapBox,livePlan,h('section',{class:'panel'},h('h2',{},'보관한 확정본'),archives),h('p',{class:'small muted'},'기본 A4 검토용 출력입니다. 인쇄소용 PDF/X, 재단선·도련, 정밀 쪽번호와 자동 조판 검수는 후속 단계입니다.'));renderOrder();
+ main.replaceChildren(head,h('div',{class:'split'},h('section',{class:'panel'},h('h2',{},'수록 기사 선택'),pick),h('section',{class:'panel'},h('label',{},'책 제목',title),h('h3',{},'목차 순서'),order,button('확정본 만들고 미리보기',async()=>{const issue=await store.makeIssue(issueSelection,title.value);toast('원고 확정본을 저장했습니다.');await openIssue(issue);},'primary'))),coverBox,coverMockups,pageMapBox,spreadBox,preflightBox,livePlan,h('section',{class:'panel'},h('h2',{},'보관한 확정본'),archives),h('p',{class:'small muted'},'기본 A4 검토용 출력입니다. 인쇄소용 PDF/X, 재단선·도련, 정밀 쪽번호와 자동 조판 검수는 후속 단계입니다.'));renderOrder();
  for(const issue of await store.listIssues())archives.append(h('div',{class:'archive-row'},h('span',{},issue.title),button('확정본 열기',async()=>openIssue(await store.getIssue(issue.id)))));}
 async function bookNode(issue){
- const root=h('div',{class:'book-preview'}),coverArticle=issue.items.find(a=>a.id===issueCoverArticleId)||issue.items[0]||null,coverPhoto=coverArticle?coverCandidateScore(coverArticle).photo:null;
+ const pack=WoonbiMagazine.printPackage(issue.items,issue.title),root=h('div',{class:'book-preview'}),coverArticle=issue.items.find(a=>a.id===issueCoverArticleId)||issue.items[0]||null,coverPhoto=coverArticle?coverCandidateScore(coverArticle).photo:null;
  const cover=h('section',{class:'book-cover print-cover cover-style-'+issueCoverStyle},
   h('div',{class:'print-cover-brand'},h('strong',{},'雄飛'),h('span',{},'WOONBI · VOL.42 / 2026')),
   coverPhoto?await imageNode(coverPhoto):h('div',{class:'print-cover-placeholder'},'雄飛'),
   h('div',{class:'print-cover-title'},h('p',{},'포항고등학교 교지'),h('h1',{},coverArticle?.title||issue.title),h('p',{},coverArticle?.deck||`${issue.items.length}편 · 원고 확정본`)),
   h('p',{class:'small'},`확정 ${issue.createdAt.slice(0,10)}${store.mode==='demo'?' · 로컬 저장 원고의 검토용 출력':''}`));
  const toc=h('section',{class:'book-toc'},h('h2',{},'목차'),h('p',{class:'book-toc-deck'},issue.title),h('ol',{},issue.items.map((a,i)=>{const p=W.editorialLayout?.plan?.(a)||{pages:1,label:'SCHOOL NEWS'};return h('li',{},h('span',{},String(i+1).padStart(2,'0')),h('b',{},a.title),h('small',{},(p.label||p.type)+' · '+p.pages+'p'));})));
- root.append(cover,toc);
- for(const a of issue.items){const node=await renderArticle(a),layout=W.editorialLayout?.plan?.(a);if(layout){node.classList.add('magazine-template','magazine-'+layout.type);node.dataset.magazineTemplate=layout.template;node.dataset.magazinePages=String(layout.pages);}root.append(node);}
- root.append(h('section',{class:'book-colophon'},h('span',{class:'eyebrow'},'COLOPHON'),h('h2',{},'편집 후기 · 제작진 · 사진 출처'),h('p',{},'기사별 필자·사진 캡션·출처와 편집 기록을 최종 인쇄 전 확인하는 면입니다.')),h('section',{class:'book-back-cover'},h('strong',{},'雄飛'),h('p',{},'우리의 학교, 우리의 기록'),h('small',{},'포항고등학교 학생 웹진 · WOONBI')));
+ root.append(cover,toc);let previousType='';
+ for(const a of issue.items){
+  const node=await renderArticle(a),layout=W.editorialLayout?.plan?.(a)||{type:'news',label:'SCHOOL NEWS',pages:1,template:'news-1p'};
+  if(layout.type!==previousType){root.append(h('section',{class:'book-section-opener type-'+layout.type},h('span',{class:'eyebrow'},layout.label||layout.type),h('h2',{},layout.label||layout.type),h('p',{},'웅비 · '+issue.title)));previousType=layout.type;}
+  node.classList.add('magazine-template','magazine-'+layout.type);node.dataset.magazineTemplate=layout.template;node.dataset.magazinePages=String(layout.pages);root.append(node);
+ }
+ root.append(h('section',{class:'book-colophon'},h('span',{class:'eyebrow'},'COLOPHON'),h('h2',{},'편집 후기 · 제작진 · 사진 출처'),h('p',{},'기사별 필자·사진 캡션·출처와 편집 기록을 최종 인쇄 전 확인하는 면입니다.')));
+ for(let i=0;i<pack.blankCount;i++)root.append(h('section',{class:'book-blank-page'},h('span',{},'자동 여백면'),h('small',{},'인쇄 4배수 조정을 위해 삽입됨')));
+ root.append(h('section',{class:'book-back-cover'},h('strong',{},'雄飛'),h('p',{},'우리의 학교, 우리의 기록'),h('small',{},'포항고등학교 학생 웹진 · WOONBI')));
  return root;
 }
 
-async function openIssue(issue){const book=await bookNode(issue),node=h('div',{},magazinePageMapNode(issue.items,issue.title),magazinePlanNode(issue.items,issue.title),book);dialogOpen('책 미리보기 · 승인 원고 확정본',node,[button('A4 인쇄 / PDF 저장',async()=>{$('#printArea').replaceChildren(await bookNode(issue));await Promise.all([...$('#printArea img')].map(i=>i.decode().catch(()=>{})));await document.fonts.ready;window.print();},'primary'),button('인쇄소 전달 묶음 받기',()=>exportIssue(issue)),button('확정 원고 JSON 받기',()=>textDownload(JSON.stringify(issue,null,2),'woonbi-issue.json'))]);}
+async function openIssue(issue){const book=await bookNode(issue),node=h('div',{},magazinePageMapNode(issue.items,issue.title),magazineSpreadNode(issue.items,issue.title),printPreflightNode(issue.items,issue.title),magazinePlanNode(issue.items,issue.title),book);dialogOpen('책 미리보기 · 승인 원고 확정본',node,[button('A4 인쇄 / PDF 저장',async()=>{$('#printArea').replaceChildren(await bookNode(issue));await Promise.all([...$('#printArea img')].map(i=>i.decode().catch(()=>{})));await document.fonts.ready;window.print();},'primary'),button('인쇄소 전달 묶음 받기',()=>exportIssue(issue)),button('확정 원고 JSON 받기',()=>textDownload(JSON.stringify(issue,null,2),'woonbi-issue.json'))]);}
 async function exportIssue(issue){
  const filename='woonbi-print-handoff.zip',handle=await chooseSaveHandle(filename,'application/zip');if(handle===false)return;
  toast('인쇄소 전달 묶음을 만드는 중입니다…');
- const layoutPlan=issue.items.map((a,i)=>({order:i+1,id:a.id,title:a.title,...(W.editorialLayout?.plan?.(a)||{})}));
- const entries=[{name:'00_목차.txt',data:issue.items.map((a,i)=>`${i+1}. ${a.title} / ${a.byline}`).join('\n')},{name:'manifest.json',data:JSON.stringify(issue,null,2)},{name:'01_잡지조판계획.json',data:JSON.stringify({issueId:issue.id||'',title:issue.title,generatedAt:new Date().toISOString(),cover:{articleId:issueCoverArticleId||layoutPlan[0]?.id||'',style:issueCoverStyle},items:layoutPlan},null,2)}];
+ const layoutPlan=issue.items.map((a,i)=>({order:i+1,id:a.id,title:a.title,...(W.editorialLayout?.plan?.(a)||{})})),pack=WoonbiMagazine.printPackage(issue.items,issue.title),spreads=WoonbiMagazine.spreadMap(issue.items,issue.title),pdfText=pack.pdfOrder.map(p=>String(p.order).padStart(2,'0')+' · '+p.side+' · '+p.label+' · '+(p.title||'')+' · '+p.folio).join('\n');
+ const entries=[
+  {name:'00_목차.txt',data:issue.items.map((a,i)=>`${i+1}. ${a.title} / ${a.byline}`).join('\n')},
+  {name:'manifest.json',data:JSON.stringify(issue,null,2)},
+  {name:'01_잡지조판계획.json',data:JSON.stringify({issueId:issue.id||'',title:issue.title,generatedAt:new Date().toISOString(),cover:{articleId:issueCoverArticleId||layoutPlan[0]?.id||'',style:issueCoverStyle},items:layoutPlan},null,2)},
+  {name:'02_PDF페이지순서.txt',data:pdfText},
+  {name:'03_인쇄체크리스트.json',data:JSON.stringify({ready:pack.ready,warningCount:pack.warningCount,blankCount:pack.blankCount,checks:pack.checks},null,2)},
+  {name:'04_펼침면계획.json',data:JSON.stringify(spreads.spreads,null,2)}
+ ];
  for(const [i,a] of issue.items.entries()){const folder=String(i+1).padStart(2,'0'),layout=layoutPlan[i]||{};entries.push({name:folder+'/layout.json',data:JSON.stringify(layout,null,2)});entries.push({name:folder+'/원고.txt',data:`${a.title}\n${a.deck}\n글 ${a.byline}\n\n${a.body}`});entries.push({name:folder+'/사진설명.txt',data:a.photos.map((p,j)=>`${j+1}. ${p.caption}\n대체설명: ${p.alt}`).join('\n\n')});for(const [j,p] of a.photos.entries()){let blob;try{blob=await store.mediaBlob(p.originalPath);}catch{if(p.sourceAsset){const r=await fetch(p.sourceAsset);if(r.ok)blob=await r.blob();}if(!blob)throw new Error(`${a.title}의 ${j+1}번 원본 사진을 읽지 못했습니다.`);}const ext=blob.type==='image/png'?'png':blob.type==='image/webp'?'webp':'jpg';entries.push({name:folder+`/사진${j+1}.${ext}`,data:blob});}}
  const zip=await W.makeZip(entries);await writeDownload(zip,filename,handle);toast('확정 원고와 원본 사진 ZIP을 저장했습니다.');
 }
