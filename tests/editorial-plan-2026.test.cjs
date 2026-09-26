@@ -9,7 +9,7 @@ vm.runInContext(fs.readFileSync('web/js/editorial-plan-2026.js','utf8'),ctx);
 const E=ctx.window.Woonbi.editorial2026;
 
 test('2026 editorial plan contains a full issue worth of article slots',()=>{
- assert.ok(E.plans.length>=40);
+ assert.ok(E.plans.length>=47);
  const slots=E.articleSlots();
  assert.equal(slots.length,E.plans.length);
  assert.ok(slots.every(x=>x.contentOrigin==='2026-editorial-plan'));
@@ -17,7 +17,7 @@ test('2026 editorial plan contains a full issue worth of article slots',()=>{
 });
 
 test('all source-library entries are dated 2026 only',()=>{
- assert.ok(E.sources.length>=20);
+ assert.ok(E.sources.length>=32);
  assert.ok(E.sources.every(x=>String(x.date).startsWith('2026-')));
  assert.ok(E.sources.every(x=>x.year===2026));
 });
@@ -38,5 +38,16 @@ test('drafts separate verified sources from student reporting work',()=>{
 });
 
 test('verified source set includes web-confirmed 2026 international exchange and school events',()=>{
- for(const id of ['s02','s10','s15','s19','s21','s22','s25','s29'])assert.ok(E.verifiedSourceIds.has(id),id);
+ for(const id of ['s02','s10','s15','s19','s21','s22','s25','s29','s31','s32'])assert.ok(E.verifiedSourceIds.has(id),id);
+});
+
+
+test('2026 plan connects robotics award and autonomous public high school sources',()=>{
+ const robot=E.plans.find(x=>x.sourceIds.includes('s31'));
+ const autonomous=E.plans.find(x=>x.id==='p28');
+ assert.ok(robot);
+ assert.match(robot.title,/로봇|R&E/);
+ assert.ok(autonomous.sourceIds.includes('s32'));
+ assert.equal(E.plans.length,47);
+ assert.equal(E.sources.length,32);
 });

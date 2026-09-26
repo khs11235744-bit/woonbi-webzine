@@ -31,7 +31,9 @@ const sources=[
 {id:'s27',date:'2026-09-07',outlet:'경북매일',type:'editorial',event:'학교이전',title:'포항고 이전 공론화, 명문 전통 살릴 기회되길',url:'https://kbmaeil.com/article/20260907500064',facts:['사설/논평 성격','원도심·동문·신도심 쟁점 제시'],photo:'의견 기사'},
 {id:'s28',date:'2026-09-14',outlet:'경북매일',type:'interview',event:'학교이전',title:'포항고 이전, 지역 교육 생태계 회복과 균형발전의 핵심 열쇠',url:'https://kbmaeil.com/article/20260914500147',facts:['교육전문가 인터뷰','이전 찬성 논거와 지역 균형발전 관점','학생 기사에서는 반대·유보 의견도 별도 취재 필요'],photo:'인터뷰 인물·학교 사진 있음'},
 {id:'s29',date:'2026-09-22',outlet:'경북매일',type:'news',event:'학교이전',title:'포항고 이전 동력 움찔…공간재구조화 동의율 미달로 안개속',url:'https://www.kbmaeil.com/article/20260922500759',facts:['재학생·학부모 동의율 기준 미달 보도','2026년 내 결론 사실상 무산','학교 측 다음 해 재투표 방침 보도'],photo:'학교 전경 사진 있음'},
-{id:'s30',date:'2026-03-01',outlet:'경북교육 인사 보도',type:'news',event:'교장인사',title:'경북교육청 2026년 3월 1일자 교육공무원 관리자 인사',url:'https://v.daum.net/v/7NDS0F2urb',facts:['포항고 진재서 교장 전직 발령 확인','신임 교장 인터뷰 기획의 기초자료'],photo:'인사 기사'}
+{id:'s30',date:'2026-03-01',outlet:'경북교육 인사 보도',type:'news',event:'교장인사',title:'경북교육청 2026년 3월 1일자 교육공무원 관리자 인사',url:'https://v.daum.net/v/7NDS0F2urb',facts:['포항고 진재서 교장 전직 발령 확인','신임 교장 인터뷰 기획의 기초자료'],photo:'인사 기사'},
+{id:'s31',date:'2026-09-09',outlet:'다음/지역언론',type:'news',event:'지능로봇',title:'포항고, 한국지능로봇경진대회 포항시장상 수상',url:'https://v.daum.net/v/20260909165743200',facts:['과학중점 동아리 딥사이언스팀 참가','제26회 한국지능로봇경진대회 퍼포먼스 로봇 분야 포항시장상','포항의 과거와 미래를 로봇 연극으로 표현한 융합 프로젝트'],photo:'포항교육지원청 제공 수상 사진 있음'},
+{id:'s32',date:'2026-03-24',outlet:'경북도민일보',type:'news',event:'자공고2.0',title:'포항여고, 지역 교육 혁신 앞장 — 자율형 공립고 2.0 협약 운영위원회',url:'https://www.hidomin.com/news/articleView.html?idxno=613721',facts:['포항고·포항여고 관계자와 포항시·POSTECH·한동대 관계자 참여','자율형 공립고 2.0 운영 주요 사항과 지역 자원 연계 논의','연 4회 정기 협의회 운영 계획'],photo:'포항교육지원청 제공 운영위원회 사진 있음'}
 ];
 
 const plans=[
@@ -62,8 +64,8 @@ const plans=[
 {id:'p24',section:'2026 학교의 한 해',month:'연중',title:'새 교감에게 묻다 — 학교의 변화를 조율하는 자리',category:'학교 사람들',planKind:'school',minPhotos:3,angle:'새 교감의 역할과 학생생활·수업·학교문화의 변화를 학생 눈높이에서 묻는다.',sourceIds:[],questions:['교감으로서 가장 먼저 바꾸고 싶은 작은 것은?','학생들이 학교에 의견을 내는 가장 좋은 방법은?','교사 간 협업이 학생에게 어떻게 보이나?']},
 {id:'p25',section:'2026 학교의 한 해',month:'여름',title:'독도에서 돌아온 학생들 — 사진 밖에서 남은 것',category:'학교 사람들',planKind:'school',minPhotos:6,angle:'독도 방문 학생의 감정만이 아니라 준비과정·현장 관찰·귀환 후 질문을 인터뷰한다.',sourceIds:[],questions:['사진으로 예상했던 독도와 실제가 달랐나?','현장에서 가장 구체적으로 관찰한 것은?','다녀온 뒤 새로 생긴 질문은?']},
 {id:'p26',section:'2026 학교의 한 해',month:'1~2학기',title:'인문사회 R&E — 학생이 질문을 연구로 바꾸는 과정',category:'특집',planKind:'research',minPhotos:5,angle:'수상 결과보다 주제 선정·자료수집·실패·수정의 연구과정을 중심으로 팀들을 소개한다.',sourceIds:[],questions:['처음 질문은 연구하면서 어떻게 바뀌었나?','자료를 모으며 가장 막힌 지점은?','결론보다 중요한 실패는?']},
-{id:'p27',section:'2026 학교의 한 해',month:'1~2학기',title:'과학 R&E — 실험실에서 답보다 좋은 질문 찾기',category:'특집',planKind:'research',minPhotos:5,angle:'과학중점·R&E 팀의 가설, 실험 수정, 데이터 해석을 학생 연구노트처럼 구성한다.',sourceIds:[],questions:['가설이 틀렸을 때 무엇을 바꿨나?','오차를 줄이기 위해 가장 많이 반복한 것은?','다시 한다면 연구설계를 어떻게 바꿀까?']},
-{id:'p28',section:'2026 학교의 한 해',month:'연중',title:'자율형 공립고 2.0, 학생에게 실제로 달라진 것은?',category:'특집',planKind:'research',minPhotos:4,angle:'제도 소개보다 학생이 체감한 선택과목·대학·지역 연계 프로그램의 실제 변화를 확인한다.',sourceIds:['s22'],questions:['작년과 비교해 학생이 체감한 새 프로그램은?','선택권이 실제로 넓어졌나?','좋았던 점과 복잡해진 점은?']},
+{id:'p27',section:'2026 학교의 한 해',month:'1~2학기',title:'과학 R&E — 실험실에서 답보다 좋은 질문 찾기',category:'특집',planKind:'research',minPhotos:5,angle:'과학중점·R&E 팀의 가설, 실험 수정, 데이터 해석을 학생 연구노트처럼 구성한다.',sourceIds:['s31'],questions:['가설이 틀렸을 때 무엇을 바꿨나?','오차를 줄이기 위해 가장 많이 반복한 것은?','로봇·AI·인문학을 한 프로젝트에서 연결할 때 가장 어려웠던 점은?','다시 한다면 연구설계를 어떻게 바꿀까?']},
+{id:'p28',section:'2026 학교의 한 해',month:'연중',title:'자율형 공립고 2.0, 학생에게 실제로 달라진 것은?',category:'특집',planKind:'research',minPhotos:4,angle:'제도 소개보다 학생이 체감한 선택과목·대학·지역 연계 프로그램의 실제 변화를 확인한다.',sourceIds:['s22','s32'],questions:['작년과 비교해 학생이 체감한 새 프로그램은?','선택권이 실제로 넓어졌나?','좋았던 점과 복잡해진 점은?']},
 {id:'p29',section:'2026 학교의 한 해',month:'9월',title:'75년 학교, 어디에서 다음 25년을 보낼까 — 이전과 재건축',category:'특집',planKind:'research',minPhotos:6,angle:'이전 찬성·재건축/잔류·유보 등 서로 다른 입장을 학생·학부모·교사·동문 자료와 함께 균형 있게 정리한다.',sourceIds:['s24','s25','s26','s27','s28','s29'],questions:['학생이 중요하게 보는 기준은 통학·시설·전통 중 무엇인가?','원도심과 신도심 관점은 왜 다른가?','수업 중 공사가 학습권에 미치는 영향은?','어떤 절차가 공정한 결정이라고 생각하나?']},
 {id:'p30',section:'2026 학교의 한 해',month:'가을',title:'수능을 앞둔 교실 — 응원보다 먼저 듣고 싶은 말',category:'사진과 기록',planKind:'school',minPhotos:6,angle:'응원 행사 자체보다 수험생의 루틴·불안·친구와 교사의 지원을 짧은 목소리로 모은다.',sourceIds:[],questions:['시험을 앞두고 듣기 싫은 말과 듣고 싶은 말은?','마지막 한 달의 루틴은?','후배에게 남기고 싶은 현실적인 조언은?']},
 
@@ -82,10 +84,11 @@ const plans=[
 {id:'p43',section:'학생 특집 — 학교의 이야기',month:'특집',title:'학교 괴담도 사료가 될까 — 포항고 구전 이야기 채록',category:'학생 글',planKind:'research',minPhotos:3,angle:'괴담을 사실로 단정하지 않고 누가 언제 어떤 맥락에서 전했는지 기록하는 구술사 방법을 실험한다.',sourceIds:[],studentRecord:'국어·역사·심리·문화콘텐츠 진로 연계',questions:['가장 오래된 증언은 어디까지 거슬러 올라가나?','이야기가 바뀌는 지점은 무엇인가?','사실 여부와 별개로 왜 계속 전해질까?']},
 {id:'p44',section:'학생 특집 — 전공과 질문',month:'특집',title:'산업도시 포항에서 고등학생의 진로는 어떻게 바뀌고 있을까',category:'학생 글',planKind:'research',minPhotos:3,angle:'철강·이차전지·로봇·AI 등 지역 산업 변화가 학생의 전공 선택과 지역 정주 인식에 미치는 영향을 조사한다.',sourceIds:[],studentRecord:'경제·공학·진로교육·지역학 연계',questions:['학생들이 생각하는 포항의 미래 산업은?','지역 기업·대학 정보가 진로 선택에 영향을 주나?','포항에 남고 싶은 조건은 무엇인가?']},
 {id:'p45',section:'학생 특집 — 전공과 질문',month:'특집',title:'추천 알고리즘은 내 취향을 발견할까 만들까',category:'학생 글',planKind:'research',minPhotos:2,angle:'영상·음악·쇼핑 추천을 사례로 개인화 알고리즘과 필터버블, 선택의 자유를 탐구한다.',sourceIds:[],studentRecord:'컴퓨터·수학·미디어·심리 진로 연계',questions:['추천 전후 선택이 어떻게 달라지는지 기록할 수 있나?','정확한 추천과 다양한 추천 중 무엇이 좋은가?','알고리즘 편향을 학생 수준에서 어떻게 실험할까?']},
-{id:'p46',section:'학생 특집 — 전공과 질문',month:'특집',title:'교실의 빛과 공기는 집중력에 닿을까',category:'학생 글',planKind:'research',minPhotos:3,angle:'조도·온도·이산화탄소·소음 같은 교실환경 데이터를 수집해 학습집중도와의 관계를 탐구한다.',sourceIds:[],studentRecord:'건축·환경·의학·통계·교육 진로 연계',questions:['측정 가능한 환경변수는 무엇인가?','주관적 집중도를 어떻게 기록할까?','상관관계를 인과관계로 오해하지 않으려면?']}
+{id:'p46',section:'학생 특집 — 전공과 질문',month:'특집',title:'교실의 빛과 공기는 집중력에 닿을까',category:'학생 글',planKind:'research',minPhotos:3,angle:'조도·온도·이산화탄소·소음 같은 교실환경 데이터를 수집해 학습집중도와의 관계를 탐구한다.',sourceIds:[],studentRecord:'건축·환경·의학·통계·교육 진로 연계',questions:['측정 가능한 환경변수는 무엇인가?','주관적 집중도를 어떻게 기록할까?','상관관계를 인과관계로 오해하지 않으려면?']},
+{id:'p47',section:'학생 특집 — 전공과 질문',month:'특집',title:'로봇은 지역의 이야기를 어떻게 공연할 수 있을까 — 딥사이언스의 지능로봇 도전',category:'학생 글',planKind:'research',minPhotos:4,angle:'한국지능로봇경진대회 수상 프로젝트를 바탕으로 알고리즘 제어·로봇공학과 지역의 역사·미래를 공연으로 표현하는 융합 과정을 탐구한다.',sourceIds:['s31'],studentRecord:'로봇·컴퓨터·전자·문화콘텐츠·지역학 진로 연계',questions:['로봇의 움직임을 공연 서사와 연결하기 위해 어떤 알고리즘을 설계했나?','실패가 가장 많이 발생한 제어 과정은 무엇이었나?','포항의 과거와 미래를 어떤 장면으로 표현했고 왜 그렇게 골랐나?','기술 프로젝트에 인문학적 메시지를 넣으면 무엇이 달라지나?']}
 ];
 
-const verifiedSourceIds=new Set(["s01","s02","s03","s04","s10","s11","s15","s16","s17","s19","s20","s21","s22","s24","s25","s26","s28","s29"]);
+const verifiedSourceIds=new Set(["s01","s02","s03","s04","s10","s11","s15","s16","s17","s19","s20","s21","s22","s24","s25","s26","s28","s29","s31","s32"]);
 for(const x of sources){
  x.year=Number(String(x.date||'').slice(0,4));
  x.yearVerified=x.year===2026;
