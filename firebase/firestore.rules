@@ -157,6 +157,21 @@ service cloud.firestore {
       v==string(request.resource.data.snapshot.revision);
     allow update,delete: if false;
    }
+   match /reviewComments/{commentId} {
+    allow read: if canRead(article(id));
+    allow create: if staff() &&
+      request.resource.data.keys().hasOnly(['articleId','text','author','authorUid','createdAt','resolved','resolvedAt','resolvedBy','serverCreatedAt']) &&
+      request.resource.data.articleId==id && request.resource.data.authorUid==request.auth.uid &&
+      request.resource.data.text is string && request.resource.data.text.size()>0 && request.resource.data.text.size()<=1200 &&
+      request.resource.data.resolved==false && request.resource.data.serverCreatedAt==request.time;
+    allow update: if canRead(article(id)) &&
+      request.resource.data.articleId==resource.data.articleId &&
+      request.resource.data.text==resource.data.text &&
+      request.resource.data.author==resource.data.author &&
+      request.resource.data.authorUid==resource.data.authorUid &&
+      request.resource.data.createdAt==resource.data.createdAt;
+    allow delete: if false;
+   }
   }
   match /publications/{id} {
    allow read: if true;

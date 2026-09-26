@@ -85,7 +85,7 @@ const plans=[
 {id:'p46',section:'학생 특집 — 전공과 질문',month:'특집',title:'교실의 빛과 공기는 집중력에 닿을까',category:'학생 글',planKind:'research',minPhotos:3,angle:'조도·온도·이산화탄소·소음 같은 교실환경 데이터를 수집해 학습집중도와의 관계를 탐구한다.',sourceIds:[],studentRecord:'건축·환경·의학·통계·교육 진로 연계',questions:['측정 가능한 환경변수는 무엇인가?','주관적 집중도를 어떻게 기록할까?','상관관계를 인과관계로 오해하지 않으려면?']}
 ];
 
-const verifiedSourceIds=new Set(["s01","s10","s11","s15","s16","s19","s20","s24","s25","s26","s28","s29"]);
+const verifiedSourceIds=new Set(["s01","s02","s03","s04","s10","s11","s15","s16","s17","s19","s20","s21","s22","s24","s25","s26","s28","s29"]);
 for(const x of sources){
  x.year=Number(String(x.date||'').slice(0,4));
  x.yearVerified=x.year===2026;
@@ -124,5 +124,40 @@ ${sourceText}
 }
 function planById(id){return plans.find(x=>x.id===id)||null;}
 function sectionCounts(){const m=new Map();for(const p of plans)m.set(p.section,(m.get(p.section)||0)+1);return [...m].map(([section,count])=>({section,count}));}
-W.editorial2026={year:2026,version:'2026-09-26',sources:sources2026,allSources:sources,plans,sourceById,planById,draft,sectionCounts,verifiedSourceIds};
+function articleSlots(){
+ return plans.map((p,i)=>({
+  id:'plan-'+p.id,
+  editorialPlanId:p.id,
+  title:p.title,
+  sourceTitle:p.title,
+  deck:p.angle,
+  category:p.category,
+  planKind:p.planKind,
+  planOrder:i+1,
+  section:p.section,
+  month:p.month,
+  byline:'미배정',
+  body:draft(p),
+  assigneeIds:[],
+  assigneeNames:[],
+  dueDate:'',
+  minPhotos:Number(p.minPhotos||0),
+  photos:[],
+  status:'draft',
+  revision:0,
+  createdAt:'2026-09-26T00:00:00Z',
+  updatedAt:'2026-09-26T00:00:00Z',
+  updatedBy:'editorial-plan',
+  feedback:'',
+  webConsent:false,
+  printConsent:false,
+  contentOrigin:'2026-editorial-plan',
+  reportingQuestions:[...(p.questions||[])],
+  requiredPhotos:[...(p.requiredPhotos||[])],
+  sourceIds:[...(p.sourceIds||[])],
+  studentRecord:p.studentRecord||'',
+  notes:['2026 교지 기획 슬롯 · 실제 취재 후 완성']
+ }));
+}
+W.editorial2026={year:2026,version:'2026-09-26',sources:sources2026,allSources:sources,plans,sourceById,planById,draft,articleSlots,sectionCounts,verifiedSourceIds};
 })();

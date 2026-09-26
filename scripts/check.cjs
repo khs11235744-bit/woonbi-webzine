@@ -21,6 +21,7 @@ if(fs.existsSync(referencePath)){
   if(!index.includes('js/photo-editor.js'))throw new Error('Photo editor helper module must be loaded by web/index.html');
   if(!index.includes('js/magazine-engine.js'))throw new Error('Magazine engine must be loaded by web/index.html');
   if(!index.includes('js/workflow-engine.js'))throw new Error('Workflow engine must be loaded by web/index.html');
+  if(!index.includes('js/editorial-plan-2026.js'))throw new Error('2026 editorial plan must be loaded by web/index.html');
   if(!index.includes('js/editorial-plan-2026.js'))throw new Error('Editorial 2026 plan must be loaded by web/index.html');
   if(!index.includes('js/editorial-plan-2026.js'))throw new Error('2026 editorial plan must be loaded by web/index.html');
   if(!fs.readFileSync('package.json','utf8').includes('tests/editorial-layout.test.cjs'))throw new Error('Editorial treatment regression test must remain in npm test.');
@@ -28,6 +29,7 @@ if(fs.existsSync(referencePath)){
   if(!fs.readFileSync('package.json','utf8').includes('tests/photo-editor.test.cjs'))throw new Error('Photo editor regression test must remain in npm test.');
   if(!fs.readFileSync('package.json','utf8').includes('tests/magazine-engine.test.cjs'))throw new Error('Magazine engine regression test must remain in npm test.');
   if(!fs.readFileSync('package.json','utf8').includes('tests/workflow-engine.test.cjs'))throw new Error('Workflow engine regression test must remain in npm test.');
+  if(!fs.readFileSync('package.json','utf8').includes('tests/editorial-plan-2026.test.cjs'))throw new Error('2026 editorial plan regression test must remain in npm test.');
   if(!fs.readFileSync('package.json','utf8').includes('tests/editorial-plan-2026.test.cjs'))throw new Error('2026 editorial-plan regression test must remain in npm test.');
   if(!fs.existsSync('docs/EDITORIAL_PANEL_100_20260926.md'))throw new Error('100-role editorial review must remain documented.');
   const appText=fs.readFileSync('web/js/app.js','utf8');

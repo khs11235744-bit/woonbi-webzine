@@ -1,13 +1,18 @@
 (function(){
 'use strict';
 const W=window.Woonbi,C=W.core,$=s=>document.querySelector(s),main=$('#main'),dialog=$('#dialog');
-let newsroom,store,user,view='public',edit=null,dirty=false,editSequence=0,saveTimer=null,aiTimer=null,saveJob=null,uploading=false,unsubscribe=null,presenceStop=null,filter='all',search='',planKind='all',categoryFilter='all',issueSelection=[],issueCoverArticleId='',issueCoverStyle='classic',issuePrintProfile='b5jis',issueSpreadOverrides={},dashboardSelection=new Set(),photoDeskFilter='all',photoLibraryFilter={type:'',value:''},photoScanState={rows:[],duplicates:0,nearDuplicates:0,selected:new Set()};
+let newsroom,store,user,view='public',edit=null,dirty=false,editSequence=0,saveTimer=null,aiTimer=null,saveJob=null,uploading=false,unsubscribe=null,presenceStop=null,filter='all',search='',planKind='all',categoryFilter='all',issueSelection=[],issueCoverArticleId='',issueCoverStyle='classic',issuePrintProfile='b5jis',issueSpreadOverrides={},spreadUndo=[],spreadRedo=[],spreadHistory=[],dashboardSelection=new Set(),photoDeskFilter='all',photoLibraryFilter={type:'',value:''},photoScanState={rows:[],duplicates:0,nearDuplicates:0,selected:new Set()};
 const urls=new Map(),now=()=>new Date().toISOString();
 function safeLocalGet(key,fallback){try{const v=localStorage.getItem(key);return v==null?fallback:JSON.parse(v);}catch{return fallback;}}
 function safeLocalSet(key,value){try{localStorage.setItem(key,JSON.stringify(value));}catch{}}
 issuePrintProfile=safeLocalGet('woonbi.issue.printProfile','b5jis');
 issueSpreadOverrides=safeLocalGet('woonbi.issue.spreadOverrides',{});
 function saveIssueLayoutState(){safeLocalSet('woonbi.issue.printProfile',issuePrintProfile);safeLocalSet('woonbi.issue.spreadOverrides',issueSpreadOverrides);}
+function spreadSnapshot(){return structuredClone(issueSpreadOverrides||{});}
+function recordSpreadChange(label,before,after){if(JSON.stringify(before)===JSON.stringify(after))return;spreadUndo.push({label,before,after,at:now()});if(spreadUndo.length>80)spreadUndo.shift();spreadRedo=[];spreadHistory.push({label,at:now()});if(spreadHistory.length>120)spreadHistory.shift();}
+function applySpreadSnapshot(snapshot){issueSpreadOverrides=structuredClone(snapshot||{});saveIssueLayoutState();}
+function undoSpread(){const step=spreadUndo.pop();if(!step)return false;spreadRedo.push(step);applySpreadSnapshot(step.before);spreadHistory.push({label:'실행취소 · '+step.label,at:now()});return true;}
+function redoSpread(){const step=spreadRedo.pop();if(!step)return false;spreadUndo.push(step);applySpreadSnapshot(step.after);spreadHistory.push({label:'다시실행 · '+step.label,at:now()});return true;}
 const h=(tag,attrs={},...children)=>{const e=document.createElement(tag);for(const [k,v] of Object.entries(attrs)){if(v==null||v===false)continue;if(k==='class')e.className=v;else if(k==='text')e.textContent=v;else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);else if(k==='checked')e.checked=!!v;else if(k==='value')e.value=v;else if(k==='disabled'||k==='hidden')e[k]=!!v;else e.setAttribute(k,v===true?'':String(v));}for(const c of children.flat(Infinity)){if(c!=null&&c!==false)e.append(c instanceof Node?c:document.createTextNode(String(c)));}return e;};
 const button=(text,fn,cls='')=>h('button',{class:cls,onclick:async e=>{e.preventDefault();try{await fn(e);}catch(err){showError(err);}}},text);
 function toast(text){const e=$('#toast');e.textContent=text;e.hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>e.hidden=true,4300);}
@@ -87,7 +92,7 @@ async function renderArticles(){
  const p=W.plan2026,rows=(await store.listArticles()).sort((a,b)=>(a.planOrder||999)-(b.planOrder||999)||a.title.localeCompare(b.title)),isStaff=C.staff(user),baseStudent=user?.baseRole==='student'||(!user?.baseRole&&!isStaff),simpleMode=safeLocalGet('woonbi.editor.simpleMode',baseStudent),notices=baseStudent&&typeof store.listNotifications==='function'?await store.listNotifications():[];
  const top=h('section',{class:'plan-masthead'},h('div',{},h('div',{class:'eyebrow'},'POHANG HIGH SCHOOL · WOONBI'),h('h1',{},baseStudent?user.displayName+'의\n기사 작업실':'2026 기사 편집실'),h('p',{class:'intro'},baseStudent?'배정된 제목을 열고 글과 사진을 더하세요.\n디자인은 따로 맞추지 않아도 됩니다.':'초안을 읽고, 학생의 취재를 더하고, 검토를 요청하세요.')));
  const aside=h('div',{class:'plan-masthead-aside'},h('span',{class:'issue-label'},'2026 / 편집 준비'),h('p',{class:'source-short'},'웅비 기사 편집부'),h('p',{class:'small muted'},'초안 작성 · 사진 · 검토 · 발행'),button('원본과 가져온 내용',sourceDialog,'text'));
- const modeToggle=button(simpleMode?'전체 도구 보기':'학생용 간단보기',()=>{safeLocalSet('woonbi.editor.simpleMode',!simpleMode);renderArticles();},'text');if(C.teacher(user)&&!baseStudent)aside.append(button('새 기사 배정',assignDialog,'primary'));aside.append(modeToggle);if(!baseStudent)top.append(aside);else{top.classList.add('student-masthead');top.append(h('div',{class:'student-mode-toggle'},modeToggle));}
+ const modeToggle=button(simpleMode?'전체 도구 보기':'학생용 간단보기',()=>{safeLocalSet('woonbi.editor.simpleMode',!simpleMode);renderArticles();},'text');if(C.teacher(user)&&!baseStudent)aside.append(button('새 기사 배정',assignDialog,'primary'),button('2026 기획표 추가',importEditorial2026Plan,'text'));aside.append(modeToggle);if(!baseStudent)top.append(aside);else{top.classList.add('student-masthead');top.append(h('div',{class:'student-mode-toggle'},modeToggle));}
  const counts=[['기사 계획',rows.length],['학교 기사',rows.filter(a=>a.planKind==='school').length],['개인 탐구',rows.filter(a=>a.planKind==='research').length],['사진 교체 필요',W.editorial.replaceCount(rows)],['제출한 원고',rows.filter(a=>['submitted','approved'].includes(a.status)).length]];
  const stats=h('div',{class:'plan-totals'},counts.map(([label,n])=>h('div',{},h('strong',{},n),h('span',{},label))));
  const kindTabs=h('div',{class:'kind-tabs'});for(const [key,label] of [['all','모든 기사'],['school','학교 기사'],['research','개인 탐구'],['recovered','추가 복원']])kindTabs.append(button(label,()=>{planKind=key;renderArticles();},key===planKind?'active':''));
@@ -250,6 +255,17 @@ function dashboardPrintNode(articles,people,stamp){
  const articleTable=h('table',{},h('thead',{},h('tr',{},...['번호','기사','담당','상태','마감','글자','사진'].map(x=>h('th',{},x)))),h('tbody',{},[...articles].sort((a,b)=>(a.planOrder||999)-(b.planOrder||999)).map(a=>h('tr',{},h('td',{},a.planOrder||''),h('td',{},a.title),h('td',{},articleNames(a)),h('td',{},statusLabel(a)),h('td',{},a.dueDate||'-'),h('td',{},String(a.body||'').length),h('td',{},a.photos.length+'/'+Number(a.minPhotos||0))))));
  root.append(summary,h('h2',{},'학생별 진행률'),studentTable,h('h2',{},'기사별 현황'),articleTable);return root;
 }
+async function importEditorial2026Plan(){
+ if(!C.teacher(user))return toast('담당교사 화면에서만 사용할 수 있습니다.');
+ const slots=W.editorial2026?.articleSlots?.()||[];if(!slots.length)return toast('2026 기획표가 없습니다.');
+ const existing=await store.listArticles(),ids=new Set(existing.map(a=>a.editorialPlanId||'')),titles=new Set(existing.map(a=>String(a.title||'').trim())),missing=slots.filter(a=>!ids.has(a.editorialPlanId)&&!titles.has(a.title.trim()));
+ if(!missing.length)return toast('2026 기획표의 기사 슬롯이 이미 모두 있습니다.');
+ if(!confirm('기존 원고는 그대로 두고, 없는 2026 기획 기사 '+missing.length+'편만 추가할까요?'))return;
+ busy(true,'2026 기획 기사 추가 중…');let done=0,failed=0;
+ try{for(const slot of missing){try{await store.createArticle({title:slot.title,deck:slot.deck,category:slot.category,planKind:slot.planKind,planOrder:slot.planOrder,section:slot.section,month:slot.month,body:slot.body,assigneeIds:[],assigneeNames:[],dueDate:'',minPhotos:slot.minPhotos,editorialPlanId:slot.editorialPlanId,contentOrigin:slot.contentOrigin,reportingQuestions:slot.reportingQuestions,requiredPhotos:slot.requiredPhotos,sourceIds:slot.sourceIds,studentRecord:slot.studentRecord,notes:slot.notes});done++;}catch(e){failed++;}}
+  toast('2026 기획 기사 '+done+'편 추가'+(failed?' · 실패 '+failed+'편':'') );await renderArticles();
+ }finally{busy(false,'');}
+}
 async function assignDialog(){const members=(await store.listMembers()).filter(m=>m.active&&['student','editor'].includes(m.role));const form=h('form');
  form.append(h('label',{},'기사 제목',h('input',{name:'title',required:true,maxlength:150})),h('label',{},'코너',h('select',{name:'category'},C.CATEGORIES.map(c=>h('option',{value:c},c)))),h('label',{},'마감일 · 미정이면 비워두기',h('input',{name:'dueDate',type:'date',value:''})),h('label',{},'필수 사진 수',h('input',{name:'minPhotos',type:'number',value:'0',min:0,max:12})),h('p',{class:'small muted'},'함께 맡을 학생을 선택합니다. 같은 기사 동시 수정에는 충돌 보호가 적용되며 실시간 문장 병합은 하지 않습니다.'));
  for(const m of members)form.append(h('label',{class:'check'},h('input',{type:'checkbox',name:'assignee',value:m.uid}),m.displayName));
@@ -310,8 +326,31 @@ function movePhoto(sourceId,targetIndex){
  if(!edit)return;const from=edit.photos.findIndex(x=>x.id===sourceId);if(from<0||targetIndex<0||targetIndex>=edit.photos.length||from===targetIndex)return;
  const [p]=edit.photos.splice(from,1);edit.photos.splice(targetIndex,0,p);changed();renderPhotoGrid();renderPreflight();
 }
+async function reviewCommentsNode(article,studentView){
+ const box=h('section',{class:'review-comments-panel'}),rows=typeof store.listReviewComments==='function'?await store.listReviewComments(article.id):[],open=rows.filter(x=>!x.resolved),done=rows.filter(x=>x.resolved);
+ const head=h('div',{class:'review-comments-head'},h('div',{},h('span',{class:'eyebrow'},studentView?'편집부 의견':'REVIEW NOTES'),h('h3',{},studentView?'편집부가 고쳐 달라고 한 것':'수정 의견'),h('p',{class:'small muted'},studentView?'여기 적힌 것만 하나씩 고치면 됩니다. 인쇄나 조판은 신경 쓰지 않아도 됩니다.':'학생에게 필요한 수정만 짧고 구체적으로 남깁니다.')),h('strong',{},open.length+'개 남음'));
+ box.append(head);
+ if(C.staff(user)&&!studentView){
+  const input=h('textarea',{rows:3,maxlength:1200,placeholder:'예: 두 번째 문단의 행사 날짜를 학교 일정표와 다시 확인해 주세요.'});
+  box.append(h('div',{class:'review-comment-compose'},input,button('수정 의견 남기기',async()=>{const text=input.value.trim();if(!text)return toast('수정 의견을 적어 주세요.');await store.addReviewComment(article.id,text);input.value='';const fresh=await reviewCommentsNode(article,studentView);box.replaceWith(fresh);},'primary')));
+ }
+ const list=h('div',{class:'review-comment-list'});
+ for(const row of open){
+  const actions=h('div',{class:'review-comment-actions'});
+  if(studentView&&C.canEdit(user,article))actions.append(button('고쳤어요',async()=>{await store.resolveReviewComment(article.id,row.id,true);const fresh=await reviewCommentsNode(article,studentView);box.replaceWith(fresh);},'primary'));
+  else if(C.staff(user))actions.append(button('해결됨',async()=>{await store.resolveReviewComment(article.id,row.id,true);const fresh=await reviewCommentsNode(article,studentView);box.replaceWith(fresh);},'text'));
+  list.append(h('article',{class:'review-comment'},h('p',{},row.text),h('small',{},(row.author||'편집부')+' · '+String(row.createdAt||'').slice(0,10)),actions));
+ }
+ if(!open.length)list.append(h('p',{class:'empty'},studentView?'지금 고쳐 달라고 한 내용이 없습니다.':'열려 있는 수정 의견이 없습니다.'));
+ if(done.length&&!studentView){
+  const details=h('details',{class:'resolved-comments'},h('summary',{},'해결된 의견 '+done.length+'개'));
+  for(const row of done)details.append(h('article',{class:'review-comment resolved'},h('p',{},row.text),button('다시 열기',async()=>{await store.resolveReviewComment(article.id,row.id,false);const fresh=await reviewCommentsNode(article,studentView);box.replaceWith(fresh);},'text')));
+  box.append(list,details);
+ }else box.append(list);
+ return box;
+}
 async function openEditor(id){
- if(edit&&!(await leaveEditor()))return;edit=await store.getArticle(id);dirty=false;editSequence=0;view='editor';refreshHeader();const writable=C.canEdit(user,edit);
+ if(edit&&!(await leaveEditor()))return;edit=await store.getArticle(id);dirty=false;editSequence=0;view='editor';refreshHeader();const writable=C.canEdit(user,edit),studentView=user?.baseRole==='student'||(!user?.baseRole&&!C.staff(user));
  const title=h('input',{id:'articleTitle',value:edit.title,placeholder:'기사 제목',maxlength:150,'aria-label':'기사 제목',disabled:!writable});
  const body=h('textarea',{id:'articleBody',value:edit.body,placeholder:'이 기사의 원고를 작성하세요.\n\n문단 사이에는 빈 줄을 넣고, 소제목은 위 버튼으로 나눌 수 있습니다.',maxlength:45000,'aria-label':'기사 본문',disabled:!writable});
  const deck=h('input',{id:'articleDeck',value:edit.deck,maxlength:350,disabled:!writable});const byline=h('input',{id:'articleByline',value:edit.byline||'',maxlength:80,disabled:!writable});
@@ -326,20 +365,19 @@ async function openEditor(id){
  const pub=button('웹진에 발행',async()=>{if(!edit.webConsent)throw new Error('웹 공개 동의가 확인되지 않았습니다. 수정 요청 후 다시 승인해 주세요.');if(!confirm('승인된 이 원고와 사진을 외부에서 읽을 수 있게 공개할까요?'))return;await store.publish(edit.id,edit.revision);toast('웹진 공개본을 저장했습니다.');});pub.disabled=!edit.webConsent;side.firstChild.append(pub);
  side.firstChild.append(button('웹 공개 회수',async()=>{if(confirm('공개 웹진에서 이 기사를 내릴까요? 원고와 인쇄 확정본은 유지됩니다.')){await store.unpublish(edit.id);toast('공개를 회수했습니다.');}},'danger'));
  side.firstChild.append(h('p',{class:'small muted'},`웹 공개 동의 ${edit.webConsent?'확인':'미확인'} · 책 수록 ${edit.printConsent?'확인':'미확인'}`));}
- side.append(h('div',{class:'panel magazine-editor-panel',id:'magazineEditorHint','aria-live':'polite'}));side.append(h('div',{class:'panel',id:'v4Preflight','aria-live':'polite'}));side.append(h('div',{class:'panel ai-editor-panel',id:'aiEditorPanel','aria-live':'polite'}));
- side.append(h('div',{class:'panel'},h('h3',{},'기록과 미리보기'),button('본문+사진 배치 보기',async()=>dialogOpen('본문과 사진 배치',await placementPreviewNode({...edit,...readEditor()})),'primary'),button('기사 미리보기',async()=>{const a={...edit,...readEditor()};const content=await renderArticle(a);dialogOpen('발행 전 미리보기',content);}),button('수정 이력 보기',historyDialog),button('내 원고 사본 받기',()=>textDownload(JSON.stringify({...edit,...readEditor()},null,2),'woonbi-article-backup.json'))));
+ if(!studentView){side.append(h('div',{class:'panel magazine-editor-panel',id:'magazineEditorHint','aria-live':'polite'}));side.append(h('div',{class:'panel',id:'v4Preflight','aria-live':'polite'}));side.append(h('div',{class:'panel ai-editor-panel',id:'aiEditorPanel','aria-live':'polite'}));side.append(h('div',{class:'panel'},h('h3',{},'편집 도구'),button('본문+사진 배치 보기',async()=>dialogOpen('본문과 사진 배치',await placementPreviewNode({...edit,...readEditor()})),'primary'),button('기사 미리보기',async()=>{const a={...edit,...readEditor()};const content=await renderArticle(a);dialogOpen('발행 전 미리보기',content);}),button('수정 이력 보기',historyDialog),button('내 원고 사본 받기',()=>textDownload(JSON.stringify({...edit,...readEditor()},null,2),'woonbi-article-backup.json'))));}
  const file=h('input',{type:'file',multiple:true,accept:'image/jpeg,image/png,image/webp',hidden:true,id:'photoInput'});file.addEventListener('change',()=>uploadFiles(file.files).catch(showError));
  const drop=h('div',{class:'photo-dropzone',role:'button',tabindex:writable?0:-1,'aria-disabled':String(!writable)},h('strong',{},'사진을 여기로 끌어오거나 눌러 선택'),h('span',{},'JPG · PNG · WebP / 장당 25MB / 웹용 WebP 자동 생성'));
  if(writable){drop.addEventListener('click',()=>file.click());drop.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();file.click();}});for(const ev of ['dragenter','dragover'])drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('is-drag');});for(const ev of ['dragleave','drop'])drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('is-drag');});drop.addEventListener('drop',e=>uploadFiles(e.dataTransfer.files).catch(showError));}
  const planPanel=photoPlanPanel(edit,writable);
- const photos=h('section',{class:'editor-photos'},h('div',{class:'photo-section-head'},h('div',{},h('h2',{},'사진'),h('p',{class:'muted small'},'첫 번째 사진이 대표사진입니다. 원본은 비공개 보관하고 1600px 이하 WebP 공개용 파생본을 자동 생성합니다.')),h('span',{class:'photo-count'},edit.photos.length+'/12')),file,drop,h('div',{class:'photo-tools'},button('사진 여러 장 올리기',()=>{if(writable)file.click();}),button('대표사진 자동추천',()=>{if(!writable||edit.photos.length<2)return;const bestId=WoonbiPhotoEditor.bestLeadId(edit);if(!bestId)return toast('추천할 사진이 없습니다.');if(edit.photos[0]?.id===bestId)return toast('현재 대표사진이 가장 적합합니다.');movePhoto(bestId,0);toast('해상도가 가장 좋은 사진을 대표사진으로 올렸습니다.');},'text'),h('span',{id:'photoHealth',class:'photo-health'})),planPanel,h('div',{id:'uploadProgress','aria-live':'polite'}),h('div',{class:'photo-grid',id:'photoGrid'}));
+ const photos=h('section',{class:'editor-photos'},h('div',{class:'photo-section-head'},h('div',{},h('h2',{},'사진'),h('p',{class:'muted small'},studentView?'기사에 쓸 사진을 올려 주세요. 어떤 사진을 대표로 쓸지는 편집부가 정리할 수 있습니다.':'첫 번째 사진이 대표사진입니다. 원본은 비공개 보관하고 웹용 이미지를 자동 생성합니다.')),h('span',{class:'photo-count'},edit.photos.length+'/12')),file,drop,h('div',{class:'photo-tools'},button(studentView?'사진 올리기':'사진 여러 장 올리기',()=>{if(writable)file.click();}),studentView?null:button('대표사진 자동추천',()=>{if(!writable||edit.photos.length<2)return;const bestId=WoonbiPhotoEditor.bestLeadId(edit);if(!bestId)return toast('추천할 사진이 없습니다.');if(edit.photos[0]?.id===bestId)return toast('현재 대표사진이 가장 적합합니다.');movePhoto(bestId,0);toast('해상도가 가장 좋은 사진을 대표사진으로 올렸습니다.');},'text'),studentView?null:h('span',{id:'photoHealth',class:'photo-health'})),studentView?null:planPanel,h('div',{id:'uploadProgress','aria-live':'polite'}),h('div',{class:'photo-grid',id:'photoGrid'}));
  if(!writable){drop.classList.add('disabled');photos.querySelector('.photo-tools').hidden=true;}
  const top=h('div',{class:'editor-top'},button('← 기사 목록',()=>navigate('articles'),'text'),h('span',{class:'badge '+edit.status},articleState(edit)),h('span',{id:'saveStatus',class:'save-status'},store.mode==='demo'?(store.persistence==='memory'?'이 탭에만 임시 저장됨':'이 기기에 저장됨'):'학교 서버에서 불러옴'));
- main.replaceChildren(top,h('div',{class:'notice',id:'remoteNotice',hidden:true},'기사가 변경되었습니다. 같은 원고를 다른 탭에서 편집했다면 저장할 때 버전을 다시 확인합니다.'),h('div',{class:'notice error',id:'conflictBox',hidden:true}),h('div',{class:'editor-grid'},h('div',{},edit.feedback?h('div',{class:'notice warn'},h('b',{},'수정 의견'),h('p',{},edit.feedback)):null,planBrief(edit),edit.contentOrigin?newsroom.editorialNotes(edit):null,writing,h('div',{style:'height:28px'}),photos),side));
+ const reviewPanel=await reviewCommentsNode(edit,studentView);main.replaceChildren(top,h('div',{class:'notice',id:'remoteNotice',hidden:true},'기사가 변경되었습니다. 같은 원고를 다른 탭에서 편집했다면 저장할 때 버전을 다시 확인합니다.'),h('div',{class:'notice error',id:'conflictBox',hidden:true}),h('div',{class:'editor-grid'},h('div',{},edit.feedback?h('div',{class:'notice warn'},h('b',{},studentView?'편집부가 고쳐 달라고 한 것':'수정 의견'),h('p',{},edit.feedback)):null,reviewPanel,studentView?null:planBrief(edit),studentView?null:(edit.contentOrigin?newsroom.editorialNotes(edit):null),writing,h('div',{style:'height:28px'}),photos),side));
  const presence=h('div',{class:'presence-line',id:'presenceLine',hidden:true});main.insertBefore(presence,main.children[1]);
  if(writable&&typeof store.watchEditors==='function'){presence.hidden=false;presence.textContent='공동 편집 상태 확인 중…';presenceStop=store.watchEditors(edit.id,rows=>{presence.replaceChildren();if(!rows.length){presence.textContent='현재 이 원고를 다른 편집자가 열어두고 있지 않습니다.';return;}presence.append(h('strong',{},'함께 열어둔 사람 '),document.createTextNode(rows.map(x=>x.displayName).join(' · ')+' · 저장 시 버전 충돌을 확인합니다.'));});}
  const buf=W.session.getItem(bufferKey());if(buf&&writable){const saved=JSON.parse(buf);main.prepend(h('div',{class:'notice recovery'},h('p',{},'이 탭에 서버 저장을 마치지 못한 원고가 있습니다.'),button('임시 원고 복구',()=>{title.value=saved.patch.title;body.value=saved.patch.body;deck.value=saved.patch.deck;byline.value=saved.patch.byline;edit.photos=saved.patch.photos;edit.revision=saved.revision;changed();renderPhotoGrid();}),button('임시 사본 받기',()=>textDownload(JSON.stringify(saved,null,2),'woonbi-recovery.json'))));}
- await renderPhotoGrid();renderPreflight();renderMagazineEditorHint();renderAiGuard();window.scrollTo(0,0);
+ await renderPhotoGrid();if(!studentView){renderPreflight();renderMagazineEditorHint();renderAiGuard();}window.scrollTo(0,0);
 }
 async function reviewDialog(target){const a=edit,form=h('div');if(target==='changes')form.append(h('label',{},'수정할 내용',h('textarea',{id:'feedbackInput',rows:5,maxlength:2500,placeholder:'어떤 부분을 보완하면 좋을지 적어 주세요.'})));
  else form.append(h('p',{},'내용 승인은 공개 발행과 다릅니다. 동의를 확인한 매체만 선택합니다.'),h('label',{class:'check'},h('input',{type:'checkbox',id:'factConsent'}),'초안의 사실·인용·실제 필자와 사진 출처를 확인했습니다.'),h('label',{class:'check'},h('input',{type:'checkbox',id:'webConsent'}),'학생·사진 등 웹 공개 동의 범위를 확인했습니다.'),h('label',{class:'check'},h('input',{type:'checkbox',id:'printConsent'}),'종이 교지 수록 동의 범위를 확인했습니다.'));
@@ -787,19 +825,19 @@ function spreadSnapPosition(x,y,state){
  if(centerY.guide!=null){ny=centerY.value-(Number(state.h)||0)/2;gy=centerY.guide;}else if(bottom.guide!=null){ny=bottom.value-(Number(state.h)||0);gy=bottom.guide;}
  return {x:nx,y:ny,gx,gy};
 }
-function persistSpreadPart(key,part,state){issueSpreadOverrides[key]=issueSpreadOverrides[key]||{};issueSpreadOverrides[key][part]={...state};saveIssueLayoutState();}
+function persistSpreadPart(key,part,state,before=null,label='지면 조정'){const prev=before||spreadSnapshot();issueSpreadOverrides[key]=issueSpreadOverrides[key]||{};issueSpreadOverrides[key][part]={...state};saveIssueLayoutState();recordSpreadChange(label,prev,spreadSnapshot());}
 function bindSpreadDrag(el,canvas,key,part,state){
  el.classList.add('spread-draggable');
- el.addEventListener('pointerdown',e=>{if(e.target.closest?.('.spread-resize-handle'))return;if(e.button!=null&&e.button!==0)return;e.preventDefault();el.setPointerCapture?.(e.pointerId);const rect=canvas.getBoundingClientRect(),startX=e.clientX,startY=e.clientY,origX=state.x,origY=state.y;
+ el.addEventListener('pointerdown',e=>{if(e.target.closest?.('.spread-resize-handle'))return;if(e.button!=null&&e.button!==0)return;e.preventDefault();el.setPointerCapture?.(e.pointerId);const before=spreadSnapshot(),rect=canvas.getBoundingClientRect(),startX=e.clientX,startY=e.clientY,origX=state.x,origY=state.y;
   const move=ev=>{const rawX=origX+(ev.clientX-startX)/rect.width*100,rawY=origY+(ev.clientY-startY)/rect.height*100,snap=spreadSnapPosition(rawX,rawY,state);state.x=Math.max(0,Math.min(100-(Number(state.w)||8),snap.x));state.y=Math.max(0,Math.min(100-(Number(state.h)||8),snap.y));el.style.left=state.x+'%';el.style.top=state.y+'%';spreadShowGuides(canvas,snap.gx,snap.gy);};
-  const up=()=>{el.removeEventListener('pointermove',move);el.removeEventListener('pointerup',up);el.removeEventListener('pointercancel',up);spreadClearGuides(canvas);persistSpreadPart(key,part,state);};
+  const up=()=>{el.removeEventListener('pointermove',move);el.removeEventListener('pointerup',up);el.removeEventListener('pointercancel',up);spreadClearGuides(canvas);persistSpreadPart(key,part,state,before,part==='title'?'제목 이동':'대표사진 이동');};
   el.addEventListener('pointermove',move);el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);
  });
 }
 function attachSpreadResizeHandles(el,canvas,key,part,state){
  for(const corner of ['nw','ne','sw','se']){
   const handle=h('span',{class:'spread-resize-handle '+corner,'aria-label':'사진 크기 조절 '+corner});el.append(handle);
-  handle.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();handle.setPointerCapture?.(e.pointerId);const rect=canvas.getBoundingClientRect(),startX=e.clientX,startY=e.clientY,orig={x:state.x,y:state.y,w:state.w,h:state.h};
+  handle.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();handle.setPointerCapture?.(e.pointerId);const before=spreadSnapshot(),rect=canvas.getBoundingClientRect(),startX=e.clientX,startY=e.clientY,orig={x:state.x,y:state.y,w:state.w,h:state.h};
    const move=ev=>{const dx=(ev.clientX-startX)/rect.width*100,dy=(ev.clientY-startY)/rect.height*100;let x=orig.x,y=orig.y,w=orig.w,h=orig.h;
     if(corner.includes('e'))w=orig.w+dx;if(corner.includes('s'))h=orig.h+dy;
     if(corner.includes('w')){x=orig.x+dx;w=orig.w-dx;}if(corner.includes('n')){y=orig.y+dy;h=orig.h-dy;}
@@ -812,7 +850,7 @@ function attachSpreadResizeHandles(el,canvas,key,part,state){
     if(corner.includes('n')&&top.guide!=null){h+=y-top.value;y=top.value;}
     state.x=x;state.y=y;state.w=w;state.h=h;el.style.left=x+'%';el.style.top=y+'%';el.style.width=w+'%';el.style.height=h+'%';spreadShowGuides(canvas,corner.includes('e')?right.guide:left.guide,corner.includes('s')?bottom.guide:top.guide);
    };
-   const up=()=>{handle.removeEventListener('pointermove',move);handle.removeEventListener('pointerup',up);handle.removeEventListener('pointercancel',up);spreadClearGuides(canvas);persistSpreadPart(key,part,state);};
+   const up=()=>{handle.removeEventListener('pointermove',move);handle.removeEventListener('pointerup',up);handle.removeEventListener('pointercancel',up);spreadClearGuides(canvas);persistSpreadPart(key,part,state,before,'대표사진 크기 조절');};
    handle.addEventListener('pointermove',move);handle.addEventListener('pointerup',up);handle.addEventListener('pointercancel',up);
   });
  }
@@ -825,7 +863,7 @@ async function spreadPageCell(p,side,items=[],matter=null){
   if(photo){const media=h('div',{class:'spread-edit-photo',style:'left:'+layout.photo.x+'%;top:'+layout.photo.y+'%;width:'+layout.photo.w+'%;height:'+layout.photo.h+'%;'},await imageNode(photo));bindSpreadDrag(media,canvas,layout.key,'photo',layout.photo);attachSpreadResizeHandles(media,canvas,layout.key,'photo',layout.photo);canvas.append(media);}
   const title=h('h4',{class:'spread-edit-title',style:'left:'+layout.title.x+'%;top:'+layout.title.y+'%;width:'+layout.title.w+'%;'},p.title||'');bindSpreadDrag(title,canvas,layout.key,'title',layout.title);canvas.append(title);
   canvas.append(h('div',{class:'spread-edit-hint'},'드래그 이동 · 사진 모서리 리사이즈 · 중앙/여백/3분할 스냅'));
-  page.append(canvas,h('small',{class:'spread-template-note'},(p.template||'')+(p.i?' · 이어지는 면 '+(p.i+1):'')+(p.photoCount?' · 사진 '+p.photoCount:'')),button('이 면 위치 초기화',()=>{delete issueSpreadOverrides[layout.key];saveIssueLayoutState();toast('이 면의 수동 위치를 초기화했습니다.');},'spread-reset'));
+  page.append(canvas,h('small',{class:'spread-template-note'},(p.template||'')+(p.i?' · 이어지는 면 '+(p.i+1):'')+(p.photoCount?' · 사진 '+p.photoCount:'')),button('이 면 위치 초기화',()=>{const before=spreadSnapshot();delete issueSpreadOverrides[layout.key];saveIssueLayoutState();recordSpreadChange('면 위치 초기화',before,spreadSnapshot());toast('이 면의 수동 위치를 초기화했습니다.');},'spread-reset'));
  }else{
   page.append(h('h4',{},p.title||''),p.kind==='blank'?h('small',{},'4배수 인쇄를 위한 자동 여백면'):null);
  }
@@ -834,7 +872,8 @@ async function spreadPageCell(p,side,items=[],matter=null){
 }
 async function magazineSpreadNode(items,title='웅비 · 2026 편집본'){
  const map=WoonbiMagazine.spreadMap(items,title),matter=WoonbiMagazine.publicationMatter(items,title,{year:2026,school:'포항고등학교',edition:'雄飛 VOL.42'}),section=h('section',{class:'magazine-spread-view-panel'});
- const head=h('div',{class:'magazine-plan-head'},h('div',{},h('span',{class:'eyebrow'},'SPREAD VIEW'),h('h2',{},'좌우 펼침면 조판 · 드래그 편집')),h('p',{},'기사면의 제목과 대표사진을 직접 드래그·리사이즈하고 스냅 가이드로 정렬합니다. 러닝헤드와 쪽번호도 실제 페이지 기준으로 표시합니다.'));
+ const undo=button('↶ 실행취소',async()=>{if(!undoSpread())return toast('되돌릴 변경이 없습니다.');section.replaceWith(await magazineSpreadNode(items,title));},'text'),redo=button('↷ 다시실행',async()=>{if(!redoSpread())return toast('다시 실행할 변경이 없습니다.');section.replaceWith(await magazineSpreadNode(items,title));},'text'),historyBtn=button('변경이력',()=>{const rows=[...spreadHistory].reverse().slice(0,50);dialogOpen('조판 변경이력',h('div',{class:'spread-history-list'},rows.length?rows.map(x=>h('article',{},h('b',{},x.label),h('small',{},new Date(x.at).toLocaleString('ko-KR')))):h('p',{class:'empty'},'아직 조판 변경이 없습니다.')));},'text');
+ const head=h('div',{class:'magazine-plan-head'},h('div',{},h('span',{class:'eyebrow'},'SPREAD VIEW'),h('h2',{},'좌우 펼침면 조판 · 드래그 편집'),h('p',{},'기사면의 제목과 대표사진을 직접 드래그·리사이즈하고 스냅 가이드로 정렬합니다.')),h('div',{class:'spread-history-actions'},undo,redo,historyBtn));
  const list=h('div',{class:'magazine-spread-view'});
  for(const sp of map.spreads){
   const row=h('section',{class:'magazine-spread-row kind-'+sp.kind},h('div',{class:'spread-label'},sp.label));

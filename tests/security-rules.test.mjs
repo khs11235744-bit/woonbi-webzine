@@ -288,3 +288,31 @@ test('runtime access switch: any open-admin account can lock; stored teacher or 
   await assertSucceeds(setDoc(doc(school,'settings','access'),{openAdmin:true,updatedAt:serverTimestamp(),updatedBy:'school-admin'}));
   await assertSucceeds(setDoc(doc(teacher,'settings','access'),{openAdmin:true,updatedAt:serverTimestamp(),updatedBy:'teacher'}));
 });
+
+
+test('review comments are readable by assigned student; staff create and student can resolve',async()=>{
+  const editor=auth('editor','editor').firestore();
+  const student=auth('student-a').firestore();
+  const commentRef=doc(editor,'articles','article-a','reviewComments','comment-a');
+  await assertSucceeds(setDoc(commentRef,{
+    articleId:'article-a',text:'행사 날짜를 다시 확인해 주세요.',author:'편집자',authorUid:'editor',
+    createdAt:'2026-09-26T12:00:00Z',resolved:false,resolvedAt:'',resolvedBy:'',serverCreatedAt:serverTimestamp()
+  }));
+  await assertSucceeds(getDoc(doc(student,'articles','article-a','reviewComments','comment-a')));
+  await assertSucceeds(updateDoc(doc(student,'articles','article-a','reviewComments','comment-a'),{
+    resolved:true,resolvedAt:'2026-09-26T13:00:00Z',resolvedBy:'student-a'
+  }));
+});
+
+test('review comment text cannot be rewritten by student while resolving',async()=>{
+  const editor=auth('editor','editor').firestore();
+  const student=auth('student-a').firestore();
+  const commentRef=doc(editor,'articles','article-a','reviewComments','comment-b');
+  await assertSucceeds(setDoc(commentRef,{
+    articleId:'article-a',text:'사진 설명을 넣어 주세요.',author:'편집자',authorUid:'editor',
+    createdAt:'2026-09-26T12:10:00Z',resolved:false,resolvedAt:'',resolvedBy:'',serverCreatedAt:serverTimestamp()
+  }));
+  await assertFails(updateDoc(doc(student,'articles','article-a','reviewComments','comment-b'),{
+    text:'학생이 바꾼 문장',resolved:true,resolvedAt:'2026-09-26T13:10:00Z',resolvedBy:'student-a'
+  }));
+});

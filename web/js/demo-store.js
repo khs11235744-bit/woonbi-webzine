@@ -10,14 +10,15 @@ class DemoStore{
  constructor(){this.mode='demo';this.persistence='indexeddb';this.db=null;this.user=null;this.listeners=[];this.channel=typeof BroadcastChannel!=='undefined'?new BroadcastChannel('woonbi-newsroom-v04'):null;
  this.channel?.addEventListener('message',()=>this.notify());}
  async init(){
- const r=indexedDB.open('woonbi-newsroom-v04',1);
- r.onupgradeneeded=()=>{const db=r.result;for(const s of ['articles','history','media','publications','issues','members'])db.createObjectStore(s,{keyPath:'id'});};
+ const r=indexedDB.open('woonbi-newsroom-v04',2);
+ r.onupgradeneeded=()=>{const db=r.result;for(const s of ['articles','history','media','publications','issues','members','reviewComments'])if(!db.objectStoreNames.contains(s))db.createObjectStore(s,{keyPath:'id'});};
  this.db=await request(r);
  const all=await this.rawList('members');
  if(!all.length){const t=this.db.transaction(['members','articles'],'readwrite'),ready=done(t);
  for(const u of USERS)t.objectStore('members').put({...u,id:u.uid});
  for(const a of seedArticles())t.objectStore('articles').put(a);
  await ready;}
+ else {const existing=new Set((await this.rawList('articles')).map(a=>a.id)),missing=seedArticles().filter(a=>!existing.has(a.id));if(missing.length){const t=this.db.transaction('articles','readwrite'),ready=done(t);for(const a of missing)t.objectStore('articles').put(a);await ready;}}
  this.user=USERS.find(x=>x.uid===W.session.getItem(SESSION_KEY))||USERS[0];return this;
  }
  async rawList(s){const t=this.db.transaction(s);return request(t.objectStore(s).getAll());}
@@ -53,6 +54,9 @@ class DemoStore{
  saveArticle(id,expected,patch){return this.mutate(id,expected,a=>C.saveDraft(this.user,a,expected,patch,new Date().toISOString()));}
  transition(id,expected,target,options){return this.mutate(id,expected,a=>C.transition(this.user,a,expected,target,options,new Date().toISOString()));}
  async history(id){await this.getArticle(id);return (await this.rawList('history')).filter(h=>h.articleId===id).sort((a,b)=>b.snapshot.revision-a.snapshot.revision);}
+ async listReviewComments(id){await this.getArticle(id);return (await this.rawList('reviewComments')).filter(x=>x.articleId===id).sort((a,b)=>String(a.createdAt).localeCompare(String(b.createdAt)));}
+ async addReviewComment(id,text){await this.getArticle(id);if(!C.staff(this.user))throw C.error('permission','편집부만 수정 의견을 남길 수 있습니다.');const value=String(text||'').trim().slice(0,1200);if(!value)throw C.error('invalid','수정 의견을 적어 주세요.');return this.put('reviewComments',{id:C.uuid(),articleId:id,text:value,author:this.user.displayName||'편집부',authorUid:this.user.uid,createdAt:new Date().toISOString(),resolved:false,resolvedAt:'',resolvedBy:''});}
+ async resolveReviewComment(id,commentId,resolved=true){const a=await this.getArticle(id),row=await this.rawGet('reviewComments',commentId);if(!row||row.articleId!==id)throw C.error('missing','수정 의견을 찾을 수 없습니다.');if(!C.staff(this.user)&&!C.canEdit(this.user,a))throw C.error('permission','수정 의견 상태를 바꿀 수 없습니다.');return this.put('reviewComments',{...row,resolved:!!resolved,resolvedAt:resolved?new Date().toISOString():'',resolvedBy:resolved?this.user.uid:''});}
  async upload(id,photo,original,web,progress){const a=await this.getArticle(id);if(!C.canEdit(this.user,a))throw C.error('permission','원고를 수정할 수 없습니다.');
  const t=this.db.transaction('media','readwrite');t.objectStore('media').put({id:photo.originalPath,blob:original});t.objectStore('media').put({id:photo.webPath,blob:web});await done(t);progress?.(1);return photo;}
  async mediaBlob(path){if(path.startsWith('seed/')){
@@ -73,9 +77,10 @@ class DemoStore{
  async getIssue(id){if(!C.teacher(this.user))throw C.error('permission','교사 권한이 필요합니다.');return this.rawGet('issues',id);}
 }
 class MemoryStore extends DemoStore {
- constructor(){super();this.persistence='memory';this.tables=W.memoryTables||(W.memoryTables=Object.fromEntries(['articles','history','media','publications','issues','members'].map(n=>[n,new Map()])));}
+ constructor(){super();this.persistence='memory';this.tables=W.memoryTables||(W.memoryTables=Object.fromEntries(['articles','history','media','publications','issues','members','reviewComments'].map(n=>[n,new Map()])));}
  async init(){
- if(!this.tables.members.size){for(const u of USERS)this.tables.members.set(u.uid,{...u,id:u.uid});for(const a of seedArticles())this.tables.articles.set(a.id,a);}
+ if(!this.tables.members.size)for(const u of USERS)this.tables.members.set(u.uid,{...u,id:u.uid});
+ for(const a of seedArticles())if(!this.tables.articles.has(a.id))this.tables.articles.set(a.id,a);
  this.user=USERS.find(x=>x.uid===W.session.getItem(SESSION_KEY))||USERS[0];return this;
  }
  async rawList(s){return C.clone([...this.tables[s].values()]);}

@@ -212,3 +212,42 @@ test('print handoff includes a human-readable printer README',()=>{
  assert.match(app,/파일 설명/);
  assert.match(app,/최종 PDF\/X 변환/);
 });
+
+
+test('student editor hides professional print and layout tools behind studentView',()=>{
+ const app=fs.readFileSync('web/js/app.js','utf8');
+ assert.match(app,/const writable=C\.canEdit\(user,edit\),studentView=/);
+ assert.match(app,/if\(!studentView\)\{side\.append/);
+ assert.match(app,/studentView\?'기사에 쓸 사진을 올려 주세요/);
+ assert.match(app,/studentView\?null:planPanel/);
+ assert.match(app,/if\(!studentView\)\{renderPreflight\(\);renderMagazineEditorHint\(\);renderAiGuard\(\);\}/);
+ assert.match(app,/편집부가 고쳐 달라고 한 것/);
+ assert.match(app,/인쇄나 조판은 신경 쓰지 않아도 됩니다/);
+});
+
+test('review comments support add resolve reopen with student-friendly labels',()=>{
+ const app=fs.readFileSync('web/js/app.js','utf8');
+ const demo=fs.readFileSync('web/js/demo-store.js','utf8');
+ const fb=fs.readFileSync('web/js/firebase-store.js','utf8');
+ const rules=fs.readFileSync('firebase/firestore.rules','utf8');
+ assert.match(app,/reviewCommentsNode/);
+ assert.match(app,/수정 의견 남기기/);
+ assert.match(app,/고쳤어요/);
+ assert.match(app,/다시 열기/);
+ assert.match(demo,/listReviewComments/);
+ assert.match(demo,/addReviewComment/);
+ assert.match(fb,/resolveReviewComment/);
+ assert.match(rules,/match \/reviewComments\/\{commentId\}/);
+});
+
+test('spread editor exposes undo redo and staff change history',()=>{
+ const app=fs.readFileSync('web/js/app.js','utf8');
+ assert.match(app,/spreadUndo/);
+ assert.match(app,/spreadRedo/);
+ assert.match(app,/recordSpreadChange/);
+ assert.match(app,/undoSpread/);
+ assert.match(app,/redoSpread/);
+ assert.match(app,/↶ 실행취소/);
+ assert.match(app,/↷ 다시실행/);
+ assert.match(app,/조판 변경이력/);
+});
