@@ -4,6 +4,7 @@ const style=fs.readFileSync('web/style.css','utf8');
 const news=fs.readFileSync('web/js/newsroom.js','utf8');
 const app=fs.readFileSync('web/js/app.js','utf8');
 const layout=fs.readFileSync('web/js/editorial-layout.js','utf8');
+const magazine=fs.readFileSync('web/js/magazine-engine.js','utf8');
 const bridge=fs.readFileSync('web/js/drive-bridge.js','utf8');
 const index=fs.readFileSync('web/index.html','utf8');
 const firebase=fs.readFileSync('web/js/firebase-store.js','utf8');
@@ -108,7 +109,7 @@ add('print','4p template mapping',has(layout,"template:'photo-4p'"));
 add('print','cover candidate scoring',has(app,'coverCandidateScore'));
 add('print','cover candidate preview',has(app,'coverCandidatePanel'));
 add('print','cover and contents mockups',has(app,'type-cover')&&has(app,'type-contents'));
-add('print','page range calculation',has(app,'x.start=cursor'));
+add('print','page range calculation',has(magazine,'x.start=cursor'));
 add('print','preflight warnings',has(app,'magazinePreflight'));
 add('print','layout plan exported to ZIP',has(app,'01_잡지조판계획.json'));
 

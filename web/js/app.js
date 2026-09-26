@@ -445,18 +445,7 @@ async function renderMembers(){
   rows.append(row);
  }
 }
-function coverCandidateScore(a){
- const p=W.editorialLayout?.plan?.(a)||{type:'news'},photos=[...(a.photos||[])],bestPhoto=photos.sort((x,y)=>(Number(y.width||0)*Number(y.height||0))-(Number(x.width||0)*Number(x.height||0)))[0]||null,reasons=[];
- let score=0;
- if(p.type==='photo'||p.type==='feature'){score+=30;reasons.push('표지형 기사');}
- else if(p.type==='portrait'){score+=18;reasons.push('인물 중심');}
- else if(p.type==='research'){score+=8;reasons.push('탐구 대표성');}
- if(bestPhoto){const mp=(Number(bestPhoto.width||0)*Number(bestPhoto.height||0))/1000000;score+=Math.min(28,mp*5);reasons.push(Math.round(mp*10)/10+'MP 사진');if(Number(bestPhoto.width||0)>=2000)score+=8;}
- const title=String(a.title||'');if(title.length>=7&&title.length<=28){score+=12;reasons.push('표지 제목 길이 적합');}else if(title.length<=36)score+=5;
- if(String(a.deck||'').trim())score+=4;
- if(String(a.body||'').length>900)score+=3;
- return {article:a,plan:p,photo:bestPhoto,score:Math.round(score),reasons};
-}
+const coverCandidateScore=a=>WoonbiMagazine.coverScore(a);
 async function coverCandidatePanel(items,onPick){
  const ranked=(items||[]).filter(Boolean).map(coverCandidateScore).sort((a,b)=>b.score-a.score).slice(0,5);
  if(!issueCoverArticleId&&ranked[0])issueCoverArticleId=ranked[0].article.id;
@@ -486,20 +475,9 @@ async function coverMockupPanel(items,title,onChange){
  }
  section.append(grid);return section;
 }
-function magazinePreflight(a,p){
- const warnings=[],photos=a.photos||[];
- if(p.type==='photo'&&photos.length<4)warnings.push('사진특집 권장 4장 이상');
- if(p.type==='portrait'&&photos.length<1)warnings.push('인물사진 필요');
- if(p.pages>=4&&photos.length<2)warnings.push('4p 지면 사진 부족');
- if(String(a.title||'').length>34)warnings.push('표제 길이 재검토');
- for(const ph of photos){if(!ph.alt)warnings.push('대체설명 누락');if(Number(ph.width)&&Number(ph.width)<1600)warnings.push('인쇄 해상도 확인');}
- return [...new Set(warnings)];
-}
+const magazinePreflight=(a,p)=>WoonbiMagazine.preflight(a,p);
 function magazinePlanNode(items,title='웅비 · 2026 편집본'){
- const rows=(items||[]).filter(Boolean),plans=rows.map((a,i)=>({a,i,p:W.editorialLayout?.plan?.(a)||{type:'news',template:'news-1p',pages:1,label:'SCHOOL NEWS'}}));
- const contentPages=plans.reduce((n,x)=>n+(Number(x.p.pages)||1),0),printPages=contentPages+4,padded=Math.ceil(printPages/4)*4,counts={};for(const x of plans)counts[x.p.type]=(counts[x.p.type]||0)+1;
- let cursor=1;for(const x of plans){x.start=cursor;x.end=cursor+(Number(x.p.pages)||1)-1;cursor=x.end+1;x.warnings=magazinePreflight(x.a,x.p);}
- const grid=h('div',{class:'magazine-spread-grid'});
+ const plan=WoonbiMagazine.buildPlan(items,title),{rows,plans,contentPages,printPages,padded,counts,warnCount}=plan,grid=h('div',{class:'magazine-spread-grid'});
  grid.append(h('article',{class:'magazine-spread-card type-cover','data-pages':'COVER'},h('span',{class:'spread-kicker'},'COVER · 雄飛 VOL.42'),h('h3',{},title),h('small',{},h('span',{},'표지 후보 · 대표기사/대표사진'),h('span',{},'front cover'))));
  grid.append(h('article',{class:'magazine-spread-card type-contents','data-pages':'TOC'},h('span',{class:'spread-kicker'},'CONTENTS · EDITORIAL NOTE'),h('h3',{},'목차와 이번 호의 문장'),h('small',{},h('span',{},rows.length+' stories'),h('span',{},'inside front'))));
  for(const {a,i,p,start,end,warnings} of plans)grid.append(h('article',{class:'magazine-spread-card type-'+p.type+(warnings.length?' has-warning':''),'data-pages':String(p.pages||1),'data-template':p.template},
@@ -511,7 +489,7 @@ function magazinePlanNode(items,title='웅비 · 2026 편집본'){
  grid.append(h('article',{class:'magazine-spread-card type-backcover','data-pages':'BACK COVER'},h('span',{class:'spread-kicker'},'BACK COVER · 雄飛'),h('h3',{},'포항고등학교 · 우리의 학교, 우리의 기록'),h('small',{},h('span',{},'웹진 QR · 학교 정보'),h('span',{},'back cover'))));
  const summary=h('div',{class:'magazine-plan-summary'},h('span',{},'본문 ',h('strong',{},contentPages),'쪽'),h('span',{},'표지·목차 포함 ',h('strong',{},printPages),'쪽'),h('span',{},'4배수 인쇄 권장 ',h('strong',{},padded),'쪽'),h('span',{},'기사 ',h('strong',{},rows.length),'편'));
  for(const [k,v] of Object.entries(counts))summary.append(h('span',{},k+' ',h('strong',{},v)));
- const warnCount=plans.reduce((n,x)=>n+x.warnings.length,0);summary.append(h('span',{class:warnCount?'preflight-warn':''},'preflight ',h('strong',{},warnCount)));
+ summary.append(h('span',{class:warnCount?'preflight-warn':''},'preflight ',h('strong',{},warnCount)));
  return h('section',{class:'magazine-plan-panel'},h('div',{class:'magazine-plan-head'},h('div',{},h('span',{class:'eyebrow'},'AUTO LAYOUT PREVIEW'),h('h2',{},title)),h('p',{},'표지·목차·기사 지면을 자동 배치하고 1p·2p·4p 구조, 예상 페이지, 사진 부족과 인쇄 해상도 위험을 미리 표시합니다.')),grid,summary);
 }
 

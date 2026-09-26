@@ -17,7 +17,11 @@ if(fs.existsSync(referencePath)){
   const index=fs.readFileSync('web/index.html','utf8');
   if(!index.includes('js/drive-bridge.js'))throw new Error('Google Drive media bridge must be loaded by web/index.html');
   if(!index.includes('js/editorial-layout.js'))throw new Error('Editorial treatment module must be loaded by web/index.html');
+  if(!index.includes('js/photo-library.js'))throw new Error('Photo library module must be loaded by web/index.html');
+  if(!index.includes('js/magazine-engine.js'))throw new Error('Magazine engine must be loaded by web/index.html');
   if(!fs.readFileSync('package.json','utf8').includes('tests/editorial-layout.test.cjs'))throw new Error('Editorial treatment regression test must remain in npm test.');
+  if(!fs.readFileSync('package.json','utf8').includes('tests/photo-library.test.cjs'))throw new Error('Photo library regression test must remain in npm test.');
+  if(!fs.readFileSync('package.json','utf8').includes('tests/magazine-engine.test.cjs'))throw new Error('Magazine engine regression test must remain in npm test.');
   const appText=fs.readFileSync('web/js/app.js','utf8');
   if(!appText.includes('01_잡지조판계획.json')||!appText.includes('dataset.magazineTemplate'))throw new Error('Magazine-ready layout handoff must remain wired.');
   if(!fs.readFileSync('package.json','utf8').includes('tests/issue-system.test.cjs'))throw new Error('Issue system regression test must remain in npm test.');
@@ -25,6 +29,8 @@ if(fs.existsSync(referencePath)){
   const driveBridgeText=fs.readFileSync('web/js/drive-bridge.js','utf8');
   for(const required of ['drive.readonly','drive.file','scanSourceFolder','backupRows','appProperties'])if(!driveBridgeText.includes(required))throw new Error('Drive bridge regression: '+required);
   if(!fs.readFileSync('package.json','utf8').includes('tests/drive-bridge.test.cjs'))throw new Error('Drive bridge regression test must remain in npm test.');
+  const workflow=fs.readFileSync('.github/workflows/woonbi-firebase-deploy.yml','utf8');
+  if(!workflow.includes('npm run devcraft:gate'))throw new Error('Production CI must keep the KHS DevCraft quality gate.');
   if(!index.includes('js/reference-data.js'))throw new Error('reference-data.js is not loaded by web/index.html');
 
   const legacyRef='web/js/legacy-reference-data.js';

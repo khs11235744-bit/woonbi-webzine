@@ -32,11 +32,9 @@ jobs:
       - name: Install project tooling
         run: npm ci
 
-      - name: Check source and security rules
+      - name: KHS DevCraft quality gate
         run: |
-          npm run check
-          npm test
-          npm run test:rules
+          npm run devcraft:gate:full
           npm run build
 
       - id: auth

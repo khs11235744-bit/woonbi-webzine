@@ -1025,3 +1025,56 @@ body{background:var(--paper)}
 .drive-browse-tools{display:grid;grid-template-columns:minmax(220px,1fr) 170px;gap:8px;margin:0 0 10px}
 .drive-browse-tools input,.drive-browse-tools select{width:100%;min-height:38px}
 @media(max-width:520px){.drive-browse-tools{grid-template-columns:1fr}}
+
+
+/* DevCraft photo browser: user-controlled density + full-screen preview. */
+.drive-browse-tools{grid-template-columns:minmax(220px,1fr) 150px 130px}
+.drive-photo-list[data-size="compact"]{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+.drive-photo-list[data-size="large"]{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+.drive-photo-list[data-size="xlarge"]{grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+.drive-photo-row>img,.drive-photo-row>.drive-photo-placeholder{cursor:zoom-in}
+.drive-photo-preview{
+  width:min(1120px,94vw);height:min(900px,92vh);max-width:none;max-height:none;
+  padding:0;border:1px solid var(--ink);background:var(--paper);color:var(--ink);
+}
+.drive-photo-preview::backdrop{background:rgba(0,0,0,.72)}
+.drive-photo-preview-bar,.drive-photo-preview-actions{
+  display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);
+}
+.drive-photo-preview-actions{border-top:1px solid var(--line);border-bottom:0}
+.drive-photo-preview-stage{height:calc(100% - 154px);min-height:320px;display:grid;place-items:center;background:#171714;padding:12px}
+.drive-photo-preview-stage img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
+.drive-photo-preview-placeholder{display:grid;place-items:center;width:100%;height:100%;color:#eee;background:#242424;font:800 72px/1 var(--serif)}
+.drive-photo-preview-copy{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 14px;padding:10px 14px}
+.drive-photo-preview-copy b,.drive-photo-preview-copy span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drive-photo-preview-copy span{grid-column:1}.drive-photo-preview-copy small{grid-column:2;grid-row:1/3;align-self:center}
+@media(max-width:760px){
+ .drive-browse-tools{grid-template-columns:1fr 1fr}.drive-browse-tools input{grid-column:1/-1}
+ .drive-photo-list[data-size="xlarge"],.drive-photo-list[data-size="large"]{grid-template-columns:1fr 1fr}
+ .drive-photo-preview{width:98vw;height:94vh}
+}
+@media(max-width:520px){
+ .drive-browse-tools{grid-template-columns:1fr}
+ .drive-browse-tools input{grid-column:auto}
+ .drive-photo-list[data-size="compact"],.drive-photo-list[data-size="large"],.drive-photo-list[data-size="xlarge"]{grid-template-columns:1fr}
+ .drive-photo-preview-stage{height:calc(100% - 190px)}
+ .drive-photo-preview-copy{grid-template-columns:1fr}.drive-photo-preview-copy small{grid-column:1;grid-row:auto}
+}
+
+
+/* DevCraft local photo scan: make visual review useful without Google. */
+.photo-scan-list{
+  grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+  gap:10px;padding:10px;background:#eee8dc;max-height:820px
+}
+.photo-scan-row{
+  position:relative;display:grid;grid-template-columns:1fr;gap:8px;
+  align-content:start;padding:8px;background:#fff;border:1px solid var(--line);min-width:0
+}
+.photo-scan-row>input[type=checkbox]{position:absolute;z-index:2;top:14px;left:14px;width:18px;height:18px}
+.photo-scan-row>img{width:100%;height:auto;aspect-ratio:4/3;object-fit:cover;background:#e8e9e5}
+.photo-scan-row .photo-scan-meta{min-height:76px}
+.photo-scan-row .photo-scan-match{border-top:1px solid var(--line);padding-top:7px}
+.photo-scan-row.duplicate{opacity:.58}
+@media(max-width:760px){.photo-scan-list{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.photo-scan-list{grid-template-columns:1fr}}

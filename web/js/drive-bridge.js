@@ -379,8 +379,9 @@ function panel(ui){
  );
  mode.value=storageGet('woonbi.drive.mode')||'selective';
  mode.addEventListener('change',()=>storageSet('woonbi.drive.mode',mode.value));
- const photoSearch=h('input',{type:'search',placeholder:'사진 이름·폴더 검색','aria-label':'Drive 사진 검색'}),photoSort=h('select',{'aria-label':'Drive 사진 정렬'},h('option',{value:'recent'},'최근 사진순'),h('option',{value:'name'},'이름순'),h('option',{value:'size'},'큰 파일순'));
- photoSearch.addEventListener('input',()=>draw());photoSort.addEventListener('change',()=>draw());
+ const photoSearch=h('input',{type:'search',placeholder:'사진 이름·폴더 검색','aria-label':'Drive 사진 검색'}),photoSort=h('select',{'aria-label':'Drive 사진 정렬'},h('option',{value:'recent'},'최근 사진순'),h('option',{value:'name'},'이름순'),h('option',{value:'size'},'큰 파일순')),thumbSize=h('select',{'aria-label':'사진 썸네일 크기'},h('option',{value:'large'},'큰 사진'),h('option',{value:'xlarge'},'아주 크게'),h('option',{value:'compact'},'많이 보기'));
+ thumbSize.value=storageGet('woonbi.drive.thumbSize')||'large';
+ photoSearch.addEventListener('input',()=>draw());photoSort.addEventListener('change',()=>draw());thumbSize.addEventListener('change',()=>{storageSet('woonbi.drive.thumbSize',thumbSize.value);draw();});
 
  function busy(v,msg=''){state.busy=v;progress.textContent=msg;}
  async function ensureSourceReadonly(){
@@ -415,6 +416,23 @@ function panel(ui){
   finally{busy(false,'');}
  }
  function selectedRows(){return state.rows.filter(r=>state.selected.has(r.id));}
+ const previewDialog=h('dialog',{class:'drive-photo-preview','aria-label':'사진 크게 보기'});
+ let previewRows=[],previewIndex=0;
+ function renderPreview(){
+  const r=previewRows[previewIndex];if(!r)return;
+  const media=r.thumbnailLink?h('img',{src:r.thumbnailLink,alt:r.name,referrerpolicy:'no-referrer'}):h('div',{class:'drive-photo-preview-placeholder'},'IMG');
+  previewDialog.replaceChildren(
+   h('div',{class:'drive-photo-preview-bar'},h('span',{},(previewIndex+1)+' / '+previewRows.length),button('닫기',()=>previewDialog.close(),'text')),
+   h('div',{class:'drive-photo-preview-stage'},media),
+   h('div',{class:'drive-photo-preview-copy'},h('b',{},r.name),h('span',{},r.path||r.name),h('small',{},Math.round((r.size||0)/1024).toLocaleString()+'KB')),
+   h('div',{class:'drive-photo-preview-actions'},
+    button('← 이전',()=>{previewIndex=(previewIndex-1+previewRows.length)%previewRows.length;renderPreview();},'text'),
+    button(state.selected.has(r.id)?'선택 해제':'이 사진 선택',()=>{state.selected.has(r.id)?state.selected.delete(r.id):state.selected.add(r.id);renderPreview();draw();},'primary'),
+    button('다음 →',()=>{previewIndex=(previewIndex+1)%previewRows.length;renderPreview();},'text'))
+  );
+ }
+ function openPreview(rows,index){previewRows=rows;previewIndex=Math.max(0,index);renderPreview();if(typeof previewDialog.showModal==='function')previewDialog.showModal();else previewDialog.setAttribute('open','');}
+ previewDialog.addEventListener('keydown',e=>{if(e.key==='ArrowLeft'){e.preventDefault();previewIndex=(previewIndex-1+previewRows.length)%previewRows.length;renderPreview();}else if(e.key==='ArrowRight'){e.preventDefault();previewIndex=(previewIndex+1)%previewRows.length;renderPreview();}});
  function pickerErrorMessage(e){
   const msg=String(e?.message||e||'');
   if(/developer key|api key|invalid key/i.test(msg))return 'Google Picker API Key 설정을 확인해 주세요. 웹사이트 제한에 현재 웅비 주소와 https://docs.google.com/* 가 모두 필요합니다.';
@@ -489,13 +507,14 @@ function panel(ui){
     catch(e){toast(e.message||String(e));}finally{busy(false,'');draw();}
    },'text')
   );
-  const browseTools=h('div',{class:'drive-browse-tools'},photoSearch,photoSort);
-  const list=h('div',{class:'drive-photo-list'}),q=photoSearch.value.trim().toLocaleLowerCase('ko');
+  const browseTools=h('div',{class:'drive-browse-tools'},photoSearch,photoSort,thumbSize);
+  const list=h('div',{class:'drive-photo-list','data-size':thumbSize.value}),q=photoSearch.value.trim().toLocaleLowerCase('ko');
   const display=[...rows].filter(r=>!q||String((r.path||'')+' '+r.name).toLocaleLowerCase('ko').includes(q)).sort((a,b)=>photoSort.value==='name'?a.name.localeCompare(b.name,'ko'):photoSort.value==='size'?(b.size||0)-(a.size||0):String(b.modifiedTime||'').localeCompare(String(a.modifiedTime||''))).slice(0,800);
-  for(const r of display){
+  for(const [idx,r] of display.entries()){
    const check=h('input',{type:'checkbox',checked:state.selected.has(r.id),disabled:r.canDownload===false,'aria-label':r.name+' 선택'});
    check.addEventListener('change',()=>{check.checked?state.selected.add(r.id):state.selected.delete(r.id);draw();});
-   const media=r.thumbnailLink?h('img',{src:r.thumbnailLink,alt:r.name,loading:'lazy',referrerpolicy:'no-referrer'}):h('div',{class:'drive-photo-placeholder'},'IMG');
+   const media=r.thumbnailLink?h('img',{src:r.thumbnailLink,alt:r.name,loading:'lazy',referrerpolicy:'no-referrer',title:'클릭해서 크게 보기'}):h('div',{class:'drive-photo-placeholder'},'IMG');
+   media.addEventListener('click',()=>openPreview(display,idx));
    list.append(h('article',{class:'drive-photo-row'+(r.canDownload===false?' disabled':'')},check,media,h('div',{class:'drive-photo-meta'},h('b',{},r.name),h('span',{},r.path||r.name),h('small',{},Math.round(r.size/1024).toLocaleString()+'KB · '+(r.supported?'웅비 변환 가능':'원본 백업만')+(r.canDownload===false?' · 다운로드 제한':'')))));
   }
   summary.append(stats,controls,browseTools,list);
@@ -527,10 +546,10 @@ function panel(ui){
  const quick=h('section',{class:'drive-quickstart'},
   h('div',{},h('span',{class:'eyebrow'},'가장 쉬운 방법'),h('h3',{},state.pinnedSourceFolderId?'기본 학교 사진함 한 번에 불러오기':'학교 공유폴더에서 바로 가져오기'),state.pinnedSourceFolderId?h('p',{class:'small muted'},'기본 사진함 · '+(state.pinnedSourceFolderName||'저장된 공유폴더')):null),
   h('ol',{},h('li',{},'현재 웅비 로그인 계정: ',h('b',{},signedInEmail||'Google 로그인 필요')),h('li',{},state.pinnedSourceFolderId?'“학교 사진 불러오기”로 저장한 공유폴더를 바로 읽습니다.':'“공유폴더 찾아보기”에서 학교 계정으로 접근 가능한 폴더를 고릅니다.'),h('li',{},'폴더가 내 소유가 아니어도 접근 권한만 있으면 됩니다. 링크를 알고 있다면 아래 칸에 그대로 붙여넣어도 됩니다.')),
-  h('div',{class:'actions'},state.pinnedSourceFolderId?button('학교 사진 불러오기',async()=>{try{await scanPinnedSource();}catch(e){toast(e.message||String(e));}},'primary'):button('공유폴더 찾아보기',()=>showSharedSources(),'primary'),state.pinnedSourceFolderId?button('기본 사진함 해제',unpinSource,'text'):null));
- wrap.append(h('div',{class:'dashboard-section-head'},h('div',{},h('span',{class:'eyebrow'},'WOONBI MEDIA BRIDGE'),h('h2',{},'학교 Drive → 개인 원본 백업 → 웅비'),h('p',{class:'small muted'},'원본 저장과 웹 공개를 분리합니다. 기본 경로는 현재 로그인 계정의 Google Picker입니다. 폴더 전체 읽기는 필요할 때만 별도 권한을 요청합니다.'))),quick);
+  h('div',{class:'actions'},state.pinnedSourceFolderId?button('학교 사진 불러오기',async()=>{try{await scanPinnedSource();}catch(e){toast(e.message||String(e));}},'primary'):button('공유폴더 찾아보기',()=>showSharedSources(),'primary'),button('Google 건너뛰고 PC 폴더',()=>document.querySelector('#woonbi-local-photo-input')?.click(),'text'),state.pinnedSourceFolderId?button('기본 사진함 해제',unpinSource,'text'):null));
+ wrap.append(h('div',{class:'dashboard-section-head'},h('div',{},h('span',{class:'eyebrow'},'WOONBI MEDIA BRIDGE'),h('h2',{},'학교 Drive → 개인 원본 백업 → 웅비'),h('p',{class:'small muted'},'Google 연결이 막히면 건너뛰어도 됩니다. PC에 내려받은 학교 사진 폴더만 골라도 중복검사·날짜/행사 분류·기사추천은 그대로 사용할 수 있습니다.'))),quick);
  if(configNotice)wrap.append(configNotice);
- wrap.append(h('div',{class:'drive-account-grid'},sourceActions,targetActions),sharedBrowser,sourceControls,progress,summary);
+ wrap.append(h('div',{class:'drive-account-grid'},sourceActions,targetActions),sharedBrowser,sourceControls,progress,summary,previewDialog);
  draw();return wrap;
 }
 

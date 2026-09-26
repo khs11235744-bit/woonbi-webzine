@@ -145,3 +145,26 @@ test('Drive photo browser has search and sort for large school folders',()=>{
   assert.match(src,/최근 사진순/);
   assert.match(src,/큰 파일순/);
 });
+
+
+test('Drive photo browser offers full-screen preview and thumbnail density',()=>{
+  const src=fs.readFileSync('web/js/drive-bridge.js','utf8');
+  const css=fs.readFileSync('web/editorial-polish.css','utf8');
+  assert.match(src,/사진 썸네일 크기/);
+  assert.match(src,/아주 크게/);
+  assert.match(src,/drive-photo-preview/);
+  assert.match(src,/ArrowLeft/);
+  assert.match(src,/ArrowRight/);
+  assert.match(css,/drive-photo-list\[data-size="xlarge"\]/);
+  assert.match(css,/drive-photo-preview-stage/);
+});
+
+
+test('no-login fallback is exposed in the Drive panel and local scan uses large cards',()=>{
+  const drive=fs.readFileSync('web/js/drive-bridge.js','utf8');
+  const css=fs.readFileSync('web/editorial-polish.css','utf8');
+  assert.match(drive,/Google 건너뛰고 PC 폴더/);
+  assert.match(drive,/woonbi-local-photo-input/);
+  assert.match(css,/\.photo-scan-list\{[\s\S]*minmax\(230px,1fr\)/);
+  assert.match(css,/\.photo-scan-row>img\{[\s\S]*aspect-ratio:4\/3/);
+});
