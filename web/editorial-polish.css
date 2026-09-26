@@ -1388,3 +1388,62 @@ body{background:var(--paper)}
  .workflow-blocker{grid-template-columns:34px minmax(0,1fr)}
  .workflow-blocker>button{grid-column:2}
 }
+
+
+/* 2026 editorial plan — annual-record structure + student-special chapter. */
+.editorial-plan-2026,.media-library-2026{
+  margin:28px 0;border-top:5px solid var(--ink);padding-top:16px
+}
+.editorial-plan-tools,.media-library-tools{
+  display:grid;grid-template-columns:220px minmax(0,1fr);gap:10px;margin:10px 0 16px
+}
+.editorial-plan-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px
+}
+.editorial-plan-card{
+  display:flex;flex-direction:column;gap:8px;min-width:0;border:1px solid var(--line);
+  border-top:4px solid var(--navy);background:#fff;padding:13px
+}
+.editorial-plan-card.made{border-top-color:#58705d;background:#f2f6ef}
+.editorial-plan-kicker{display:flex;justify-content:space-between;gap:8px;font-size:8px;letter-spacing:.06em;color:var(--muted)}
+.editorial-plan-card h3{font:800 20px/1.18 var(--serif);letter-spacing:-.03em;margin:0}
+.editorial-plan-card>p{font-size:10px;line-height:1.65;color:#57534c;margin:0}
+.student-record-angle{border-left:3px solid var(--accent);padding:5px 8px!important;background:#f8f1e7;color:#6e493f!important}
+.editorial-plan-meta{display:flex;flex-wrap:wrap;gap:4px}
+.editorial-plan-meta span{border:1px solid var(--line);padding:3px 5px;font-size:8px;background:#f7f3ea}
+.plan-source-list{border-top:1px solid var(--line);padding-top:8px}
+.plan-source-list summary{cursor:pointer;font-size:9px;font-weight:800}
+.plan-source-list ul{margin:8px 0 0;padding-left:17px}
+.plan-source-list li{margin:5px 0;font-size:8.5px;line-height:1.45}
+.plan-source-list a{color:var(--navy)}
+.plan-made{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:auto;border-top:1px solid var(--line);padding-top:8px}
+.plan-made b{font-size:9px;color:#46644d}
+.editorial-plan-card>.primary,.editorial-plan-card>.text{margin-top:auto}
+.planned-source-note{border-top:4px solid var(--ink);border-bottom:1px solid var(--line);padding:12px 0;margin-bottom:12px}
+.planned-source-note h3{font:800 23px/1.2 var(--serif);margin:4px 0 6px}
+.planned-source-note p{font-size:10px;line-height:1.6;color:var(--muted)}
+
+/* 2026 current-year source desk. */
+.media-library-list{display:grid;gap:7px}
+.media-source-card{
+  display:grid;grid-template-columns:90px minmax(0,1fr) auto;gap:14px;align-items:start;
+  border-top:1px solid var(--line);padding:12px 0
+}
+.media-source-date{font:700 11px/1.2 Georgia,serif;color:var(--accent);letter-spacing:.04em}
+.media-source-card h3{font:800 17px/1.25 var(--serif);margin:3px 0 6px}
+.media-source-card ul{margin:5px 0;padding-left:17px}
+.media-source-card li{font-size:9px;line-height:1.5;margin:2px 0}
+.media-source-card small{display:block;margin-top:6px}
+.media-source-card .ink-button{white-space:nowrap;align-self:center}
+@media(max-width:760px){
+  .editorial-plan-tools,.media-library-tools{grid-template-columns:1fr}
+  .editorial-plan-grid{grid-template-columns:1fr}
+  .media-source-card{grid-template-columns:72px minmax(0,1fr)}
+  .media-source-card .ink-button{grid-column:2;justify-self:start}
+}
+
+
+/* 2026 source verification — students see plain status, not editorial jargon. */
+.source-verification{display:inline-flex;margin-top:6px;padding:3px 6px;border:1px solid var(--line);font-size:8px;font-weight:800}
+.source-verification.verified{border-color:#78917c;background:#eef4ed;color:#45604a}
+.source-verification.check{border-color:#c59a58;background:#fff9ec;color:#805a1b}

@@ -182,6 +182,65 @@ function workflowBlockerNode(articles,publishedIds){
  box.append(list);return box;
 }
 
+async function create2026PlannedArticle(plan){
+ if(!C.teacher(user))return toast('기사 배정은 담당교사 계정에서 할 수 있습니다.');
+ const members=(await store.listMembers()).filter(m=>m.active&&['student','editor'].includes(m.role));
+ const form=h('form',{class:'planned-article-form'},
+  h('div',{class:'planned-source-note'},h('span',{class:'eyebrow'},plan.section),h('h3',{},plan.title),h('p',{},plan.angle)),
+  h('label',{},'기사 제목',h('input',{name:'title',required:true,maxlength:150,value:plan.title})),
+  h('label',{},'코너',h('select',{name:'category'},C.CATEGORIES.map(c=>h('option',{value:c,selected:c===plan.category},c)))),
+  h('label',{},'마감일 · 미정이면 비워두기',h('input',{name:'dueDate',type:'date',value:''})),
+  h('label',{},'필수 사진 수',h('input',{name:'minPhotos',type:'number',value:String(plan.minPhotos||0),min:0,max:12})),
+  h('p',{class:'small muted'},'초안은 완성기사가 아니라 취재 질문·확인할 자료·글쓰기 틀만 넣습니다. 학생은 취재 뒤 자기 문장으로 바꿉니다.')
+ );
+ for(const m of members)form.append(h('label',{class:'check'},h('input',{type:'checkbox',name:'assignee',value:m.uid}),m.displayName));
+ if(!members.length)form.append(h('p',{class:'warning'},'참여자 화면에서 학생 계정을 먼저 승인해 주세요.'));
+ const submit=button('배정하고 취재 초안 만들기',async()=>{
+  if(!form.reportValidity())return;const data=new FormData(form),ids=data.getAll('assignee');
+  if(!ids.length)return toast('담당 학생을 한 명 이상 선택해 주세요.');
+  const current=await store.listArticles();
+  if(current.some(a=>W.editorial.normalize(a.title)===W.editorial.normalize(String(data.get('title')))))return toast('같은 제목의 기사가 이미 있습니다.');
+  let a=await store.createArticle({title:String(data.get('title')),category:String(data.get('category')),dueDate:String(data.get('dueDate')),minPhotos:Number(data.get('minPhotos')),assigneeIds:ids});
+  a=await store.saveArticle(a.id,a.revision,{deck:plan.angle,body:W.editorial2026.draft(plan),byline:''});
+  dialog.close();toast('2026 기획 초안과 취재질문을 배정했습니다.');await openEditor(a.id);
+ },'primary');
+ dialogOpen('2026 기사 기획 배정',form,[submit]);
+}
+async function createAll2026Drafts(){
+ if(!C.teacher(user))return toast('담당교사 계정에서만 일괄 생성할 수 있습니다.');
+ const data=W.editorial2026,current=await store.listArticles(),existing=new Set(current.map(a=>W.editorial.normalize(a.title))),targets=data.plans.filter(p=>!existing.has(W.editorial.normalize(p.title)));
+ if(!targets.length)return toast('2026 기획표의 기사가 이미 모두 만들어져 있습니다.');
+ if(!confirm('기존 원고는 그대로 두고, 없는 '+targets.length+'편만 미배정 취재초안으로 만들까요? 학생에게는 나중에 담당자만 배정하면 됩니다.'))return;
+ let done=0,failed=[];
+ for(const [i,p] of targets.entries()){
+  try{
+   let a=await store.createArticle({title:p.title,category:p.category,dueDate:'',minPhotos:Number(p.minPhotos||0),assigneeIds:[]});
+   await store.saveArticle(a.id,a.revision,{deck:p.angle,body:data.draft(p),byline:'',planKind:p.planKind||'school',planOrder:data.plans.indexOf(p)+1,editorialPlanId:p.id,reportingQuestions:[...(p.questions||[])],sourceReferences:(p.sourceIds||[]).map(data.sourceById).filter(Boolean).map(x=>({label:x.title,url:x.url,publisher:x.outlet,publishedAt:x.date,type:x.type,verification:x.verification}))});
+   done++;
+  }catch(e){failed.push(p.title);}
+ }
+ toast('2026 취재초안 '+done+'편 생성'+(failed.length?' · 실패 '+failed.length+'편':''));
+ await renderDashboard();
+}
+function editorialPlan2026Node(existingArticles=[]){
+ const data=W.editorial2026;if(!data)return h('section',{class:'panel'},'2026 기사 기획 데이터를 불러오지 못했습니다.');
+ const existing=new Map(existingArticles.map(a=>[W.editorial.normalize(a.title),a])),root=h('section',{class:'editorial-plan-2026'});
+ const search=h('input',{type:'search',placeholder:'기사·주제·섹션 검색','aria-label':'2026 기사 기획 검색'}),section=h('select',{'aria-label':'2026 기사 섹션'},h('option',{value:'all'},'전체 섹션'),...data.sectionCounts().map(x=>h('option',{value:x.section},x.section+' · '+x.count+'편'))),stats=h('span',{class:'small muted'}),grid=h('div',{class:'editorial-plan-grid'});
+ const render=()=>{const q=W.editorial.normalize(search.value),sec=section.value,rows=data.plans.filter(p=>(sec==='all'||p.section===sec)&&W.editorial.normalize([p.title,p.angle,p.section,p.studentRecord||'',...(p.questions||[])].join(' ')).includes(q));grid.replaceChildren();stats.textContent=rows.length+' / '+data.plans.length+'편';
+  for(const p of rows){const made=existing.get(W.editorial.normalize(p.title)),sources=p.sourceIds.map(data.sourceById).filter(Boolean),card=h('article',{class:'editorial-plan-card'+(made?' made':'')});
+   card.append(h('div',{class:'editorial-plan-kicker'},h('span',{},p.section),h('span',{},p.month)),h('h3',{},p.title),h('p',{},p.angle),p.studentRecord?h('p',{class:'student-record-angle'},'진로·세특 연결 · '+p.studentRecord):null,h('div',{class:'editorial-plan-meta'},h('span',{},'사진 '+p.minPhotos+'장'),h('span',{},'취재질문 '+p.questions.length+'개'),h('span',{},'2026 자료 '+sources.length+'건')));
+   if(sources.length)card.append(h('details',{class:'plan-source-list'},h('summary',{},'연결된 2026 자료 보기'),h('ul',{},sources.map(x=>h('li',{},h('a',{href:x.url,target:'_blank',rel:'noopener noreferrer'},x.date+' · '+x.outlet+' · '+x.title))))));
+   card.append(made?h('div',{class:'plan-made'},h('b',{},'기사 생성됨'),button('기사 열기',()=>openEditor(made.id),'text')):button('학생에게 배정 + 초안',()=>create2026PlannedArticle(p),'primary'));grid.append(card);
+  }};
+ search.addEventListener('input',render);section.addEventListener('change',render);
+ root.append(h('div',{class:'dashboard-section-head'},h('div',{},h('span',{class:'eyebrow'},'WOONBI 2026 EDITORIAL PLAN'),h('h2',{},'2026 교지 기사 기획표'),h('p',{class:'small muted'},'교지의 연감형 구성은 참고하되, 기사 재료는 2026년 행사·취재와 2026년 발행자료만 사용합니다. 기존 실제 원고는 덮어쓰지 않습니다.')),h('div',{class:'actions'},C.teacher(user)?button('없는 기획초안 모두 만들기',()=>createAll2026Drafts().catch(showError),'primary'):null,button('기획표 CSV',()=>downloadCsv(['순서','섹션','시기','제목','각도','사진','자료수'],data.plans.map((p,i)=>[i+1,p.section,p.month,p.title,p.angle,p.minPhotos,p.sourceIds.length]),'woonbi-2026-editorial-plan.csv'),'text'),stats)),h('div',{class:'editorial-plan-tools'},section,search),grid);render();return root;
+}
+function mediaLibrary2026Node(){
+ const data=W.editorial2026,root=h('section',{class:'media-library-2026'}),search=h('input',{type:'search',placeholder:'매체·행사·제목 검색','aria-label':'2026 포항고 언론자료 검색'}),type=h('select',{'aria-label':'자료 유형'},h('option',{value:'all'},'전체 자료'),h('option',{value:'news'},'언론 기사'),h('option',{value:'official'},'공식 자료'),h('option',{value:'public-media'},'공공 미디어'),h('option',{value:'opinion'},'기고·사설·인터뷰 포함')),list=h('div',{class:'media-library-list'}),count=h('b',{});
+ const render=()=>{const q=W.editorial.normalize(search.value),t=type.value,rows=data.sources.filter(x=>(t==='all'||x.type===t||(t==='opinion'&&['opinion','editorial','interview','analysis'].includes(x.type)))&&W.editorial.normalize([x.date,x.outlet,x.event,x.title,...x.facts].join(' ')).includes(q));count.textContent=rows.length+'건';list.replaceChildren();for(const x of rows)list.append(h('article',{class:'media-source-card'},h('div',{class:'media-source-date'},x.date),h('div',{},h('span',{class:'row-category'},x.outlet+' · '+x.event),h('h3',{},x.title),h('ul',{},x.facts.map(v=>h('li',{},v))),h('small',{class:'muted'},x.photo),h('span',{class:'source-verification '+(x.webVerified?'verified':'check')},x.verification)),h('a',{href:x.url,target:'_blank',rel:'noopener noreferrer',class:'ink-button'},'원문 열기')));};
+ search.addEventListener('input',render);type.addEventListener('change',render);
+ root.append(h('div',{class:'dashboard-section-head'},h('div',{},h('span',{class:'eyebrow'},'2026 MEDIA DESK'),h('h2',{},'2026 포항고 언론자료 DB'),h('p',{class:'small muted'},'발행일이 2026년인 자료만 수록합니다. 같은 사건의 복수 보도는 사실 교차확인용으로 함께 보존합니다. 기사 문장을 복사하지 않고 학생 취재의 재료로 씁니다.')),count),h('div',{class:'media-library-tools'},type,search),list);render();return root;
+}
 function dashboardPrintNode(articles,people,stamp){
  const root=h('article',{class:'dashboard-print'},h('header',{},h('p',{},'포항고등학교 학생 웹진 · 雄飛'),h('h1',{},'웅비 편집 진행 현황'),h('small',{},stamp)));
  const summary=h('div',{class:'dashboard-print-summary'});
@@ -438,7 +497,7 @@ async function renderDashboard(){
   button('미제출자 CSV',()=>downloadCsv(['학생','기사','상태','마감','본문자수','사진'],notSubmitted.flatMap(a=>(a.assigneeNames?.length?a.assigneeNames:[a.byline||'학생']).map(n=>[n,a.title,statusLabel(a),a.dueDate||'',String(a.body||'').length,a.photos.length+'/'+Number(a.minPhotos||0)])),'woonbi-not-submitted.csv')),
   button('미제출 명단 복사',()=>copyText(notSubmitted.map(a=>(a.assigneeNames?.join(' · ')||a.byline||'학생')+' — '+a.title+(a.dueDate?' · '+a.dueDate:'')).join('\n')),'text')
  ));
- main.replaceChildren(head,workflowPipelineNode(articles,pubIds),workflowBlockerNode(articles,pubIds),cards,actions,exportBar,queues,table,workflowGlossaryNode());
+ main.replaceChildren(head,workflowPipelineNode(articles,pubIds),workflowBlockerNode(articles,pubIds),editorialPlan2026Node(articles),mediaLibrary2026Node(),cards,actions,exportBar,queues,table,workflowGlossaryNode());
 }
 function photoTokens(value){
  return [...new Set((String(value||'').normalize('NFC').toLocaleLowerCase('ko').match(/[가-힣a-z0-9]{2,}/g)||[]).filter(x=>!/^(img|image|photo|사진|촬영|kakao|screen|screenshot|dcim|camera|jpeg|jpg|png|webp|dsc|pxl|mvimg|download)$/.test(x)))];
