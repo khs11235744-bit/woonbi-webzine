@@ -1,6 +1,21 @@
 (()=>{'use strict';
 const W=window.WoonbiMagazine=window.WoonbiMagazine||{};
 function editorialPlan(a){return window.Woonbi?.editorialLayout?.plan?.(a)||{type:'news',template:'news-1p',pages:1,label:'SCHOOL NEWS'};}
+W.PRINT_PROFILES={
+ b5jis:{id:'b5jis',label:'B5/JIS 182×257mm',trimWidthMm:182,trimHeightMm:257,bleedMm:3,safeMm:8,dpi:300},
+ a4:{id:'a4',label:'A4 210×297mm',trimWidthMm:210,trimHeightMm:297,bleedMm:3,safeMm:8,dpi:300},
+ a5:{id:'a5',label:'A5 148×210mm',trimWidthMm:148,trimHeightMm:210,bleedMm:3,safeMm:7,dpi:300}
+};
+W.printProfile=function(id='b5jis'){return {...(W.PRINT_PROFILES[id]||W.PRINT_PROFILES.b5jis)};};
+W.mmToPx=function(mm,dpi=300){return Math.ceil(Number(mm||0)/25.4*Number(dpi||300));};
+W.printRequirements=function(id='b5jis'){
+ const p=W.printProfile(id),fullWidthMm=p.trimWidthMm+p.bleedMm*2,fullHeightMm=p.trimHeightMm+p.bleedMm*2;
+ return {...p,fullWidthMm,fullHeightMm,trimWidthPx:W.mmToPx(p.trimWidthMm,p.dpi),trimHeightPx:W.mmToPx(p.trimHeightMm,p.dpi),fullWidthPx:W.mmToPx(fullWidthMm,p.dpi),fullHeightPx:W.mmToPx(fullHeightMm,p.dpi)};
+};
+W.effectiveDpi=function(photo={},widthMm,heightMm){
+ const w=Number(photo.width||0),h=Number(photo.height||0);if(!w||!h||!widthMm||!heightMm)return 0;
+ return Math.floor(Math.min(w/(widthMm/25.4),h/(heightMm/25.4)));
+};
 W.coverScore=function(a){
  const p=editorialPlan(a),photos=[...(a.photos||[])],photoRank=x=>Number(x.quality?.overall||0)*100000000+(Number(x.width||0)*Number(x.height||0)),bestPhoto=photos.sort((x,y)=>photoRank(y)-photoRank(x))[0]||null,reasons=[];let score=0;
  if(p.type==='photo'||p.type==='feature'){score+=30;reasons.push('표지형 기사');}
@@ -59,22 +74,24 @@ W.spreadMap=function(items,title='웅비 · 2026 편집본'){
  if(i<map.pages.length)spreads.push({kind:'backcover',no,left:map.pages[i],right:null,label:'뒤표지'});
  return {...map,spreads};
 };
-W.printPackage=function(items,title='웅비 · 2026 편집본'){
- const map=W.pageMap(items,title),pdfOrder=map.pages.map((p,i)=>({
+W.printPackage=function(items,title='웅비 · 2026 편집본',profileId='b5jis'){
+ const profile=W.printRequirements(profileId),map=W.pageMap(items,title),pdfOrder=map.pages.map((p,i)=>({
   order:i+1,kind:p.kind,folio:p.folio,label:p.label,title:p.title||'',articleId:p.articleId||'',template:p.template||'',
   side:i===0?'front-cover':i===map.pages.length-1?'back-cover':i%2===1?'left/verso':'right/recto'
  }));
  const photos=(items||[]).flatMap(a=>(a.photos||[]).map(p=>({article:a,photo:p}))),blankCount=map.pages.filter(p=>p.kind==='blank').length,lowRes=photos.filter(x=>Number(x.photo.width||0)&&Number(x.photo.width||0)<1600),missingCaption=photos.filter(x=>!String(x.photo.caption||'').trim()),missingAlt=photos.filter(x=>!String(x.photo.alt||'').trim()),articleWarnings=map.plans.flatMap(x=>x.warnings.map(w=>({title:x.a.title,warning:w})));
- const covers=(items||[]).map(a=>W.coverScore(a)).sort((a,b)=>b.score-a.score),cover=covers[0]||null,checks=[];
+ const covers=(items||[]).map(a=>W.coverScore(a)).sort((a,b)=>b.score-a.score),cover=covers[0]||null,coverDpi=cover?.photo?W.effectiveDpi(cover.photo,profile.fullWidthMm,profile.fullHeightMm):0,checks=[];
  const add=(id,label,severity,detail)=>checks.push({id,label,severity,detail});
  add('pages4','전체 쪽수 4배수',map.pages.length%4===0?'ok':'error',map.pages.length+'면');
  add('articles','수록 기사',map.rows.length?'ok':'error',map.rows.length+'편');
  add('cover','표지 후보',cover?.photo?'ok':'error',cover?.photo?(cover.article.title+' · '+cover.score+'점'):'대표사진 있는 기사 없음');
- add('lowres','인쇄 해상도',lowRes.length?'warn':'ok',lowRes.length?lowRes.length+'장 확인 필요':'저해상도 경고 없음');
+ add('profile','판형·도련','ok',profile.label+' · 도련 '+profile.bleedMm+'mm · 안전여백 '+profile.safeMm+'mm');
+ add('cover300','표지 300dpi',cover?.photo?(coverDpi>=300?'ok':coverDpi>=240?'warn':'error'):'error',cover?.photo?(coverDpi+'dpi · 필요 '+profile.fullWidthPx+'×'+profile.fullHeightPx+'px'):'표지 사진 없음');
+ add('lowres','본문 사진 해상도',lowRes.length?'warn':'ok',lowRes.length?lowRes.length+'장 확인 필요':'저해상도 경고 없음');
  add('captions','사진 설명',missingCaption.length?'warn':'ok',missingCaption.length?missingCaption.length+'장 설명 없음':'사진 설명 확인');
  add('alt','대체설명',missingAlt.length?'warn':'ok',missingAlt.length?missingAlt.length+'장 누락':'대체설명 확인');
  add('article-preflight','기사별 조판',articleWarnings.length?'warn':'ok',articleWarnings.length?articleWarnings.length+'건 확인 필요':'기사별 조판 경고 없음');
  add('blank','자동 여백면','ok',blankCount?blankCount+'면 자동 삽입':'추가 여백면 불필요');
- return {...map,pdfOrder,checks,blankCount,cover,ready:checks.every(x=>x.severity!=='error'),warningCount:checks.filter(x=>x.severity==='warn').length};
+ return {...map,profile,pdfOrder,checks,blankCount,cover,coverDpi,ready:checks.every(x=>x.severity!=='error'),warningCount:checks.filter(x=>x.severity==='warn').length};
 };
 })();

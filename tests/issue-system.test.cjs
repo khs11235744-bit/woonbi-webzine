@@ -111,3 +111,37 @@ test('review book includes section openers and automatic blank pages',()=>{
  assert.match(css,/\.book-section-opener/);
  assert.match(css,/\.book-blank-page/);
 });
+
+
+test('spread editor persists manual title and photo positions',()=>{
+ const app=fs.readFileSync('web/js/app.js','utf8');
+ const css=fs.readFileSync('web/editorial-polish.css','utf8');
+ assert.match(app,/issueSpreadOverrides/);
+ assert.match(app,/bindSpreadDrag/);
+ assert.match(app,/spread-edit-title/);
+ assert.match(app,/spread-edit-photo/);
+ assert.match(app,/06_지면수동조정\.json/);
+ assert.match(css,/\.spread-draggable/);
+});
+
+test('print editor exposes B5 A4 A5 profiles and proof crop marks',()=>{
+ const app=fs.readFileSync('web/js/app.js','utf8');
+ const mag=fs.readFileSync('web/js/magazine-engine.js','utf8');
+ assert.match(mag,/B5\/JIS 182×257mm/);
+ assert.match(mag,/A4 210×297mm/);
+ assert.match(mag,/A5 148×210mm/);
+ assert.match(app,/교지 인쇄 판형/);
+ assert.match(app,/print-crop-marks/);
+ assert.match(app,/05_인쇄사양\.json/);
+ assert.match(app,/판형 PDF 검토 저장/);
+});
+
+test('photo desk exposes 10 12 16 20 shot curation controls',()=>{
+ const app=fs.readFileSync('web/js/app.js','utf8');
+ assert.match(app,/화보 10장/);
+ assert.match(app,/화보 12장/);
+ assert.match(app,/화보 16장/);
+ assert.match(app,/화보 20장/);
+ assert.match(app,/화보용 자동선정/);
+ assert.match(app,/curationScore/);
+});

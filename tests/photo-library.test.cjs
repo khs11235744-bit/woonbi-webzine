@@ -27,3 +27,21 @@ test('best row uses visual quality as part of burst selection',()=>{
  ];
  assert.equal(P.bestRow(group).key,'clean');
 });
+
+
+test('curation removes duplicate bursts and returns requested diverse set',()=>{
+ const rows=[];
+ for(let i=0;i<30;i++)rows.push({key:'k'+i,name:'p'+i+'.jpg',width:2400+i*10,height:1600,size:2000000,score:i%7,quality:{overall:60+(i%30)},duplicateOf:'',nearDuplicateOf:'',supported:true,library:{date:'2026-09-'+String((i%4)+1).padStart(2,'0'),events:[i%2?'축제·공연':'체육대회'],article:i%3?'기사 A':'기사 B'}});
+ rows[1].nearDuplicateOf='p0.jpg';
+ rows[2].duplicateOf='p0.jpg';
+ const picks=P.curate(rows,12);
+ assert.equal(picks.length,12);
+ assert.ok(!picks.some(x=>x.duplicateOf));
+ assert.equal(new Set(picks.map(x=>x.key)).size,12);
+ assert.ok(picks.every(x=>Number.isFinite(x.curationScore)));
+});
+
+test('curation caps selection at twenty',()=>{
+ const rows=Array.from({length:40},(_,i)=>({key:'k'+i,name:'p'+i,width:2000,height:1500,size:1000000,score:1,quality:{overall:80},duplicateOf:'',nearDuplicateOf:'',supported:true,library:{date:'2026-09-26',events:[],article:''}}));
+ assert.equal(P.curate(rows,50).length,20);
+});

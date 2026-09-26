@@ -21,4 +21,32 @@ W.bestRow=function(group=[]){
  };
  return [...group].sort((a,b)=>score(b)-score(a)||Number(b.lastModified||0)-Number(a.lastModified||0))[0]||null;
 };
+W.curate=function(rows=[],count=12){
+ const limit=Math.max(1,Math.min(20,Number(count)||12)),groups=W.similarityClusters(rows),clustered=new Set(),pool=[];
+ for(const g of groups){for(const r of g)clustered.add(r.key);const best=W.bestRow(g);if(best&&!best.duplicateOf)pool.push(best);}
+ for(const r of rows)if(!clustered.has(r.key)&&!r.duplicateOf)pool.push(r);
+ const base=r=>{const q=Number(r.quality?.overall||0),mp=(Number(r.width||0)*Number(r.height||0))/1000000,match=Number(r.score||0),supported=r.supported===false?-20:0;return q*.62+Math.min(18,mp*3.5)+Math.min(18,match*1.2)+supported;};
+ const selected=[],usedEvent=new Map(),usedDate=new Map(),usedArticle=new Map();
+ while(selected.length<limit&&pool.length){
+  let bestIndex=-1,bestScore=-1e9;
+  for(let i=0;i<pool.length;i++){
+   const r=pool[i],events=r.library?.events||[],date=r.library?.date||'',article=r.library?.article||'';
+   let diversity=0;
+   if(events.length)diversity+=Math.max(0,12-(usedEvent.get(events[0])||0)*5);else diversity+=2;
+   if(date)diversity+=Math.max(0,6-(usedDate.get(date)||0)*2.5);
+   if(article)diversity+=Math.max(0,8-(usedArticle.get(article)||0)*3);
+   const aspect=(Number(r.width||0)||1)/(Number(r.height||0)||1),portrait=aspect<.86,landscape=aspect>1.18;
+   if(portrait&&!selected.some(x=>((x.width||1)/(x.height||1))<.86))diversity+=4;
+   if(landscape&&!selected.some(x=>((x.width||1)/(x.height||1))>1.18))diversity+=4;
+   const score=base(r)+diversity;
+   if(score>bestScore){bestScore=score;bestIndex=i;}
+  }
+  if(bestIndex<0)break;
+  const [pick]=pool.splice(bestIndex,1);pick.curationScore=Math.round(bestScore);selected.push(pick);
+  for(const e of pick.library?.events||[])usedEvent.set(e,(usedEvent.get(e)||0)+1);
+  if(pick.library?.date)usedDate.set(pick.library.date,(usedDate.get(pick.library.date)||0)+1);
+  if(pick.library?.article)usedArticle.set(pick.library.article,(usedArticle.get(pick.library.article)||0)+1);
+ }
+ return selected;
+};
 })();

@@ -67,7 +67,7 @@ test('spread map pairs inside pages as left and right while keeping covers singl
 });
 
 test('print package emits sequential PDF order, checklist, and automatic blank pages',()=>{
- const items=[{id:'a',title:'기사',deck:'부제',body:'본문',photos:[{width:2400,height:1600,alt:'사진',caption:'설명'}],_plan:{type:'news',template:'news-1p',pages:1,label:'SCHOOL NEWS'}}];
+ const items=[{id:'a',title:'기사',deck:'부제',body:'본문',photos:[{width:3000,height:4300,alt:'사진',caption:'설명'}],_plan:{type:'news',template:'news-1p',pages:1,label:'SCHOOL NEWS'}}];
  const p=M.printPackage(items,'웅비');
  assert.equal(p.pdfOrder.length%4,0);
  assert.ok(p.blankCount>0);
@@ -75,4 +75,32 @@ test('print package emits sequential PDF order, checklist, and automatic blank p
  assert.equal(p.pdfOrder.at(-1).side,'back-cover');
  assert.ok(p.checks.some(x=>x.id==='pages4'&&x.severity==='ok'));
  assert.equal(p.ready,true);
+});
+
+
+test('B5 print profile computes bleed canvas and 300dpi requirements',()=>{
+ const p=M.printRequirements('b5jis');
+ assert.equal(p.trimWidthMm,182);
+ assert.equal(p.trimHeightMm,257);
+ assert.equal(p.bleedMm,3);
+ assert.equal(p.dpi,300);
+ assert.ok(p.fullWidthPx>p.trimWidthPx);
+ assert.ok(p.fullHeightPx>p.trimHeightPx);
+});
+
+test('effective dpi detects press-ready and insufficient cover images',()=>{
+ const p=M.printRequirements('b5jis');
+ const good=M.effectiveDpi({width:p.fullWidthPx,height:p.fullHeightPx},p.fullWidthMm,p.fullHeightMm);
+ const bad=M.effectiveDpi({width:1000,height:1400},p.fullWidthMm,p.fullHeightMm);
+ assert.ok(good>=299);
+ assert.ok(bad<200);
+});
+
+test('print package includes selected profile and blocks low resolution cover',()=>{
+ const low=[{id:'a',title:'표지 기사',deck:'부제',body:'본문',photos:[{width:1000,height:1400,alt:'사진',caption:'설명'}],_plan:{type:'feature',template:'feature-4p',pages:4,label:'FEATURE'}}];
+ const p=M.printPackage(low,'웅비','b5jis');
+ assert.equal(p.profile.id,'b5jis');
+ assert.ok(p.checks.some(x=>x.id==='profile'&&x.severity==='ok'));
+ assert.ok(p.checks.some(x=>x.id==='cover300'&&x.severity==='error'));
+ assert.equal(p.ready,false);
 });
