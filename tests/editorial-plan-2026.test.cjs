@@ -48,6 +48,23 @@ test('2026 plan connects robotics award and autonomous public high school source
  assert.ok(robot);
  assert.match(robot.title,/로봇|R&E/);
  assert.ok(autonomous.sourceIds.includes('s32'));
- assert.equal(E.plans.length,47);
+ assert.equal(E.plans.length,50);
  assert.equal(E.sources.length,32);
+});
+
+
+test('active article links preserve existing 2026 drafts and avoid duplicate plan slots',()=>{
+ assert.equal(E.planIdForArticle('A-2026-003'),'p14');
+ assert.equal(E.planIdForArticle('A-2026-004'),'p07');
+ assert.equal(E.planIdForArticle('A-2026-005'),'p48');
+ assert.equal(E.planIdForArticle('A-2026-016'),'p50');
+ assert.equal(E.articleIdForPlan('p49'),'A-CURRENT-RDFF06A97D95B-EVENT');
+});
+
+test('plan includes busking humanities trip and revived library within fifty articles',()=>{
+ for(const id of ['p48','p49','p50'])assert.ok(E.planById(id));
+ assert.match(E.planById('p48').title,/버스킹/);
+ assert.match(E.planById('p49').title,/인문학 기행/);
+ assert.match(E.planById('p50').title,/도서부/);
+ assert.equal(E.plans.length,50);
 });

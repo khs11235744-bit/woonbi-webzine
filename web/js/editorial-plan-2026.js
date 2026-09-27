@@ -86,7 +86,33 @@ const plans=[
 {id:'p45',section:'학생 특집 — 전공과 질문',month:'특집',title:'추천 알고리즘은 내 취향을 발견할까 만들까',category:'학생 글',planKind:'research',minPhotos:2,angle:'영상·음악·쇼핑 추천을 사례로 개인화 알고리즘과 필터버블, 선택의 자유를 탐구한다.',sourceIds:[],studentRecord:'컴퓨터·수학·미디어·심리 진로 연계',questions:['추천 전후 선택이 어떻게 달라지는지 기록할 수 있나?','정확한 추천과 다양한 추천 중 무엇이 좋은가?','알고리즘 편향을 학생 수준에서 어떻게 실험할까?']},
 {id:'p46',section:'학생 특집 — 전공과 질문',month:'특집',title:'교실의 빛과 공기는 집중력에 닿을까',category:'학생 글',planKind:'research',minPhotos:3,angle:'조도·온도·이산화탄소·소음 같은 교실환경 데이터를 수집해 학습집중도와의 관계를 탐구한다.',sourceIds:[],studentRecord:'건축·환경·의학·통계·교육 진로 연계',questions:['측정 가능한 환경변수는 무엇인가?','주관적 집중도를 어떻게 기록할까?','상관관계를 인과관계로 오해하지 않으려면?']},
 {id:'p47',section:'학생 특집 — 전공과 질문',month:'특집',title:'로봇은 지역의 이야기를 어떻게 공연할 수 있을까 — 딥사이언스의 지능로봇 도전',category:'학생 글',planKind:'research',minPhotos:4,angle:'한국지능로봇경진대회 수상 프로젝트를 바탕으로 알고리즘 제어·로봇공학과 지역의 역사·미래를 공연으로 표현하는 융합 과정을 탐구한다.',sourceIds:['s31'],studentRecord:'로봇·컴퓨터·전자·문화콘텐츠·지역학 진로 연계',questions:['로봇의 움직임을 공연 서사와 연결하기 위해 어떤 알고리즘을 설계했나?','실패가 가장 많이 발생한 제어 과정은 무엇이었나?','포항의 과거와 미래를 어떤 장면으로 표현했고 왜 그렇게 골랐나?','기술 프로젝트에 인문학적 메시지를 넣으면 무엇이 달라지나?']}
+,
+{id:'p48',section:'2026 학교의 한 해',month:'연중',title:'점심시간, 학교가 무대가 되었다 — 2026 버스킹',category:'사진과 기록',planKind:'school',minPhotos:6,angle:'점심시간 버스킹을 공연 결과가 아니라 준비·무대·관객·학교 분위기가 달라지는 장면으로 기록한다.',sourceIds:[],questions:['공연을 준비하며 가장 어려웠던 순간은?','무대에 오르기 직전 어떤 생각을 했나?','관객 학생들은 점심시간 버스킹을 어떻게 기억하나?','다음 공연에서 바꾸고 싶은 점은?'],requiredPhotos:['무대 전경','공연자 클로즈업','관객 반응','공연 준비 장면']},
+{id:'p49',section:'2026 학교의 한 해',month:'연중',title:'교실 밖에서 만난 역사 — 2026 인문학 기행',category:'특집',planKind:'school',minPhotos:6,angle:'교실에서 배운 역사·문화가 실제 장소에서 어떻게 다르게 보였는지 학생의 관찰과 질문을 중심으로 기록한다.',sourceIds:[],questions:['현장에서 처음 눈에 들어온 것은 무엇이었나?','수업에서 알고 있던 내용과 실제 장소가 달랐던 점은?','친구들과 가장 오래 이야기한 질문은?','다녀온 뒤 다시 찾아본 자료는?'],requiredPhotos:['장소 전경','학생 관찰 장면','해설·자료 장면','단체 이동 장면']},
+{id:'p50',section:'2026 학교의 한 해',month:'연중',title:'다시 열린 도서관 — 도서부와 한민혁 선생님 인터뷰',category:'학교 사람들',planKind:'school',minPhotos:4,angle:'도서부가 다시 활동하게 된 과정과 학교 도서관이 학생에게 어떤 공간이 될 수 있는지 교사·학생 인터뷰로 기록한다.',sourceIds:[],questions:['도서부가 다시 시작된 계기는 무엇인가?','학생이 실제로 도서관을 더 많이 쓰게 하려면 무엇이 필요한가?','도서부 학생들이 올해 가장 해보고 싶은 활동은?','학교 도서관이 공부 공간을 넘어 어떤 역할을 할 수 있을까?'],requiredPhotos:['도서관 전경','도서부 활동 장면','한민혁 선생님 인터뷰 사진','학생 이용 장면']}
+
 ];
+
+const activeArticleLinks=Object.freeze({
+ 'A-2026-001':'p01',
+ 'A-2026-002':'p03',
+ 'A-2026-003':'p14',
+ 'A-2026-004':'p07',
+ 'A-2026-005':'p48',
+ 'A-2026-006':'p08',
+ 'A-2026-007':'p20',
+ 'A-2026-009':'p21',
+ 'A-2026-011':'p25',
+ 'A-2026-013':'p27',
+ 'A-2026-014':'p05',
+ 'A-2026-016':'p50',
+ 'A-2026-019':'p11',
+ 'A-CURRENT-RDFF06A97D95B-EVENT':'p49',
+ 'A-b51aff18-047c-4da7-a605-7912e40f13f0':'p16',
+ 'A-2026-028':'p46'
+});
+function planIdForArticle(articleId){return activeArticleLinks[String(articleId||'')]||'';}
+function articleIdForPlan(planId){return Object.keys(activeArticleLinks).find(id=>activeArticleLinks[id]===planId)||'';}
 
 const verifiedSourceIds=new Set(["s01","s02","s03","s04","s10","s11","s15","s16","s17","s19","s20","s21","s22","s24","s25","s26","s28","s29","s31","s32"]);
 for(const x of sources){
@@ -162,5 +188,5 @@ function articleSlots(){
   notes:['2026 교지 기획 슬롯 · 실제 취재 후 완성']
  }));
 }
-W.editorial2026={year:2026,version:'2026-09-26',sources:sources2026,allSources:sources,plans,sourceById,planById,draft,articleSlots,sectionCounts,verifiedSourceIds};
+W.editorial2026={year:2026,version:'2026-09-27',sources:sources2026,allSources:sources,plans,sourceById,planById,draft,articleSlots,sectionCounts,verifiedSourceIds,activeArticleLinks,planIdForArticle,articleIdForPlan};
 })();
