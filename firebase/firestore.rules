@@ -64,6 +64,27 @@ service cloud.firestore {
     a.updatedBy == request.auth.uid && a.serverWrittenAt == request.time;
   }
   function historyWritten(id,a){return getAfter(/databases/$(database)/documents/articles/$(id)/revisions/$(string(a.revision))).data.snapshot == a;}
+  // Public writing entrance: immutable private submissions, never governed by OPEN ADMIN.
+  match /contributions/{id} {
+   allow create: if signed() && id.matches('^[a-zA-Z0-9-]{1,80}$') &&
+     request.resource.data.keys().hasAll(['ownerUid','title','deck','byline','body','kind','status','createdAt','webConsent','printConsent']) &&
+     request.resource.data.keys().hasOnly(['ownerUid','title','deck','byline','body','kind','status','createdAt','webConsent','printConsent']) &&
+     request.resource.data.ownerUid == request.auth.uid &&
+     request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 150 &&
+     request.resource.data.deck is string && request.resource.data.deck.size() <= 350 &&
+     request.resource.data.byline is string && request.resource.data.byline.size() > 0 && request.resource.data.byline.size() <= 80 &&
+     request.resource.data.body is string && request.resource.data.body.size() >= 60 && request.resource.data.body.size() <= 45000 &&
+     request.resource.data.kind in ['principal','viceprincipal','event','free'] &&
+     request.resource.data.status == 'submitted' && request.resource.data.createdAt == request.time &&
+     request.resource.data.webConsent == false && request.resource.data.printConsent == false;
+   allow get: if signed() && (!exists(/databases/$(database)/documents/contributions/$(id)) || baseTeacher() || resource.data.ownerUid == request.auth.uid);
+   allow list: if signed() && (baseTeacher() || resource.data.ownerUid == request.auth.uid);
+   allow update: if baseTeacher() && resource.data.status == 'submitted' &&
+     request.resource.data.status == 'imported' && request.resource.data.articleId is string &&
+     request.resource.data.articleId.size() > 0 && request.resource.data.articleId.size() <= 80 &&
+     request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','articleId']);
+   allow delete: if false;
+  }
   match /settings/access {
    allow get: if signed();
    allow list: if false;
@@ -93,6 +114,7 @@ service cloud.firestore {
   }
   match /articles/{id} {
    allow read: if canRead(resource.data);
+   allow get: if baseTeacher() && id.matches('^contrib-[a-zA-Z0-9-]{1,80}$') && !exists(/databases/$(database)/documents/articles/$(id));
    allow create: if teacher() && valid(request.resource.data) && request.resource.data.id == id && request.resource.data.revision == 0 && request.resource.data.status == 'draft' && !request.resource.data.webConsent && !request.resource.data.printConsent && historyWritten(id,request.resource.data);
    // Update paths validate only fields that are allowed to change.
    // Unchanged content was validated at creation or by a previous accepted revision.
