@@ -77,5 +77,6 @@ async function showInbox(){
  if(!rows.length)content.append(el('p','아직 접수된 원고가 없습니다.'));say('접수 원고 '+rows.length+'건 표시');if(snap.docs.length===100)content.append(action('다음 접수 원고 보기',async()=>{cursor=snap.docs[snap.docs.length-1];loadButton.click();},true));if(cursor)content.append(action('최신 원고부터 다시 보기',async()=>{cursor=null;loadButton.click();},true));
  },false);main.append(tools(loadButton,el('a','기존 편집실 열기',{href:'/?view=articles',class:'button'})));
 }
+main.replaceChildren();
 const view=params.get('view');if(view==='guide')showGuide();else if(view==='sheet')showSheet();else if(view==='inbox')showInbox();else if(kind)showForm();else showHome();
 })();
