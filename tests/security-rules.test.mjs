@@ -316,3 +316,35 @@ test('review comment text cannot be rewritten by student while resolving',async(
     text:'학생이 바꾼 문장',resolved:true,resolvedAt:'2026-09-26T13:10:00Z',resolvedBy:'student-a'
   }));
 });
+
+function contribution(uid,overrides={}){return {ownerUid:uid,title:'인터뷰 답변',deck:'',byline:'작성자',body:'실제 답변과 사실을 담은 검토용 원고입니다. '.repeat(5),kind:'principal',status:'submitted',createdAt:serverTimestamp(),webConsent:false,printConsent:false,...overrides};}
+test('contributions require verified identity and never accept publication consent',async()=>{
+ const db=auth('student-a').firestore();
+ await assertSucceeds(setDoc(doc(db,'contributions','entry-a'),contribution('student-a')));
+ await assertFails(setDoc(doc(db,'contributions','entry-spoof'),contribution('student-b')));
+ await assertFails(setDoc(doc(db,'contributions','entry-public'),contribution('student-a',{webConsent:true})));
+ await assertFails(setDoc(doc(env.unauthenticatedContext().firestore(),'contributions','entry-anon'),contribution('anon')));
+ await assertFails(updateDoc(doc(db,'contributions','entry-a'),{body:'changed'}));
+});
+test('open admin users cannot read another contributor; stored teachers can review',async()=>{
+ const db=auth('student-a').firestore();await setDoc(doc(db,'contributions','entry-private'),contribution('student-a'));
+ await assertSucceeds(getDoc(doc(db,'contributions','entry-private')));
+ await assertFails(getDoc(doc(auth('student-b').firestore(),'contributions','entry-private')));
+ await assertFails(getDocs(collection(auth('student-b').firestore(),'contributions')));
+ await assertSucceeds(getDocs(collection(auth('teacher').firestore(),'contributions')));
+ await assertSucceeds(updateDoc(doc(auth('teacher').firestore(),'contributions','entry-private'),{status:'imported',articleId:'article-a'}));
+});
+
+test('teacher imports contribution transaction without losing text or publishing it',async()=>{
+ const F=await import('firebase/firestore'),writer=auth('student-a').firestore(),teacherDb=auth('teacher').firestore();
+ await setDoc(doc(writer,'contributions','import-one'),contribution('student-a'));
+ const input=(await getDoc(doc(teacherDb,'contributions','import-one'))).data(),id='contrib-import-one';
+ await F.runTransaction(teacherDb,async tx=>{
+  const entry=doc(teacherDb,'contributions','import-one'),ref=doc(teacherDb,'articles',id);
+  const received=await tx.get(entry),existing=await tx.get(ref);assert.equal(received.data().status,'submitted');assert.equal(existing.exists(),false);
+  const a=article(id,['teacher'],{body:input.body,byline:input.byline,title:input.title,updatedBy:'teacher',contentOrigin:'contribution:import-one',serverWrittenAt:serverTimestamp()});
+  tx.set(ref,a);tx.set(doc(ref,'revisions','0'),{snapshot:a,actor:'teacher',at:serverTimestamp()});tx.update(entry,{status:'imported',articleId:id});
+ });
+ const saved=(await getDoc(doc(teacherDb,'articles',id))).data();assert.equal(saved.body,input.body);assert.equal(saved.status,'draft');assert.equal(saved.webConsent,false);assert.equal(saved.printConsent,false);
+ await assertFails(getDoc(doc(writer,'articles','contrib-never-exists')));
+});
