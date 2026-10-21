@@ -1,9 +1,13 @@
 name: Woonbi Firebase deploy
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      confirm_full_release:
+        description: 'Publish a reviewed full release (school data refresh uses a separate preserving workflow)'
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -15,6 +19,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: inputs.confirm_full_release == true
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -49,6 +54,14 @@ jobs:
 
       - name: Build live shell
         run: python3 scripts/build.py --live-config deploy/firebase-live-config.json
+
+      - name: Reject stale or sample-only full releases
+        run: |
+          test -f dist-live/js/feature-pohang-20261017.js
+          test -f dist-live/js/feature-economy-2026.js
+          test -f dist-live/js/feature-goldenbell-2026.js
+          test -f dist-live/js/feature-research-20261021.js
+          grep -q 'js/feature-research-20261021.js' dist-live/index.html
 
       - name: Refresh school life data
         env:

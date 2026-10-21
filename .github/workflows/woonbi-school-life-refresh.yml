@@ -10,8 +10,8 @@ permissions:
   id-token: write
 
 concurrency:
-  group: woonbi-school-life-refresh
-  cancel-in-progress: true
+  group: woonbi-production
+  cancel-in-progress: false
 
 jobs:
   refresh:
@@ -23,10 +23,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
 
-      - name: Install project tooling
-        run: npm ci
+      - name: Test preservation of published articles and photos
+        run: node --test tests/hosting-data-refresh.test.cjs
 
       - id: auth
         name: Authenticate to Google Cloud with OIDC
@@ -38,17 +37,14 @@ jobs:
           token_format: access_token
           access_token_scopes: https://www.googleapis.com/auth/cloud-platform
 
-      - name: Build live shell
-        run: python3 scripts/build.py --live-config deploy/firebase-live-config.json
-
-      - name: Refresh school life data
+      - name: Refresh and validate school information only
         env:
           NEIS_API_KEY: ${{ secrets.NEIS_API_KEY }}
         run: |
-          node scripts/fetch-school-life.mjs
-          node scripts/validate-school-life.cjs
+          node scripts/fetch-school-life.mjs --out="$RUNNER_TEMP/school-life.json"
+          node scripts/validate-school-life.cjs "$RUNNER_TEMP/school-life.json"
 
-      - name: Deploy refreshed Hosting
+      - name: Preserve live articles and photos while replacing school data
         env:
-          FIREBASE_TOKEN: ${{ steps.auth.outputs.access_token }}
-        run: npx firebase deploy --project woonbi-webzine-2026 --only hosting --non-interactive
+          WOONBI_HOSTING_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+        run: node scripts/refresh-hosting-school-life.cjs "$RUNNER_TEMP/school-life.json"
