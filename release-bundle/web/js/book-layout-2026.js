@@ -4,6 +4,7 @@ const W=window.Woonbi=window.Woonbi||{};
 const GEOMETRY={width:794,height:1123,trimWidthMm:210,trimHeightMm:297};
 function plan(items=[],{albumSize=2}={}){albumSize=[1,2,4].includes(Number(albumSize))?Number(albumSize):2;return items.flatMap(a=>{const photos=Array.isArray(a.photos)?a.photos:[],out=[{kind:'article',article:a,body:String(a.body||''),photos:photos.slice(0,1)}];for(let i=1;i<photos.length;i+=albumSize)out.push({kind:'album',article:a,body:'',photos:photos.slice(i,i+albumSize)});return out;});}
 function flowSplit(text,fit){const chars=Array.from(text),min=70;if(chars.length-fit<min){if(chars.length<min*2)return 0;fit=Math.min(fit,chars.length-min);}const prefix=chars.slice(0,fit).join(''),boundary=Math.max(prefix.lastIndexOf(' '),prefix.lastIndexOf('\n'));return boundary>prefix.length*.7?Array.from(prefix.slice(0,boundary+1)).length:fit;}
+function measuredFlowSplit(text,fit,measureLines){const chars=Array.from(text);let cut=flowSplit(text,fit);const step=Math.max(20,Math.ceil(cut/32));for(let attempt=0;attempt<32&&cut>=70;attempt++){if(measureLines(chars.slice(cut).join(''))>=1.95)return cut;const next=flowSplit(text,Math.max(0,cut-step));if(next>=cut)return 0;cut=next;}return 0;}
 function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n;}
 async function preview(issue,options={}){
  const {imageNode,onChange,renderText}=options;const paint=(node,raw,heading=false)=>{const text=(heading?raw.replace(/^#{1,3}\s+/,''):raw).replace(/\n+$/,'');if(renderText)node.replaceChildren(...renderText(text));else node.textContent=text;};issue.layout=issue.layout||{};const settings=issue.layout;
@@ -47,7 +48,7 @@ async function preview(issue,options={}){
     const chars=Array.from(remaining);let lo=0,hi=chars.length;
     current.content.append(node);
     while(lo<hi){const mid=Math.ceil((lo+hi)/2);paint(node,chars.slice(0,mid).join(''));if(overflow(current.content))hi=mid-1;else lo=mid;}
-    lo=flowSplit(remaining,lo);if(lo<70){node.remove();if(current.content.children.length===1&&current.content.firstElementChild?.classList.contains('book26-continued')){throw new Error('A4 본문 영역에 글을 배치할 수 없습니다. 화면 글꼴과 지면 설정을 확인하세요.');}const last=current.content.lastElementChild;const orphan=last?.classList.contains('book26-heading')?last:null;if(orphan)orphan.remove();current=makePage(a,'article',true);if(orphan)current.content.append(orphan);continue;}
+    lo=measuredFlowSplit(remaining,lo,tail=>{const probe=el('p','book26-copy');paint(probe,tail);current.content.append(probe);const lineHeight=parseFloat(getComputedStyle(probe).lineHeight)||32;const lines=probe.getBoundingClientRect().height/lineHeight;probe.remove();return lines;});if(lo<70){node.remove();if(current.content.children.length===1&&current.content.firstElementChild?.classList.contains('book26-continued')){throw new Error('A4 본문 영역에 글을 배치할 수 없습니다. 화면 글꼴과 지면 설정을 확인하세요.');}const last=current.content.lastElementChild;const orphan=last?.classList.contains('book26-heading')?last:null;if(orphan)orphan.remove();current=makePage(a,'article',true);if(orphan)current.content.append(orphan);continue;}
     const take=lo;
     node.dataset.sourceText=chars.slice(0,take).join('');paint(node,node.dataset.sourceText);
     remaining=chars.slice(take).join('');if(remaining)current=makePage(a,'article',true);
@@ -100,5 +101,5 @@ async function printProof(root){
  let restored=false;const restore=()=>{if(restored)return;restored=true;style.remove();if(created)area.remove();else{area.replaceChildren(...previous);area.hidden=wasHidden;}window.removeEventListener('afterprint',restore);};window.addEventListener('afterprint',restore,{once:true});
  try{await Promise.race([document.fonts?.ready||Promise.resolve(),new Promise(resolve=>setTimeout(resolve,4000))]);await Promise.race([Promise.all([...area.querySelectorAll('img')].map(img=>img.decode?.().catch(()=>{}))),new Promise(resolve=>setTimeout(resolve,12000))]);for(const img of area.querySelectorAll('img'))if(!img.complete||!img.naturalWidth){img.closest('figure')?.classList.add('book26-photo-failed');}window.print();}catch(e){restore();throw e;}
 }
-W.bookLayout2026={plan,preview,printProof,GEOMETRY,flowSplit};
+W.bookLayout2026={plan,preview,printProof,GEOMETRY,flowSplit,measuredFlowSplit};
 })();

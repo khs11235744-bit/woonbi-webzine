@@ -9,7 +9,7 @@
     },
     {
       "path": "/js/app.js",
-      "candidateSha256": "3a455fb2501c7dfc1f5e0c276ec0f3552852053d6564d93674023d0256630b8d",
+      "candidateSha256": "374967b4e934a8b0e0563847b25e740a5f8ebea6c06db2bfb0b5fcf8ebe2d673",
       "baselineSha256": "ad47ace91a52ff49e12f1ea5d1467f2b130a65caf993e37273ae173d36dc004b"
     },
     {
@@ -20,9 +20,9 @@
     },
     {
       "path": "/js/book-layout-2026.js",
-      "candidateSha256": "984bc456f6c97b1677c51365bd5fc1531866afc2ee1e0c494a7c048098c8b2e6",
+      "candidateSha256": "00c18c0f157d304280763c60ae93fa6914455e948f902ef45fcf183c037abac5",
       "newAsset": true,
-      "sha256": "984bc456f6c97b1677c51365bd5fc1531866afc2ee1e0c494a7c048098c8b2e6"
+      "sha256": "00c18c0f157d304280763c60ae93fa6914455e948f902ef45fcf183c037abac5"
     },
     {
       "path": "/book-layout-2026.css",
