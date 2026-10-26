@@ -1,0 +1,244 @@
+rules_version = '2';
+service cloud.firestore {
+ match /databases/{database}/documents {
+  function signed(){ return request.auth != null && request.auth.token.email_verified == true; }
+  // Privileges come only from teacher-managed membership, never an email domain or global switch.
+  function memberExists(){return signed() && exists(/databases/$(database)/documents/members/$(request.auth.uid));}
+  function memberData(){return get(/databases/$(database)/documents/members/$(request.auth.uid)).data;}
+  function baseActive(){return memberExists() && memberData().active == true;}
+  function baseTeacher(){return baseActive() && memberData().role == 'teacher';}
+  function baseStaff(){return baseActive() && memberData().role in ['teacher','editor'];}
+  function active(){return baseActive();}
+  function teacher(){return baseTeacher();}
+  function staff(){return baseStaff();}
+  function author(){return baseActive() && memberData().role in ['student','editor','teacher'];}
+  function canRead(a){return signed() && a is map && (staff() || (author() && request.auth.uid in a.assigneeIds));}
+  function editable(a){return canRead(a) && a.status in ['draft','changes'];}
+  function article(id){return get(/databases/$(database)/documents/articles/$(id)).data;}
+  // Validate every element; Firestore Rules has no list map/loop.
+  function validPhoto(a,p){
+   return (
+    p is map && p.keys().hasOnly(['id','caption','alt','after','width','height','originalBytes','originalType','originalPath','webPath','placeholder']) &&
+    p.id is string && p.id.matches('^[a-zA-Z0-9-]{1,80}$') &&
+    p.caption is string && p.caption.size() <= 300 && p.alt is string && p.alt.size() <= 200 &&
+    p.after is int && p.after >= -1 && p.after <= 10000 &&
+    p.width is int && p.width > 0 && p.height is int && p.height > 0 &&
+    p.originalBytes is int && p.originalBytes > 0 && p.originalBytes <= 26214400 &&
+    p.originalType in ['image/jpeg','image/png','image/webp'] &&
+    (!('placeholder' in p) || p.placeholder == false) &&
+    p.originalPath == 'private/'+a.id+'/'+p.id+'/original' &&
+    p.webPath == 'private/'+a.id+'/'+p.id+'/web.webp' &&
+    (a.status in ['draft','changes'] || p.alt.size()>0)
+   );
+  }
+  function photoAt(a,i){return a.photos.size() <= i || validPhoto(a,a.photos[i]);}
+  function allPhotos(a){return photoAt(a,0) && photoAt(a,1) && photoAt(a,2) && photoAt(a,3) && photoAt(a,4) && photoAt(a,5) && photoAt(a,6) && photoAt(a,7) && photoAt(a,8) && photoAt(a,9) && photoAt(a,10) && photoAt(a,11);}
+  // Only rule-validated new articles carry this immutable proof marker; legacy arrays always revalidate.
+  function photoUnchangedOrValid(a,old,i){return a.photos.size() <= i || a.photos[i] in old.photos || photoAt(a,i);}
+  function updatedPhotos(a,old){return photoUnchangedOrValid(a,old,0) && photoUnchangedOrValid(a,old,1) && photoUnchangedOrValid(a,old,2) && photoUnchangedOrValid(a,old,3) && photoUnchangedOrValid(a,old,4) && photoUnchangedOrValid(a,old,5) && photoUnchangedOrValid(a,old,6) && photoUnchangedOrValid(a,old,7) && photoUnchangedOrValid(a,old,8) && photoUnchangedOrValid(a,old,9) && photoUnchangedOrValid(a,old,10) && photoUnchangedOrValid(a,old,11);}
+  function publicPhotoMatches(p,photo,aid,revision){return p == {
+    'id':photo.id,'caption':photo.caption,'alt':photo.alt,'width':photo.width,'height':photo.height,'after':photo.after,
+    'webPath':'public/'+aid+'/'+string(revision)+'/'+photo.id+'.webp'
+  };}
+  function publicPhotoAt(p,a,i){return p.photos.size() <= i || publicPhotoMatches(p.photos[i],a.photos[i],a.id,a.revision);}
+  function publicPhotos(p,a){return p.photos.size()==a.photos.size() && publicPhotoAt(p,a,0) && publicPhotoAt(p,a,1) && publicPhotoAt(p,a,2) && publicPhotoAt(p,a,3) && publicPhotoAt(p,a,4) && publicPhotoAt(p,a,5) && publicPhotoAt(p,a,6) && publicPhotoAt(p,a,7) && publicPhotoAt(p,a,8) && publicPhotoAt(p,a,9) && publicPhotoAt(p,a,10) && publicPhotoAt(p,a,11);}
+  function valid(a){
+   return a.keys().hasOnly(['id','title','sourceTitle','deck','body','byline','category','categorySource','planKind','planOrder','sourceRange','assigneeIds','assigneeNames','dueDate','minPhotos','photos','status','feedback','revision','updatedBy','createdAt','updatedAt','webConsent','printConsent','serverWrittenAt','contentOrigin','reportingQuestions','notes','editorialPlanId','section','month','requiredPhotos','sourceIds','studentRecord','photoSchemaVersion']) &&
+    a.title is string && a.title.size() <= 150 && a.deck is string && a.deck.size() <= 350 &&
+    a.body is string && a.body.size() <= 45000 && a.byline is string && a.byline.size() <= 80 &&
+    a.photos is list && a.photos.size() <= 12 && allPhotos(a) && a.assigneeIds is list && a.assigneeIds.size() >= 1 && a.assigneeIds.size() <= 8 &&
+    (!('assigneeNames' in a) || (a.assigneeNames is list && a.assigneeNames.size() <= 8)) &&
+    (!('sourceTitle' in a) || (a.sourceTitle is string && a.sourceTitle.size() <= 150)) &&
+    (!('categorySource' in a) || (a.categorySource is string && a.categorySource.size() <= 350)) &&
+    (!('sourceRange' in a) || (a.sourceRange is string && a.sourceRange.size() <= 120)) &&
+    (!('planKind' in a) || a.planKind in ['','school','research','recovered']) &&
+    (!('planOrder' in a) || (a.planOrder is int && a.planOrder >= 0 && a.planOrder <= 1000)) &&
+    (!('contentOrigin' in a) || (a.contentOrigin is string && a.contentOrigin.size() <= 80)) &&
+    (!('reportingQuestions' in a) || (a.reportingQuestions is list && a.reportingQuestions.size() <= 16)) &&
+    (!('notes' in a) || (a.notes is list && a.notes.size() <= 16)) &&
+    (!('editorialPlanId' in a) || (a.editorialPlanId is string && a.editorialPlanId.size() <= 160)) &&
+    (!('section' in a) || (a.section is string && a.section.size() <= 150)) &&
+    (!('month' in a) || (a.month is string && a.month.size() <= 80)) &&
+    (!('requiredPhotos' in a) || (a.requiredPhotos is list && a.requiredPhotos.size() <= 16)) &&
+    (!('sourceIds' in a) || (a.sourceIds is list && a.sourceIds.size() <= 32)) &&
+    (!('studentRecord' in a) || (a.studentRecord is string && a.studentRecord.size() <= 2500)) &&
+    (!('photoSchemaVersion' in a) || a.photoSchemaVersion == 1) &&
+    a.category in ['학교 이야기','특집','학교 사람들','학생 글','사진과 기록','편집실'] &&
+    a.minPhotos is int && a.minPhotos >= 0 && a.minPhotos <= 12 &&
+    a.status in ['draft','changes','submitted','approved'] && a.revision is int &&
+    a.feedback is string && a.feedback.size() <= 2500 && a.webConsent is bool && a.printConsent is bool &&
+    a.updatedBy == request.auth.uid && a.serverWrittenAt == request.time;
+  }
+  function historyWritten(id,a){return getAfter(/databases/$(database)/documents/articles/$(id)/revisions/$(string(a.revision))).data.snapshot == a;}
+  function validUpdate(id,old,a){return a.revision is int &&
+    a.revision == old.revision+1 &&
+    a.updatedBy == request.auth.uid &&
+    a.updatedAt is string && a.updatedAt.size() <= 50 &&
+    a.serverWrittenAt == request.time &&
+    historyWritten(id,a) && (
+     // Teacher assignment / deadline metadata.
+     (a.diff(old).affectedKeys().hasOnly(['assigneeIds','assigneeNames','dueDate','revision','updatedAt','updatedBy','webConsent','printConsent','serverWrittenAt']) && teacher() && old.status in ['draft','changes'] &&
+      a.status == old.status &&
+      a.assigneeIds is list && a.assigneeIds.size() >= 1 && a.assigneeIds.size() <= 8 &&
+      a.assigneeNames is list && a.assigneeNames.size() <= 8 &&
+      a.dueDate is string && a.dueDate.size() <= 10 &&
+      a.webConsent == false && a.printConsent == false &&
+      a.diff(old).affectedKeys().hasOnly(['assigneeIds','assigneeNames','dueDate','revision','updatedAt','updatedBy','webConsent','printConsent','serverWrittenAt'])) ||
+     // Draft text / photo editing.
+     (editable(old) && a.status == old.status &&
+      a.title is string && a.title.size() <= 150 &&
+      a.deck is string && a.deck.size() <= 350 &&
+      a.body is string && a.body.size() <= 45000 &&
+      a.byline is string && a.byline.size() <= 80 &&
+      a.webConsent == false && a.printConsent == false &&
+      ((a.get('photoSchemaVersion',0)==old.get('photoSchemaVersion',0) &&
+        (a.photos == old.photos || (a.photos is list && a.photos.size() <= 12 && (old.get('photoSchemaVersion',0)==1 ? updatedPhotos(a,old) : allPhotos(a))))) ||
+       (!('photoSchemaVersion' in old) && a.photoSchemaVersion==1 && a.photos is list && a.photos.size()<=12 && allPhotos(a))) &&
+      a.diff(old).affectedKeys().hasOnly(['title','deck','body','byline','photos','photoSchemaVersion','revision','updatedAt','updatedBy','webConsent','printConsent','serverWrittenAt'])) ||
+     // Student/editor submission. Content itself is unchanged in this transition.
+     (editable(old) && a.status == 'submitted' &&
+      a.title is string && a.title.size() > 0 &&
+      a.body is string && a.body.size() >= 60 &&
+      a.byline is string && a.byline.size() > 0 &&
+      a.photos is list && a.photos.size() >= old.minPhotos &&
+      a.webConsent == false && a.printConsent == false &&
+      a.diff(old).affectedKeys().hasOnly(['status','revision','updatedAt','updatedBy','webConsent','printConsent','serverWrittenAt'])) ||
+     // Staff change request.
+     (staff() && old.status in ['submitted','approved'] &&
+      a.status == 'changes' &&
+      a.feedback is string && a.feedback.size() > 0 && a.feedback.size() <= 2500 &&
+      a.webConsent == false && a.printConsent == false &&
+      a.diff(old).affectedKeys().hasOnly(['status','feedback','revision','updatedAt','updatedBy','webConsent','printConsent','serverWrittenAt'])) ||
+     // Teacher or teacher-authorized editor approval.
+     (staff() && old.status == 'submitted' &&
+      a.status == 'approved' &&
+      a.webConsent is bool && a.printConsent is bool &&
+      a.diff(old).affectedKeys().hasOnly(['status','revision','updatedAt','updatedBy','webConsent','printConsent','serverWrittenAt']))
+    );}
+  function validPublication(id,p,a){return staff() && a.status=='approved' && a.webConsent &&
+     p.keys().hasOnly(['id','title','deck','body','byline','category','sourceRevision','publishedAt','photos','serverWrittenAt']) &&
+     p.id==id && p.title==a.title && p.deck==a.deck && p.body==a.body && p.byline==a.byline && p.category==a.category && p.sourceRevision==a.revision &&
+     p.photos is list && p.photos.size()<=12 && publicPhotos(p,a) && p.serverWrittenAt==request.time;}
+  // Public writing entrance: immutable private submissions, never governed by OPEN ADMIN.
+  match /contributions/{id} {
+   allow create: if signed() && id.matches('^[a-zA-Z0-9-]{1,80}$') &&
+     request.resource.data.keys().hasAll(['ownerUid','title','deck','byline','body','kind','status','createdAt','webConsent','printConsent']) &&
+     request.resource.data.keys().hasOnly(['ownerUid','title','deck','byline','body','kind','status','createdAt','webConsent','printConsent']) &&
+     request.resource.data.ownerUid == request.auth.uid &&
+     request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 150 &&
+     request.resource.data.deck is string && request.resource.data.deck.size() <= 350 &&
+     request.resource.data.byline is string && request.resource.data.byline.size() > 0 && request.resource.data.byline.size() <= 80 &&
+     request.resource.data.body is string && request.resource.data.body.size() >= 60 && request.resource.data.body.size() <= 45000 &&
+     request.resource.data.kind in ['principal','viceprincipal','event','free'] &&
+     request.resource.data.status == 'submitted' && request.resource.data.createdAt == request.time &&
+     request.resource.data.webConsent == false && request.resource.data.printConsent == false;
+   allow get: if signed() && (!exists(/databases/$(database)/documents/contributions/$(id)) || baseTeacher() || resource.data.ownerUid == request.auth.uid);
+   allow list: if signed() && (baseTeacher() || resource.data.ownerUid == request.auth.uid);
+   allow update: if baseTeacher() && resource.data.status == 'submitted' &&
+     request.resource.data.status == 'imported' && request.resource.data.articleId is string &&
+     request.resource.data.articleId.size() > 0 && request.resource.data.articleId.size() <= 80 &&
+     request.resource.data.articleId == 'contrib-'+id &&
+     request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','articleId']) &&
+     getAfter(/databases/$(database)/documents/articles/$(request.resource.data.articleId)).data.contentOrigin == 'contribution:'+id;
+   allow delete: if false;
+  }
+  match /settings/access {
+   allow get: if signed();
+   allow list: if false;
+   // Global elevation is disabled; only teachers may keep this legacy setting locked.
+   allow create,update: if teacher() && request.resource.data.openAdmin == false &&
+      request.resource.data.keys().hasOnly(['openAdmin','updatedAt','updatedBy']) &&
+      request.resource.data.updatedAt == request.time && request.resource.data.updatedBy == request.auth.uid;
+   allow delete: if false;
+  }
+  match /members/{uid} {
+   allow get: if signed() && (uid == request.auth.uid || teacher());
+   allow list: if teacher();
+   allow create: if signed() && uid == request.auth.uid &&
+      request.resource.data.keys().hasOnly(['displayName','role','active','createdAt']) &&
+      request.resource.data.displayName is string && request.resource.data.displayName.size() <= 60 &&
+      request.resource.data.role == 'student' && request.resource.data.active == true && request.resource.data.createdAt == request.time;
+   // Creating/promoting teachers is an out-of-band owner operation, never self-service.
+   allow update: if teacher() && resource.data.role != 'teacher' &&
+      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role','active']) &&
+      request.resource.data.role in ['pending','student','editor'] && request.resource.data.active is bool;
+   allow delete: if false;
+  }
+  match /articles/{id} {
+   allow read: if canRead(resource.data);
+   allow get: if baseTeacher() && id.matches('^contrib-[a-zA-Z0-9-]{1,80}$') && !exists(/databases/$(database)/documents/articles/$(id));
+   allow create: if author() && (teacher() || request.resource.data.assigneeIds == [request.auth.uid]) && valid(request.resource.data) && request.resource.data.id == id && request.resource.data.revision == 0 && request.resource.data.status == 'draft' && !request.resource.data.webConsent && !request.resource.data.printConsent && historyWritten(id,request.resource.data);
+   // Update paths validate only fields that are allowed to change.
+   // Unchanged content was validated at creation or by a previous accepted revision.
+   allow update: if validUpdate(id,resource.data,request.resource.data);
+   allow delete: if false;
+   match /presence/{uid} {
+    allow read: if canRead(article(id));
+    allow create,update: if active() && uid == request.auth.uid && canRead(article(id)) &&
+      request.resource.data.keys().hasOnly(['displayName','updatedAt']) &&
+      request.resource.data.displayName is string && request.resource.data.displayName.size() <= 60 &&
+      request.resource.data.updatedAt == request.time;
+    allow delete: if active() && uid == request.auth.uid;
+   }
+   match /revisions/{v} {
+    allow read: if canRead(article(id));
+    allow create: if active() && request.resource.data.keys().hasOnly(['snapshot','actor','at']) && request.resource.data.actor==request.auth.uid && request.resource.data.at==request.time &&
+      request.resource.data.snapshot == getAfter(/databases/$(database)/documents/articles/$(id)).data &&
+      request.resource.data.snapshot.updatedBy==request.auth.uid &&
+      v==string(request.resource.data.snapshot.revision);
+    allow update,delete: if false;
+   }
+   match /reviewComments/{commentId} {
+    allow read: if canRead(article(id));
+    allow create: if staff() &&
+      request.resource.data.keys().hasOnly(['articleId','text','author','authorUid','createdAt','resolved','resolvedAt','resolvedBy','serverCreatedAt']) &&
+      request.resource.data.articleId==id && request.resource.data.authorUid==request.auth.uid &&
+      request.resource.data.text is string && request.resource.data.text.size()>0 && request.resource.data.text.size()<=1200 &&
+      request.resource.data.resolved==false && request.resource.data.serverCreatedAt==request.time;
+    allow update: if canRead(article(id)) &&
+      request.resource.data.articleId==resource.data.articleId &&
+      request.resource.data.text==resource.data.text &&
+      request.resource.data.author==resource.data.author &&
+      request.resource.data.authorUid==resource.data.authorUid &&
+      request.resource.data.createdAt==resource.data.createdAt;
+    allow delete: if false;
+   }
+  }
+  match /publications/{id} {
+   allow read: if true;
+   allow create,update: if validPublication(id,request.resource.data,article(id));
+   allow delete: if teacher();
+  }
+  match /notifications/{id} {
+   allow read: if active() && (teacher() || resource.data.uid == request.auth.uid);
+   allow create: if teacher() &&
+    request.resource.data.keys().hasOnly(['uid','articleId','title','body','kind','createdAt','createdBy','read']) &&
+    request.resource.data.uid is string && request.resource.data.uid.size() > 0 && request.resource.data.uid.size() <= 160 &&
+    request.resource.data.articleId is string && request.resource.data.articleId.size() <= 160 &&
+    request.resource.data.title is string && request.resource.data.title.size() <= 150 &&
+    request.resource.data.body is string && request.resource.data.body.size() <= 700 &&
+    request.resource.data.kind in ['deadline','reminder','review'] &&
+    request.resource.data.createdAt == request.time && request.resource.data.createdBy == request.auth.uid &&
+    request.resource.data.read == false;
+   allow update: if active() && resource.data.uid == request.auth.uid &&
+    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read','readAt']) &&
+    request.resource.data.read == true && request.resource.data.readAt == request.time;
+   allow delete: if false;
+  }
+  match /issues/{id} {
+   allow read: if teacher();
+   allow create: if teacher() && request.resource.data.keys().hasOnly(['title','createdAt','order','status']) && request.resource.data.title is string && request.resource.data.order is list && request.resource.data.order.size()>0 && request.resource.data.order.size()<=60 && request.resource.data.status=='building';
+   allow update: if teacher() && resource.data.status=='building' && request.resource.data.status=='ready' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+   allow delete: if false;
+   match /items/{aid} {
+    allow read: if teacher();
+    allow create: if teacher() && get(/databases/$(database)/documents/issues/$(id)).data.status=='building' && article(aid).status=='approved' && article(aid).printConsent &&
+     request.resource.data.keys().hasOnly(['id','title','deck','body','byline','category','sourceRevision','photos']) &&
+     request.resource.data.id==aid && request.resource.data.sourceRevision==article(aid).revision && request.resource.data.title==article(aid).title && request.resource.data.deck==article(aid).deck && request.resource.data.byline==article(aid).byline && request.resource.data.category==article(aid).category && request.resource.data.body==article(aid).body && request.resource.data.photos==article(aid).photos;
+    allow update,delete: if false;
+   }
+  }
+  match /{document=**}{allow read,write: if false;}
+ }
+}
+

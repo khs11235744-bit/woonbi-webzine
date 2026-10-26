@@ -1,0 +1,26 @@
+{
+  "project": "woonbi-webzine-2026",
+  "baseVersion": "sites/woonbi-webzine-2026/versions/7572b2a404de3973",
+  "candidateVersion": "sites/woonbi-webzine-2026/versions/f166826aeed26768",
+  "beforeHash": "16a2e4286a141e8a93318b60371531764e2d8525d804cf75546280873ddf84d2",
+  "afterHash": "79234a8f77e814d7ff7c2f3b4e6a49d981d6f40416cbf5452029142c2bcfc4ee",
+  "configHash": "85b0dde43d1df6f22286bb6f56203f5d63bb2b7d10eabc36129e3d6931fce626",
+  "rules": [
+    {
+      "release": "projects/woonbi-webzine-2026/releases/cloud.firestore",
+      "oldRuleset": "projects/woonbi-webzine-2026/rulesets/e6de873f-bcd6-4b05-8482-4924ff24d939",
+      "oldHash": "a41fe9791560c575562c5e4cfe9d9a94dded856a1700159ff0fff05f0eed7612",
+      "filename": "firestore.rules",
+      "file": "firestore.rules",
+      "candidateHash": "75c00bba3ac2dfa03001034227e8e40f4c7ab52f49281468b5b39a21deaa5295"
+    },
+    {
+      "release": "projects/woonbi-webzine-2026/releases/firebase.storage/woonbi-webzine-2026.firebasestorage.app",
+      "oldRuleset": "projects/woonbi-webzine-2026/rulesets/6918b6c9-955a-47c4-b2e5-3f8991fe74cd",
+      "oldHash": "c3f9b0d5c662fc31cd6a29c541966fc57aa9f41675cd6f38ef04f0b895af37b0",
+      "filename": "firebase/storage.rules",
+      "file": "storage.rules",
+      "candidateHash": "07449f33915af6c2c503de48383d8bd98c9ac9dffe8ced83b338bc38ca8c74c0"
+    }
+  ]
+}
