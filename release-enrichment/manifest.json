@@ -1,0 +1,19 @@
+{
+  "site": "woonbi-webzine-2026",
+  "files": [
+    {
+      "path": "/js/feature-article-notes-20261023.js",
+      "baselineSha256": "2cb72311721aceff8f6f945c70e86c2a0f5c9e7165c4d0d202990655646fa1c2",
+      "candidateSha256": "176fd6cf34b128f695a18cb1304712ebec6dc402ffe55389f0d24aa85432d7f1",
+      "bytes": 10320,
+      "newAsset": false
+    },
+    {
+      "path": "/js/feature-goldenbell-2026.js",
+      "baselineSha256": "ce0f58d68979880087c7b4a51a116730a5f4ada3e65c1d3309af5ab940288d17",
+      "candidateSha256": "55670c0e7c2dfda6b291d4aec3024e28df5535cf439d2f1111abfd1f6326fc98",
+      "bytes": 22449,
+      "newAsset": false
+    }
+  ]
+}
