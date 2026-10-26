@@ -32,9 +32,9 @@
     },
     {
       "path": "/book-preview-qa.html",
-      "candidateSha256": "00246e5fa4d0c13a738bb3e0e95efec11bc2df27c8fe32a72e7c5485b81b8762",
+      "candidateSha256": "00fd30b9b3b109d5c0a643b988ca24d6fca7d85f8acb309c7d1eeddf78216e2f",
       "newAsset": true,
-      "sha256": "00246e5fa4d0c13a738bb3e0e95efec11bc2df27c8fe32a72e7c5485b81b8762",
+      "sha256": "00fd30b9b3b109d5c0a643b988ca24d6fca7d85f8acb309c7d1eeddf78216e2f",
       "qaOnly": true
     }
   ]
