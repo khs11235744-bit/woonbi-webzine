@@ -5,7 +5,7 @@ const {gzipSync}=require('node:zlib');
 const {isDeepStrictEqual}=require('node:util');
 const SITE='woonbi-webzine-2026';
 const PREFIX=`sites/${SITE}/versions/`;
-const ALLOWED=new Set(['/js/app.js','/js/core.js','/js/firebase-store.js']);
+const ALLOWED=new Set(['/js/app.js','/js/core.js','/js/firebase-store.js','/js/newsroom.js']);
 const sha=b=>createHash('sha256').update(b).digest('hex');
 function validVersion(v){if(typeof v!=='string'||!v.startsWith(PREFIX)||!/^[-\w]+$/.test(v.slice(PREFIX.length)))throw Error('Invalid version');return v;}
 async function current(request){return validVersion((await request('GET',`sites/${SITE}/channels/live`)).release?.version?.name);}

@@ -29,7 +29,7 @@ function validContent(a){
  return a;
 }
 function requirements(a){
- const e=[];if(!a.title.trim())e.push('제목');if(a.body.trim().length<60)e.push('본문 60자 이상');if(!a.byline.trim())e.push('필자명');
+ const e=[];if(!a.title.trim())e.push('제목');if(a.body.trim().length<60)e.push('본문 60자 이상');
  if(a.photos.length<a.minPhotos)e.push(`사진 ${a.minPhotos}장 이상`);
  if(a.photos.some(p=>!p.alt.trim()))e.push('사진 대체 설명');if(a.photos.some(p=>p.placeholder||p.webPath.startsWith('seed/')))e.push('교체용 예시 사진 교체 또는 제거');return e;
 }
