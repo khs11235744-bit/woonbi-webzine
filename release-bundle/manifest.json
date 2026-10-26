@@ -29,13 +29,6 @@
       "candidateSha256": "d8ae5124a93fb9723cf9c334a0298af328e89a1b3d54497e27f2b27cd4f34db3",
       "newAsset": true,
       "sha256": "d8ae5124a93fb9723cf9c334a0298af328e89a1b3d54497e27f2b27cd4f34db3"
-    },
-    {
-      "path": "/book-preview-qa.html",
-      "candidateSha256": "0ab0b471a3cdadf975364dcec0f003e384b903f27fbc95da7605194dd2af4098",
-      "newAsset": true,
-      "sha256": "0ab0b471a3cdadf975364dcec0f003e384b903f27fbc95da7605194dd2af4098",
-      "qaOnly": true
     }
   ]
 }
