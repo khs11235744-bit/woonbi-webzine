@@ -2,9 +2,19 @@
   "site": "woonbi-webzine-2026",
   "files": [
     {
-      "path": "/js/app.js",
-      "baselineSha256": "4d2ca91a09b09650e5e637e837ad62a01ad1eafa3941122d30121454bd3e0c67",
-      "candidateSha256": "ad47ace91a52ff49e12f1ea5d1467f2b130a65caf993e37273ae173d36dc004b"
+      "path": "/index.html",
+      "baselineSha256": "160cb53e4c10fb9927c9dbe706ef9c9b2e9dd8c7d74ae039fe13396db64154ee",
+      "candidateSha256": "24981db8c228bbc5226a08f905d00e595cafa7a2956ad3796751c31bed0ae97c"
+    },
+    {
+      "path": "/js/home-lead-2026.js",
+      "baselineSha256": "a2589da78f6f170dc9ed1a0601e03324d03e6c1af7ec312b6b1c3e06b7a18ffe",
+      "candidateSha256": "96489d92defe6c33bbaae414c04731a2014f28d69228b6243e59ff71c05a8235"
+    },
+    {
+      "path": "/js/newsroom.js",
+      "baselineSha256": "5423af2ec48da4e545b9eb5c3f38de91fcc5255543a3b5e9b4b402c6bd347656",
+      "candidateSha256": "57c3311fab280dca507c397f0316378d34dfcaa8fecdb2fd5b6005eddd34e81f"
     }
   ]
 }
