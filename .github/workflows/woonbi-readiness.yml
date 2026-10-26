@@ -1,0 +1,39 @@
+name: Woonbi read-only production readiness
+on:
+  push:
+    branches: [woonbi-reviewed-policy-20261026]
+    paths: ['.github/workflows/woonbi-readiness.yml', 'scripts/woonbi-readiness.cjs']
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: woonbi-production
+  cancel-in-progress: false
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: woonbi-webzine-2026
+          workload_identity_provider: projects/285370921993/locations/global/workloadIdentityPools/woonbi-github/providers/github
+          service_account: woonbi-github-deploy@woonbi-webzine-2026.iam.gserviceaccount.com
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/cloud-platform
+          create_credentials_file: false
+          export_environment_variables: false
+      - name: Read current release pointers and rule hashes only
+        env:
+          WOONBI_HOSTING_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+        run: node scripts/woonbi-readiness.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: woonbi-readiness-${{ github.run_id }}
+          path: readiness/readiness.json
+          retention-days: 3
