@@ -1,6 +1,7 @@
 /* Live adapter. Not enabled by the demo; live OAuth/rules/storage must be verified before a school pilot. */
 (function(){
 'use strict';const W=window.Woonbi,C=W.core,SDK='https://www.gstatic.com/firebasejs/12.17.1/';
+function sameDraftValue(a,b){const stable=v=>Array.isArray(v)?v.map(stable):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,stable(v[k])])):v;return JSON.stringify(stable(a))===JSON.stringify(stable(b));}
 class FirebaseStore{
  constructor(config){C.projectGuard(config);this.config=config;this.mode='firebase';this.user=null;this.unsub=null;this.openAdmin=false;}
  async init(){
@@ -102,7 +103,67 @@ class FirebaseStore{
  async createArticle(input){const F=this.F,id=C.uuid(),a=C.newArticle(this.user,{...input,id},new Date().toISOString()),ref=F.doc(this.db,'articles',id);const n={...a,serverWrittenAt:F.serverTimestamp()},b=F.writeBatch(this.db);b.set(ref,n);b.set(F.doc(ref,'revisions','0'),{snapshot:n,actor:this.user.uid,at:F.serverTimestamp()});await b.commit();return a;}
  async mutate(id,expected,fn){const F=this.F,ref=F.doc(this.db,'articles',id);return F.runTransaction(this.db,async tx=>{const doc=await tx.get(ref);if(!doc.exists())throw C.error('missing','원고가 없습니다.');const a={...doc.data(),id};if(a.revision!==expected)throw C.error('conflict','다른 창에서 원고가 바뀌었습니다. 내 글을 보관하고 최신 원고를 다시 열어 주세요.');const next=fn(a),write={...next,serverWrittenAt:F.serverTimestamp()};
   tx.set(ref,write);tx.set(F.doc(ref,'revisions',String(next.revision)),{snapshot:write,actor:this.user.uid,at:F.serverTimestamp()});return next;});}
- saveArticle(id,expected,patch){return this.mutate(id,expected,a=>C.saveDraft(this.user,a,expected,patch,new Date().toISOString()));}
+ async saveArticle(id,expected,patch,{onProgress}={}){
+  this.draftSaveJobs ||= new Set();this.draftSaveCheckpoints ||= new Map();
+  if(this.draftSaveJobs.has(id))throw C.error('busy','이 원고를 저장 중입니다. 저장이 끝날 때까지 기다려 주세요.');
+  this.draftSaveJobs.add(id);let completed=0,total=0,checkpoint=this.draftSaveCheckpoints.get(id);
+  const readCurrent=async()=>{const snap=await this.F.getDocFromServer(this.F.doc(this.db,'articles',id));if(!snap.exists())throw C.error('missing','원고가 없습니다.');return {...snap.data(),id};};
+  const report=()=>{try{onProgress?.({completed,total});}catch{/* UI progress cannot invalidate a committed revision. */}};
+  const matches=(a,b)=>{const clean=x=>{const out={...x};delete out.serverWrittenAt;return out;};return sameDraftValue(clean(a),clean(b));};
+  try{
+   let current=await readCurrent();
+   if(checkpoint?.uncertain){
+    const pending=checkpoint.uncertain;
+    if(current.revision===pending.expected+1&&matches(current,pending.proposed))checkpoint.lastExpected=current.revision;
+    else if(current.revision!==pending.expected)throw C.error('conflict','저장 결과를 확인하는 동안 다른 창에서 원고가 바뀌었습니다.');
+    delete checkpoint.uncertain;
+   }
+   if(checkpoint){
+    if(![checkpoint.baseExpected,checkpoint.lastExpected].includes(expected)||current.revision!==checkpoint.lastExpected)throw C.error('conflict','부분 저장 뒤 다른 창에서 원고가 바뀌었습니다. 최신 원고를 확인해 주세요.');
+   }else if(current.revision!==expected)throw C.error('conflict','다른 창에서 원고가 바뀌었습니다. 내 글을 보관하고 최신 원고를 확인해 주세요.');
+   // Validate the entire intent before any write. Never mutate the caller's pending editor patch.
+   const desired=C.saveDraft(this.user,current,current.revision,patch,new Date().toISOString());
+   const textPatch=C.fields(patch);delete textPatch.photos;
+   const wanted=desired.photos,ids=new Set(wanted.map(p=>p.id)),steps=[];
+   let working=C.clone(current.photos),kept=working.filter(p=>ids.has(p.id));
+   // Reference-only removal: original objects and prior revisions are never deleted.
+   if(kept.length!==working.length){working=kept;steps.push(C.clone(working));}
+   for(const photo of wanted){
+    const i=working.findIndex(p=>p.id===photo.id);
+    if(i<0){working.push(C.clone(photo));steps.push(C.clone(working));}
+    else if(!sameDraftValue(working[i],photo)){working[i]=C.clone(photo);steps.push(C.clone(working));}
+   }
+   // Reorder only after every photo value already exists in a confirmed revision.
+   if(!sameDraftValue(working,wanted))steps.push(C.clone(wanted));
+   if(!steps.length)steps.push(C.clone(wanted)); // Preserve ordinary text/no-op revision semantics.
+   total=steps.length;report();
+   checkpoint={baseExpected:checkpoint?.baseExpected??expected,lastExpected:current.revision};
+   this.draftSaveCheckpoints.set(id,checkpoint);
+   for(const photos of steps){
+    const revision=current.revision,at=new Date().toISOString();let proposed;
+    try{
+     current=await this.mutate(id,revision,a=>{proposed=C.saveDraft(this.user,a,revision,{...textPatch,photos},at);return proposed;});
+    }catch(error){
+     if(error.code==='conflict'||!proposed)throw error;
+     // A lost Commit response is ambiguous: read back before repeating or advancing.
+     let observed;
+     try{observed=await readCurrent();}catch{
+      checkpoint.uncertain={expected:revision,proposed};
+      throw C.error('save-uncertain','서버 저장 결과를 아직 확인하지 못했습니다. 입력은 이 탭에 보관됩니다. 연결 복구 후 저장하면 결과부터 확인합니다.');
+     }
+     if(observed.revision===revision+1&&matches(observed,proposed))current=observed;
+     else if(observed.revision!==revision)throw C.error('conflict','저장 결과 확인 중 다른 원고 변경을 발견했습니다. 최신 원고를 확인해 주세요.');
+     else throw error;
+    }
+    checkpoint.lastExpected=current.revision;completed++;report();
+   }
+   this.draftSaveCheckpoints.delete(id);return current;
+  }catch(error){
+   if(error.code==='conflict')this.draftSaveCheckpoints.delete(id);
+   if(total){const e=C.error(error.code||'save',`${completed}/${total}단계 저장 완료. 남은 입력은 이 탭에 보관됩니다. ${error.message||'다시 저장해 주세요.'}`);e.partialSave={completed,total,revision:checkpoint?.lastExpected};e.cause=error;throw e;}
+   throw error;
+  }finally{this.draftSaveJobs.delete(id);}
+ }
  transition(id,expected,target,options){return this.mutate(id,expected,a=>C.transition(this.user,a,expected,target,options,new Date().toISOString()));}
  async history(id){const F=this.F,s=await F.getDocs(F.query(F.collection(this.db,'articles',id,'revisions'),F.orderBy('at','desc'),F.limit(30)));return s.docs.map(d=>({id:d.id,...d.data()}));}
  async listReviewComments(id){await this.getArticle(id);const F=this.F,s=await F.getDocs(F.query(F.collection(this.db,'articles',id,'reviewComments'),F.orderBy('createdAt','asc'),F.limit(100)));return s.docs.map(d=>({id:d.id,...d.data()}));}
