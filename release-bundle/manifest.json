@@ -20,15 +20,22 @@
     },
     {
       "path": "/js/book-layout-2026.js",
-      "candidateSha256": "00c18c0f157d304280763c60ae93fa6914455e948f902ef45fcf183c037abac5",
+      "candidateSha256": "5489403f69be831a847ffa44d4a118b174d097150de5cee1c2016671a45d7ca1",
       "newAsset": true,
-      "sha256": "00c18c0f157d304280763c60ae93fa6914455e948f902ef45fcf183c037abac5"
+      "sha256": "5489403f69be831a847ffa44d4a118b174d097150de5cee1c2016671a45d7ca1"
     },
     {
       "path": "/book-layout-2026.css",
       "candidateSha256": "d8ae5124a93fb9723cf9c334a0298af328e89a1b3d54497e27f2b27cd4f34db3",
       "newAsset": true,
       "sha256": "d8ae5124a93fb9723cf9c334a0298af328e89a1b3d54497e27f2b27cd4f34db3"
+    },
+    {
+      "path": "/book-preview-qa.html",
+      "candidateSha256": "0ab0b471a3cdadf975364dcec0f003e384b903f27fbc95da7605194dd2af4098",
+      "newAsset": true,
+      "sha256": "0ab0b471a3cdadf975364dcec0f003e384b903f27fbc95da7605194dd2af4098",
+      "qaOnly": true
     }
   ]
 }
