@@ -1,34 +1,11 @@
 {
   "site": "woonbi-webzine-2026",
-  "expectedBase": "sites/woonbi-webzine-2026/versions/57f0171aec1737d9",
+  "expectedBase": "sites/woonbi-webzine-2026/versions/ff8b4cea6b8d43a2",
   "files": [
     {
-      "path": "/index.html",
-      "candidateSha256": "cbd2430d45dff4b00420228668f3de1d69bb1e71b178d7de2891e95c8df7962b",
-      "baselineSha256": "24981db8c228bbc5226a08f905d00e595cafa7a2956ad3796751c31bed0ae97c"
-    },
-    {
       "path": "/js/app.js",
-      "candidateSha256": "374967b4e934a8b0e0563847b25e740a5f8ebea6c06db2bfb0b5fcf8ebe2d673",
-      "baselineSha256": "ad47ace91a52ff49e12f1ea5d1467f2b130a65caf993e37273ae173d36dc004b"
-    },
-    {
-      "path": "/js/book-source-2026.js",
-      "candidateSha256": "0f83c9d4677eb5b65ab442b77ba7faee9ef2a722b443fd2d885577a88f5c7851",
-      "newAsset": true,
-      "sha256": "0f83c9d4677eb5b65ab442b77ba7faee9ef2a722b443fd2d885577a88f5c7851"
-    },
-    {
-      "path": "/js/book-layout-2026.js",
-      "candidateSha256": "5489403f69be831a847ffa44d4a118b174d097150de5cee1c2016671a45d7ca1",
-      "newAsset": true,
-      "sha256": "5489403f69be831a847ffa44d4a118b174d097150de5cee1c2016671a45d7ca1"
-    },
-    {
-      "path": "/book-layout-2026.css",
-      "candidateSha256": "d8ae5124a93fb9723cf9c334a0298af328e89a1b3d54497e27f2b27cd4f34db3",
-      "newAsset": true,
-      "sha256": "d8ae5124a93fb9723cf9c334a0298af328e89a1b3d54497e27f2b27cd4f34db3"
+      "baselineSha256": "374967b4e934a8b0e0563847b25e740a5f8ebea6c06db2bfb0b5fcf8ebe2d673",
+      "candidateSha256": "b12f00d016e2e834cacaeaa8bd448ba02ee143dabbf2ec041afe2d209b1c8865"
     }
   ]
 }
