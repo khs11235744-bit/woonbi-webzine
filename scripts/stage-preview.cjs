@@ -22,7 +22,7 @@ async function main(){
  };
  const upload=async(url,body)=>{const r=await fetch(url,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/octet-stream'},body,signal:AbortSignal.timeout(60000)});if(!r.ok)throw Error('Reviewed file upload failed HTTP '+r.status);};
  const readPublic=async(p)=>{const r=await fetch(`https://${SITE}.web.app${p}?woonbi_review=${Date.now()}`,{headers:{'Cache-Control':'no-cache'},redirect:'error',signal:AbortSignal.timeout(60000)});if(!r.ok)throw Error('Baseline read failed HTTP '+r.status);return Buffer.from(await r.arrayBuffer());};
- const base=await current(request);
+ const base=await current(request);if(base!==manifest.expectedBase)throw Error('Live version differs from reviewed bundle baseline');
  const receipt=await stage({request,upload,readPublic,patches,expectedBase:base});
  fs.mkdirSync('release-receipt',{recursive:true});fs.writeFileSync('release-receipt/staged.json',JSON.stringify(receipt,null,2));
  const channel='woonbi-review-'+run;

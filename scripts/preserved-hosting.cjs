@@ -5,7 +5,8 @@ const {gzipSync}=require('node:zlib');
 const {isDeepStrictEqual}=require('node:util');
 const SITE='woonbi-webzine-2026';
 const PREFIX=`sites/${SITE}/versions/`;
-const ALLOWED=new Set(['/index.html','/js/home-lead-2026.js','/js/app.js','/js/core.js','/js/firebase-store.js','/js/newsroom.js','/contribute.css','/js/contribute-core.js','/js/contribute.js']);
+const ALLOWED=new Set(['/index.html','/js/app.js']);
+const NEW_ASSETS=new Set(['/js/book-source-2026.js','/js/book-layout-2026.js','/book-layout-2026.css']);
 const sha=b=>createHash('sha256').update(b).digest('hex');
 function validVersion(v){if(typeof v!=='string'||!v.startsWith(PREFIX)||!/^[-\w]+$/.test(v.slice(PREFIX.length)))throw Error('Invalid version');return v;}
 async function current(request){return validVersion((await request('GET',`sites/${SITE}/channels/live`)).release?.version?.name);}
@@ -25,10 +26,16 @@ async function stage({request,upload,readPublic,patches,expectedBase}){
  const prior=await request('GET',base), before=await files(request,base), after={...before}, blobs=new Map();
  if(!before['/index.html'])throw Error('Incomplete live manifest');
  for(const p of patches){
-  if(!ALLOWED.has(p.path)||!before[p.path])throw Error('Unapproved/new path');
-  if(!/^[a-f0-9]{64}$/.test(p.baselineSha256||''))throw Error('Missing baseline hash');
-  const live=await readPublic(p.path);if(sha(live)!==p.baselineSha256)throw Error('Live source differs from reviewed baseline: '+p.path);
   if(!Buffer.isBuffer(p.bytes)||!p.bytes.length)throw Error('Missing patch bytes');
+  if(p.newAsset===true){
+   if(!NEW_ASSETS.has(p.path)&&!(p.path==='/book-preview-qa.html'&&p.qaOnly===true))throw Error('Unapproved new path');
+   if(Object.hasOwn(before,p.path))throw Error('New asset collision');
+   if(!/^[a-f0-9]{64}$/.test(p.sha256||'')||sha(p.bytes)!==p.sha256)throw Error('New asset content hash mismatch');
+  }else{
+   if(!ALLOWED.has(p.path)||!before[p.path])throw Error('Unapproved/new path');
+   if(!/^[a-f0-9]{64}$/.test(p.baselineSha256||''))throw Error('Missing baseline hash');
+   const live=await readPublic(p.path);if(sha(live)!==p.baselineSha256)throw Error('Live source differs from reviewed baseline: '+p.path);
+  }
   const compressed=gzipSync(p.bytes,{level:9});const h=sha(compressed);after[p.path]=h;blobs.set(h,compressed);
  }
  if(await current(request)!==base)throw Error('Live version changed');
@@ -47,6 +54,6 @@ async function stage({request,upload,readPublic,patches,expectedBase}){
  const finalized=await request('GET',created.name);
  if(finalized.status!=='FINALIZED'||!isDeepStrictEqual(finalized.config||{},prior.config||{}))throw Error('Staged status/config mismatch');
  if(await current(request)!==base)throw Error('Live version changed; staged version must not promote');
- return {site:SITE,baseVersion:base,candidateVersion:created.name,before,after,config:prior.config||{},changedPaths:patches.map(p=>p.path),rollbackVersion:base};
+ return {qaOnlyPaths:patches.filter(p=>p.qaOnly===true).map(p=>p.path),site:SITE,baseVersion:base,candidateVersion:created.name,before,after,config:prior.config||{},changedPaths:patches.map(p=>p.path),rollbackVersion:base};
 }
 module.exports={SITE,sha,files,current,stage};

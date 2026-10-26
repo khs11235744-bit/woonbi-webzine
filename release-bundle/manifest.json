@@ -1,20 +1,41 @@
 {
   "site": "woonbi-webzine-2026",
+  "expectedBase": "sites/woonbi-webzine-2026/versions/57f0171aec1737d9",
   "files": [
     {
       "path": "/index.html",
-      "baselineSha256": "160cb53e4c10fb9927c9dbe706ef9c9b2e9dd8c7d74ae039fe13396db64154ee",
-      "candidateSha256": "24981db8c228bbc5226a08f905d00e595cafa7a2956ad3796751c31bed0ae97c"
+      "candidateSha256": "cbd2430d45dff4b00420228668f3de1d69bb1e71b178d7de2891e95c8df7962b",
+      "baselineSha256": "24981db8c228bbc5226a08f905d00e595cafa7a2956ad3796751c31bed0ae97c"
     },
     {
-      "path": "/js/home-lead-2026.js",
-      "baselineSha256": "a2589da78f6f170dc9ed1a0601e03324d03e6c1af7ec312b6b1c3e06b7a18ffe",
-      "candidateSha256": "96489d92defe6c33bbaae414c04731a2014f28d69228b6243e59ff71c05a8235"
+      "path": "/js/app.js",
+      "candidateSha256": "87db1e6d8e3582172af50c9c2357b0bb42ac90fe30fa1e8aefb60f42c8ad8c43",
+      "baselineSha256": "ad47ace91a52ff49e12f1ea5d1467f2b130a65caf993e37273ae173d36dc004b"
     },
     {
-      "path": "/js/newsroom.js",
-      "baselineSha256": "5423af2ec48da4e545b9eb5c3f38de91fcc5255543a3b5e9b4b402c6bd347656",
-      "candidateSha256": "57c3311fab280dca507c397f0316378d34dfcaa8fecdb2fd5b6005eddd34e81f"
+      "path": "/js/book-source-2026.js",
+      "candidateSha256": "0f83c9d4677eb5b65ab442b77ba7faee9ef2a722b443fd2d885577a88f5c7851",
+      "newAsset": true,
+      "sha256": "0f83c9d4677eb5b65ab442b77ba7faee9ef2a722b443fd2d885577a88f5c7851"
+    },
+    {
+      "path": "/js/book-layout-2026.js",
+      "candidateSha256": "7b682d80174854fc3c334fb71c1443a97c940f1b5d094d617f2dc2656af6b094",
+      "newAsset": true,
+      "sha256": "7b682d80174854fc3c334fb71c1443a97c940f1b5d094d617f2dc2656af6b094"
+    },
+    {
+      "path": "/book-layout-2026.css",
+      "candidateSha256": "51fae7dffc6247aae40fe9e02393f22a2344d7a55c97f2fdf4006dc1aaad3b5b",
+      "newAsset": true,
+      "sha256": "51fae7dffc6247aae40fe9e02393f22a2344d7a55c97f2fdf4006dc1aaad3b5b"
+    },
+    {
+      "path": "/book-preview-qa.html",
+      "candidateSha256": "00246e5fa4d0c13a738bb3e0e95efec11bc2df27c8fe32a72e7c5485b81b8762",
+      "newAsset": true,
+      "sha256": "00246e5fa4d0c13a738bb3e0e95efec11bc2df27c8fe32a72e7c5485b81b8762",
+      "qaOnly": true
     }
   ]
 }
