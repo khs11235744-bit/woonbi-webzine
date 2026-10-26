@@ -1,0 +1,48 @@
+name: Woonbi guarded book first-load performance
+on:
+  push:
+    branches: [woonbi-reviewed-policy-20261026]
+    paths:
+      - '.github/workflows/woonbi-book-performance-promote.yml'
+      - 'scripts/woonbi-book-performance-promote.cjs'
+      - 'tests/woonbi-book-performance-promote.test.cjs'
+      - 'release-book-performance-production/**'
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: woonbi-production
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Validate guards before authentication
+        run: node --test tests/woonbi-book-performance-promote.test.cjs
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: woonbi-webzine-2026
+          workload_identity_provider: projects/285370921993/locations/global/workloadIdentityPools/woonbi-github/providers/github
+          service_account: woonbi-github-deploy@woonbi-webzine-2026.iam.gserviceaccount.com
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/cloud-platform
+          create_credentials_file: false
+          export_environment_variables: false
+      - name: Guard full manifests and unchanged rules, promote reviewed Hosting only, verify
+        env:
+          WOONBI_HOSTING_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+        run: node scripts/woonbi-book-performance-promote.cjs
+      - name: Preserve exact rollout and rollback pointers
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: woonbi-book-performance-receipt-${{ github.run_id }}
+          path: book-performance-receipt/receipt.json
+          if-no-files-found: ignore
+          retention-days: 7
