@@ -1,0 +1,9 @@
+{
+  "project": "woonbi-webzine-2026",
+  "release": "projects/woonbi-webzine-2026/releases/cloud.firestore",
+  "oldRuleset": "projects/woonbi-webzine-2026/rulesets/29218d9a-9bc9-4b67-900e-92e93bd383d6",
+  "oldHash": "75c00bba3ac2dfa03001034227e8e40f4c7ab52f49281468b5b39a21deaa5295",
+  "candidateHash": "06001a0c062f5dd90a207accaf3040ce80e56d9fa55a5a796a027e774c1c75d6",
+  "hostingVersion": "sites/woonbi-webzine-2026/versions/f166826aeed26768",
+  "storageRuleset": "projects/woonbi-webzine-2026/rulesets/83f7c44d-3b41-4f39-8693-2803211a10cc"
+}
