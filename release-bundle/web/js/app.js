@@ -718,8 +718,25 @@ async function placementPreviewNode(a){
  if(!blocks.length)node.append(h('p',{class:'empty'},'본문을 작성하면 문단과 사진 배치가 여기에 나타납니다.'));
  return node;
 }
+// Inline editorial markup is built as DOM nodes, never interpreted as HTML.
+function inlineArticleText(text){
+ const nodes=[],pattern=/(?<!\\)\[([^\]\n\\]{1,200})\]\((https?:\/\/[^\s()]{1,2048})\)/g;
+ let cursor=0,match;const source=String(text||'');
+ while((match=pattern.exec(source))){
+  if(match.index>cursor)nodes.push(document.createTextNode(source.slice(cursor,match.index)));
+  if(match[1]){
+   let url;try{url=new URL(match[2]);}catch{}
+   if(url&&['http:','https:'].includes(url.protocol)&&!url.username&&!url.password)
+    nodes.push(h('a',{href:url.href,target:'_blank',rel:'noopener noreferrer'},match[1]));
+   else nodes.push(document.createTextNode(match[0]));
+  }
+  cursor=pattern.lastIndex;
+ }
+ if(cursor<source.length)nodes.push(document.createTextNode(source.slice(cursor)));
+ return nodes;
+}
 async function renderArticle(a){const article=h('article',{class:'read-article'},h('div',{class:'eyebrow'},a.category),h('h1',{},a.title),a.deck?h('p',{class:'deck'},a.deck):null,a.byline?.trim()?h('p',{class:'read-meta'},a.byline):null);const copy=h('div',{class:'read-copy'}),pos=C.photoPositions(a);async function addPhotos(key){for(const p of pos.get(key)||[]){const fig=h('figure',{class:p.lastYearSample?'lastyear-detail':p.restored?'restored-detail':''},await imageNode(p));const cap=h('figcaption',{});if(p.lastYearSample)cap.append(h('strong',{class:'lastyear-badge'},'지난 호 자료사진'));else if(p.restored)cap.append(h('strong',{class:'restored-badge'},'복원 자료'));else if(W.editorial.sample(p))cap.append(h('strong',{class:'sample-badge'},'교체용 예시 · 실제 현장 아님'));if(p.caption)cap.append(document.createTextNode(p.caption));if(p.credit)cap.append(h('span',{class:'photo-credit'},'사진 · '+p.credit));fig.append(cap);copy.append(fig);}}
- await addPhotos(-1);for(const b of C.blocks(a.body)){copy.append(h(b.kind==='heading'?'h3':'p',{},b.text));await addPhotos(b.i);}article.append(copy);return article;}
+ await addPhotos(-1);for(const b of C.blocks(a.body)){copy.append(h(b.kind==='heading'?'h3':'p',{},...inlineArticleText(b.text)));await addPhotos(b.i);}article.append(copy);return article;}
 async function legacyRenderPublic(){const pub=(await store.listPublic()).sort((a,b)=>b.publishedAt.localeCompare(a.publishedAt));const head=h('div',{class:'public-heading'},h('div',{class:'eyebrow'},'WOONBI · POHANG HIGH SCHOOL'),h('h1',{},'우리의 학교,\n우리의 이야기.'),h('p',{class:'intro'},'학교의 하루를 학생의 글과 사진으로 기록합니다.'));const grid=h('div',{class:'public-grid'});main.replaceChildren(head,grid);
  if(!pub.length)grid.append(h('div',{class:'empty'},'아직 발행된 기사가 없습니다. 승인 후 발행한 기사만 이곳에 올라옵니다.'));
  for(const a of pub){const card=h('article',{class:'public-card'});if(a.photos[0])card.append(await imageNode(a.photos[0]));else card.append(h('div',{class:'cover-placeholder'},a.category));card.append(h('div',{class:'eyebrow',style:'margin-top:17px'},a.category),h('h2',{},a.title),h('p',{},a.deck||C.paragraphs(a.body)[0]?.slice(0,120)||''),a.byline?.trim()?h('p',{class:'small'},a.byline):null,button('기사 읽기 →',async()=>dialogOpen('웅비 웹진',await renderArticle(a)),'text'));grid.append(card);}
