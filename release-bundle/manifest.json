@@ -2,19 +2,19 @@
   "site": "woonbi-webzine-2026",
   "files": [
     {
-      "path": "/js/core.js",
-      "baselineSha256": "613895b0fd81890ad1ce8fad37e1ad2ae1ded3dd796e2e9fc6682d8177f21b89",
-      "candidateSha256": "1e2a6619557cbff007e05c5f07bdbeb9a23d21cb7ff7620878a4e283bc61321d"
+      "path": "/contribute.css",
+      "baselineSha256": "165d0b49a05eebd4d2b1ac00fa59d949c47435fbe82432493cbe6ad222ccac5c",
+      "candidateSha256": "d9f4972f81cc806c87192346b955b78184dfa1f1fa3d387f0e3b2cb059907cc4"
     },
     {
-      "path": "/js/app.js",
-      "baselineSha256": "8afac5611409bb15d59fe3200aab2e53acbccbbc43b83415a31fa416c4ecff2a",
-      "candidateSha256": "4d2ca91a09b09650e5e637e837ad62a01ad1eafa3941122d30121454bd3e0c67"
+      "path": "/js/contribute-core.js",
+      "baselineSha256": "7a113510f649845542bcb28fed63937e3ae1d91e49e83d651fb1d154b6c1e0cf",
+      "candidateSha256": "69590d3f93ca32a5ac1501b1f24078f74eb17c0ee813e6ffb0ee7ea9080ce384"
     },
     {
-      "path": "/js/newsroom.js",
-      "baselineSha256": "f885e4fbb4ba4edff6b8429b197bb3e639a024556eb53e03a991655a290558c6",
-      "candidateSha256": "5423af2ec48da4e545b9eb5c3f38de91fcc5255543a3b5e9b4b402c6bd347656"
+      "path": "/js/contribute.js",
+      "baselineSha256": "b34ca3d3b44c8c3a4644f6fdea06008156ee7918778597df319c14cfaa0a2ee2",
+      "candidateSha256": "6f14894c7efa33c785c4f6d993f7f4e7a5af3f420bc687222271e5804d593dcb"
     }
   ]
 }
