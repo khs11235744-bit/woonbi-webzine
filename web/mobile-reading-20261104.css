@@ -1,0 +1,26 @@
+/* 2026-11-04 / Woonbi: narrow-screen editorial readability.
+   Layer on top of the current newsroom system without changing articles. */
+@media screen and (max-width:700px){
+  .top,.newsroom-main,.desk-main{min-width:0}
+  .top .masthead{display:flex;min-width:0;align-items:center;justify-content:space-between;gap:12px}
+  .top .brand{display:inline-flex;min-width:0;flex:0 1 auto;gap:10px}
+  .top .brand strong{font-size:clamp(43px,12.5vw,58px);line-height:1.04}
+  .top .brand-kr{font-size:clamp(15px,4.4vw,20px);padding-top:0;min-width:0}
+  .top .brand-kr>span{font-size:9px;letter-spacing:.09em}
+  .top .utility{min-width:0;gap:8px;height:auto;min-height:42px;flex-wrap:wrap}
+  .top .utility>span:last-child{gap:8px;min-width:0;white-space:normal}
+  .top .section-nav{display:flex;min-width:0;gap:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .top .section-nav::-webkit-scrollbar{display:none}
+  .top .section-nav button,.top .section-nav a{flex:0 0 auto;white-space:nowrap;min-height:44px}
+  .n-front,.n-lead,.n-side{min-width:0;max-width:100%}
+  .n-front{grid-template-columns:minmax(0,1fr);gap:22px}
+  .n-lead h1{font-size:clamp(29px,8.5vw,39px);line-height:1.28;overflow-wrap:anywhere;word-break:keep-all}
+  .n-lead-deck{font-size:15px;line-height:1.76;overflow-wrap:anywhere}
+  .n-lead-image .n-photo img{display:block;width:100%;height:auto;min-height:0;max-height:none;object-fit:cover}
+  .n-card h3{word-break:keep-all;overflow-wrap:anywhere}
+  .n-research-grid,.n-feature-grid,.n-more-grid{grid-template-columns:minmax(0,1fr)}
+  #main img{max-width:100%;height:auto}
+}
+@media(prefers-reduced-motion:reduce){
+  .n-photo img{transition:none!important;transform:none!important}
+}
