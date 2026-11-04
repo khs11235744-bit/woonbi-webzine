@@ -1,0 +1,46 @@
+name: Woonbi reading UI regression
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/index.html"
+      - "web/mobile-reading-20261104.css"
+      - "web/editorial-polish.css"
+      - ".github/workflows/mobile-reading.yml"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  editorial-mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Verify stylesheet is linked once and retains a mobile layout
+        run: |
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const html=fs.readFileSync('web/index.html','utf8');
+          const css=fs.readFileSync('web/mobile-reading-20261104.css','utf8');
+          const name='mobile-reading-20261104.css';
+          if((html.match(new RegExp(name.replace('.', '\\.'),'g'))||[]).length!==1)throw Error('Mobile stylesheet link missing or duplicated');
+          if(!css.includes('@media screen and (max-width:700px)'))throw Error('Mobile rules missing');
+          if(!css.includes('.n-lead h1')||!css.includes('.top .section-nav'))throw Error('Editorial readability selectors missing');
+          console.log('Woonbi mobile stylesheet linked and source safeguards present');
+          NODE
+      - name: JavaScript syntax checks
+        run: |
+          node --check web/js/app.js
+          node --check web/js/newsroom.js
+          node --check web/js/editorial.js
+      - name: Core editorial regression checks
+        run: node --test tests/core.test.cjs tests/editorial-layout.test.cjs
+
+# No Firebase deployment or student-data updates are performed by this test.
